@@ -124,23 +124,25 @@ function NS.Pools:Init()
             btn:RegisterForDrag("LeftButton")
             btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
             
-            -- Custom Tooltip Handler (fixes offline bank items)
+            -- Custom Tooltip Handler (fixes offline bank items & flickering)
             btn:SetScript("OnEnter", function(self)
                 if not NS.Config:Get("showTooltips") then return end
                 
-                -- Try default behavior first
-                ContainerFrameItemButton_OnEnter(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 
-                -- If default didn't show tooltip (e.g. offline bank), try manual link
-                if not GameTooltip:IsShown() and self.itemLink then
-                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                -- Try standard bag item first (best for live items with cooldowns etc)
+                local hasItem = GameTooltip:SetBagItem(self:GetParent():GetID(), self:GetID())
+                
+                -- If standard failed (e.g. offline bank), fallback to link
+                if not hasItem and self.itemLink then
                     GameTooltip:SetHyperlink(self.itemLink)
-                    GameTooltip:Show()
                 end
+                
+                GameTooltip:Show()
+                CursorUpdate(self)
             end)
             
             btn:SetScript("OnLeave", function(self)
-                -- ContainerFrameItemButton_OnLeave(self) -- Not available globally
                 GameTooltip:Hide()
                 ResetCursor()
             end)
