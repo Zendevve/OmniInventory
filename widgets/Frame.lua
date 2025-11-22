@@ -625,16 +625,18 @@ function Frames:Update(fullUpdate)
                 -- Store item data reference
                 btn.itemData = itemData
                 
-                -- Search Highlighting: Dim non-matching items (with safety check)
-                if btn.icon then
+                -- Search Highlighting: Dim non-matching items
+                -- Get icon texture properly (WoW template creates it with button name + "Icon")
+                local iconTexture = btn.icon or _G[btn:GetName() .. "Icon"]
+                if iconTexture then
                     if itemData.searchMatch then
                         -- Matching item - bright and normal
-                        btn.icon:SetAlpha(1.0)
-                        btn.icon:SetDesaturated(false)
+                        iconTexture:SetAlpha(1.0)
+                        iconTexture:SetDesaturated(false)
                     else
                         -- Non-matching item - dimmed and desaturated
-                        btn.icon:SetAlpha(0.35)
-                        btn.icon:SetDesaturated(true)
+                        iconTexture:SetAlpha(0.35)
+                        iconTexture:SetDesaturated(true)
                     end
                 end
                 
