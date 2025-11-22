@@ -415,6 +415,11 @@ function Frames:Update(fullUpdate)
     local availableWidth = width - 60 -- Padding (left+right+scrollbar)
     local cols = math.floor((availableWidth + PADDING) / (ITEM_SIZE + PADDING))
     if cols < 1 then cols = 1 end
+    
+    -- Centering offset
+    local gridWidth = cols * ITEM_SIZE + (cols - 1) * PADDING
+    local xOffset = (availableWidth - gridWidth) / 2
+    if xOffset < 0 then xOffset = 0 end
 
     -- Render Sections
     local yOffset = 0
@@ -427,7 +432,7 @@ function Frames:Update(fullUpdate)
         local headerPool = NS.Pools:GetPool("SectionHeader")
         local hdr = headerPool:Acquire()
         hdr:SetParent(self.content)
-        hdr:SetPoint("TOPLEFT", 0, -yOffset)
+        hdr:SetPoint("TOPLEFT", xOffset, -yOffset)
         
         -- Check collapsed state
         local isCollapsed = NS.Config:IsSectionCollapsed(cat)
@@ -491,7 +496,7 @@ function Frames:Update(fullUpdate)
                 local col = (i - 1) % cols
                 
                 btn:ClearAllPoints()
-                btn:SetPoint("TOPLEFT", self.content, "TOPLEFT", col * (ITEM_SIZE + PADDING), -yOffset - (row * (ITEM_SIZE + PADDING)))
+                btn:SetPoint("TOPLEFT", self.content, "TOPLEFT", xOffset + col * (ITEM_SIZE + PADDING), -yOffset - (row * (ITEM_SIZE + PADDING)))
                 
                 -- Data
                 btn:SetID(itemData.slotID)
