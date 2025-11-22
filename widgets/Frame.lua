@@ -39,9 +39,17 @@ function Frames:Init()
         NS.Frames:Update(true) -- Force update on resize end
     end)
     
+    -- Throttled resize updates
+    local resizeThrottle = nil
     self.mainFrame:SetScript("OnSizeChanged", function()
-        -- Optional: Live update during resize (might be expensive)
-        -- NS.Frames:Update(true) 
+        -- Throttle updates to prevent lag (max 10 updates/sec)
+        if not resizeThrottle then
+            resizeThrottle = true
+            C_Timer.After(0.1, function()
+                resizeThrottle = nil
+                NS.Frames:Update(true)
+            end)
+        end
     end)
     
     self.mainFrame:Hide()
