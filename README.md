@@ -1,32 +1,32 @@
 # ZenBags
 
-> **A modern, high-performance inventory addon for World of Warcraft: Wrath of the Lich King**
+**A modern, high-performance inventory addon for World of Warcraft: Wrath of the Lich King**
 
 ZenBags brings zen to your inventory management with blazing-fast performance, intelligent categorization, and a clean, intuitive interface.
 
 ---
 
-## ✨ Features
+## Features
 
-### 🚀 **Performance First**
+### Performance First
 - **Event Bucketing**: Intelligent event coalescing reduces updates from 50/sec to 10/sec
 - **Object Pooling**: Zero garbage collection lag from button reuse
 - **Optimized Rendering**: Only updates what changed, not everything
 - **Smooth as Silk**: 60fps guaranteed, even during intense looting sessions
 
-### 🎯 **Smart Organization**
+### Smart Organization
 - **Auto-Categorization**: Items automatically grouped by type (Quest, Trade Goods, Equipment, etc.)
 - **Visual Hierarchy**: Clear section headers with item counts
 - **Quality Borders**: Color-coded borders for item quality at a glance
 - **Quest Item Highlighting**: Never miss a quest item again
 
-### 🎨 **Clean Interface**
+### Clean Interface
 - **Single Unified Bag**: All your bags in one convenient window
 - **Real-time Search**: Instantly filter items as you type
 - **Space Counter**: Always know how much room you have left
 - **Money Display**: Gold, silver, copper - clearly visible
 
-### 🛡️ **Secure & Reliable**
+### Secure & Reliable
 - **No Taint**: Uses Blizzard's secure templates for item interactions
 - **Drag & Drop**: Drop items anywhere in the bag to auto-place and sort
 - **Right-Click to Use**: All standard item interactions work perfectly
@@ -34,7 +34,7 @@ ZenBags brings zen to your inventory management with blazing-fast performance, i
 
 ---
 
-## 📦 Installation
+## Installation
 
 1. Download the latest release
 2. Extract to `World of Warcraft/Interface/AddOns/`
@@ -43,23 +43,23 @@ ZenBags brings zen to your inventory management with blazing-fast performance, i
 
 ---
 
-## 🎮 Usage
+## Usage
 
-### **Opening Your Bags**
+### Opening Your Bags
 - Press `B` (default keybind)
 - Type `/zb` or `/zenbags`
 - Click your backpack icon
 
-### **Searching**
+### Searching
 - Type in the search box at the top
 - Results filter in real-time
 
-### **Drag & Drop**
+### Drag & Drop
 - Drag items from anywhere (character panel, other bags)
 - Drop anywhere in ZenBags window
 - Items auto-place in first available slot and sort by category
 
-### **Item Interactions**
+### Item Interactions
 - **Left-Click**: Pick up / Place item
 - **Right-Click**: Use / Equip / Consume
 - **Shift-Click**: Link in chat
@@ -67,7 +67,7 @@ ZenBags brings zen to your inventory management with blazing-fast performance, i
 
 ---
 
-## ⚙️ Architecture
+## Architecture
 
 ZenBags is built on proven patterns from the best inventory addons:
 
@@ -83,16 +83,16 @@ ZenBags/
     └── Frame.lua         # Main UI frame
 ```
 
-### **Performance Optimizations**
+### Performance Optimizations
 - **Event Bucketing**: Coalesces rapid-fire `BAG_UPDATE` events
 - **Object Pooling**: Reuses UI elements instead of recreating them
-- **Dirty Flag System**: Only updates changed items (coming soon)
+- **Dirty Flag System**: Only updates changed items (planned)
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
-Currently configured via `Config.lua`. GUI settings panel coming in Phase 2!
+Currently configured via `Config.lua`. GUI settings panel coming in Phase 2.
 
 **Default Settings:**
 ```lua
@@ -105,36 +105,37 @@ itemSize = 37        -- Button size in pixels
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
-### **Phase 1: Core Functionality** ✅
-- [x] Item interactions (drag, drop, use, equip)
-- [x] Auto-categorization
-- [x] Search functionality
-- [x] Performance optimizations
-- [x] Drop-anywhere with auto-sort
+### Phase 1: Core Functionality (Complete)
+- Item interactions (drag, drop, use, equip)
+- Auto-categorization
+- Search functionality
+- Performance optimizations
+- Drop-anywhere with auto-sort
 
-### **Phase 2: Advanced Features** 🚧
-- [ ] Dynamic collapsible sections
-- [ ] Bank integration
-- [ ] Cross-character inventory viewing
-- [ ] Settings GUI
-- [ ] Custom filters
-- [ ] Item level display
-- [ ] New item tracking
+### Phase 2: Advanced Features (In Progress)
+- Dynamic collapsible sections
+- Dirty flag system for optimal updates
+- Bank integration
+- Cross-character inventory viewing
+- Settings GUI
+- Custom filters
+- Item level display
+- New item tracking
 
-### **Phase 3: Polish** 📋
-- [ ] Themes & skins
-- [ ] Advanced sorting options
-- [ ] Profession bag integration
-- [ ] Selling protection
-- [ ] Colorblind mode
+### Phase 3: Polish (Planned)
+- Themes & skins
+- Advanced sorting options
+- Profession bag integration
+- Selling protection
+- Colorblind mode
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-ZenBags is open source and welcomes contributions!
+ZenBags is open source and welcomes contributions.
 
 **Development Setup:**
 ```bash
@@ -150,7 +151,7 @@ cd ZenBags
 
 ---
 
-## 📝 Credits
+## Credits
 
 **Inspired by:**
 - **AdiBags** - Object pooling, modular architecture
@@ -159,24 +160,22 @@ cd ZenBags
 **Built with:**
 - Ace3 framework patterns
 - Blizzard's `ContainerFrameItemButtonTemplate`
-- Love for clean, performant code
+- Clean, performant code principles
 
 ---
 
-## 📄 License
+## License
 
 MIT License - See LICENSE file for details
 
 ---
 
-## 💬 Support
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/Zendevve/ZenBags/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Zendevve/ZenBags/discussions)
 
 ---
 
-<p align="center">
-  <strong>Made with ❤️ for the WotLK community</strong><br>
-  <sub>Bringing zen to your inventory since 2025</sub>
-</p>
+**Made with care for the WotLK community**  
+*Bringing zen to your inventory since 2025*
