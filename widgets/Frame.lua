@@ -6,12 +6,11 @@ local Frames = NS.Frames
 local ITEM_SIZE = 37
 local PADDING = 5
 local SECTION_PADDING = 20
-local COLS_PER_SECTION = 5 -- Items per row within a section
 
 function Frames:Init()
     -- Main Frame
     self.mainFrame = CreateFrame("Frame", "ZenBagsFrame", UIParent)
-    self.mainFrame:SetSize(400, 500) -- Initial size, will resize
+    self.mainFrame:SetSize(500, 500) -- Wider default size
     self.mainFrame:SetPoint("CENTER")
     self.mainFrame:SetBackdrop({
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -21,9 +20,33 @@ function Frames:Init()
     })
     self.mainFrame:EnableMouse(true)
     self.mainFrame:SetMovable(true)
+    self.mainFrame:SetResizable(true) -- Enable resizing
+    self.mainFrame:SetMinResize(300, 300)
     self.mainFrame:RegisterForDrag("LeftButton")
     self.mainFrame:SetScript("OnDragStart", self.mainFrame.StartMoving)
     self.mainFrame:SetScript("OnDragStop", self.mainFrame.StopMovingOrSizing)
+    
+    -- Resize Handle
+    local resizeButton = CreateFrame("Button", nil, self.mainFrame)
+    resizeButton:SetSize(16, 16)
+    resizeButton:SetPoint("BOTTOMRIGHT", -7, 7)
+    resizeButton:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    resizeButton:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    resizeButton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    
+    resizeButton:SetScript("OnMouseDown", function(self, button)
+        self:GetParent():StartSizing("BOTTOMRIGHT")
+    end)
+    resizeButton:SetScript("OnMouseUp", function(self, button)
+        self:GetParent():StopMovingOrSizing()
+        NS.Frames:Update(true) -- Force update on resize end
+    end)
+    
+    self.mainFrame:SetScript("OnSizeChanged", function()
+        -- Optional: Live update during resize (might be expensive)
+        -- NS.Frames:Update(true) 
+    end)
+    
     self.mainFrame:Hide()
 
     -- Title
@@ -273,6 +296,18 @@ function Frames:UpdateMoney()
     self.copperText:SetText(copper)
 end
 
+-- Dummy Bag Getter
+function Frames:GetDummyBag(bagID)
+    if not self.dummyBags then self.dummyBags = {} end
+    if not self.dummyBags[bagID] then
+        -- Create invisible frame to serve as parent with correct ID
+        local f = CreateFrame("Frame", nil, self.content)
+        f:SetID(bagID)
+        self.dummyBags[bagID] = f
+    end
+    return self.dummyBags[bagID]
+end
+
 function Frames:Update(fullUpdate)
     if not self.mainFrame:IsShown() then return end
     
@@ -375,23 +410,16 @@ function Frames:Update(fullUpdate)
     end
     wipe(self.headers)
 
-    -- Dummy Bag Getter
-    function Frames:GetDummyBag(bagID)
-        if not self.dummyBags then self.dummyBags = {} end
-        if not self.dummyBags[bagID] then
-            -- Create invisible frame to serve as parent with correct ID
-            local f = CreateFrame("Frame", nil, self.content)
-            f:SetID(bagID)
-            self.dummyBags[bagID] = f
-        end
-        return self.dummyBags[bagID]
-    end
+    -- Dynamic column calculation
+    local width = self.mainFrame:GetWidth()
+    local availableWidth = width - 30 -- Padding (left+right)
+    local cols = math.floor(availableWidth / ITEM_SIZE)
+    if cols < 1 then cols = 1 end
 
     -- Render Sections
     local yOffset = 0
     local btnIdx = 1
-    local hdrIdx = 1
-
+    
     for _, cat in ipairs(sortedCats) do
         local catItems = groups[cat]
         
@@ -419,7 +447,6 @@ function Frames:Update(fullUpdate)
         
         -- Click handler to toggle
         hdr:SetScript("OnClick", function(self, button)
-            -- print("ZenBags: Header clicked!", cat) -- Debug print removed
             NS.Config:ToggleSectionCollapsed(cat)
             NS.Frames:Update(true)  -- Force full redraw
         end)
@@ -437,105 +464,102 @@ function Frames:Update(fullUpdate)
         
         yOffset = yOffset + 20 -- Header height
 
-        -- Items Grid - only render if not collapsed
+        -- Items Grid
         if not isCollapsed then
-        for i, itemData in ipairs(catItems) do
-            local btn = self.buttons[btnIdx]
-            
-            -- Get the dummy bag frame for this item's bag
-            local dummyBag = self:GetDummyBag(itemData.bagID)
-            
-            -- Object Pooling: Acquire button from pool
-            local pool = NS.Pools:GetPool("ItemButton")
-            btn = pool:Acquire()
-            
-            -- Parent the button to the dummy bag so GetParent():GetID() returns the bag ID
-            btn:SetParent(dummyBag)
-            btn:SetSize(ITEM_SIZE, ITEM_SIZE)
-            
-            self.buttons[btnIdx] = btn
-            -- Re-parent if bag changed
-            if btn:GetParent() ~= dummyBag then
+            for i, itemData in ipairs(catItems) do
+                local btn = self.buttons[btnIdx]
+                
+                -- Get the dummy bag frame for this item's bag
+                local dummyBag = self:GetDummyBag(itemData.bagID)
+                
+                -- Object Pooling: Acquire button from pool
+                local pool = NS.Pools:GetPool("ItemButton")
+                btn = pool:Acquire()
+                
+                -- Parent the button to the dummy bag so GetParent():GetID() returns the bag ID
                 btn:SetParent(dummyBag)
-            end
-
-            -- Grid Position (Relative to content frame, not the dummy bag)
-            local row = math.floor((i - 1) / COLS_PER_SECTION)
-            local col = (i - 1) % COLS_PER_SECTION
-            
-            btn:ClearAllPoints()
-            btn:SetPoint("TOPLEFT", self.content, "TOPLEFT", col * (ITEM_SIZE + PADDING), -yOffset - (row * (ITEM_SIZE + PADDING)))
-            
-            -- Data
-            btn:SetID(itemData.slotID)
-            
-            SetItemButtonTexture(btn, itemData.texture)
-            SetItemButtonCount(btn, itemData.count)
-            
-            -- Quality/Quest Border
-            local isQuestItem, questId, isActive = GetContainerItemQuestInfo(itemData.bagID, itemData.slotID)
-            
-            -- Reset borders
-            btn.IconBorder:Hide()
-            if btn.QualityBorder then btn.QualityBorder:Hide() end
-            
-            if questId and not isActive then
-                btn.IconBorder:SetTexture(TEXTURE_ITEM_QUEST_BANG)
-                btn.IconBorder:SetVertexColor(1, 1, 1)
-                btn.IconBorder:Show()
-            elseif questId or isQuestItem then
-                btn.IconBorder:SetTexture(TEXTURE_ITEM_QUEST_BORDER)
-                btn.IconBorder:SetVertexColor(1, 1, 1)
-                btn.IconBorder:Show()
-            elseif itemData.quality and itemData.quality > 1 then
-                local r, g, b = GetItemQualityColor(itemData.quality)
-                if btn.QualityBorder then
-                    btn.QualityBorder:SetVertexColor(r, g, b)
-                    btn.QualityBorder:Show()
+                btn:SetSize(ITEM_SIZE, ITEM_SIZE)
+                
+                self.buttons[btnIdx] = btn
+                -- Re-parent if bag changed
+                if btn:GetParent() ~= dummyBag then
+                    btn:SetParent(dummyBag)
                 end
-            end
-            
-            -- Cooldown
-            if btn.cooldown then
-                ContainerFrame_UpdateCooldown(itemData.bagID, btn)
-            else
-                if not btn.Cooldown then
-                    btn.Cooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
-                    btn.Cooldown:SetAllPoints()
+
+                -- Grid Position (Relative to content frame, not the dummy bag)
+                local row = math.floor((i - 1) / cols)
+                local col = (i - 1) % cols
+                
+                btn:ClearAllPoints()
+                btn:SetPoint("TOPLEFT", self.content, "TOPLEFT", col * (ITEM_SIZE + PADDING), -yOffset - (row * (ITEM_SIZE + PADDING)))
+                
+                -- Data
+                btn:SetID(itemData.slotID)
+                
+                SetItemButtonTexture(btn, itemData.texture)
+                SetItemButtonCount(btn, itemData.count)
+                
+                -- Quality/Quest Border
+                local isQuestItem, questId, isActive = GetContainerItemQuestInfo(itemData.bagID, itemData.slotID)
+                
+                -- Reset borders
+                btn.IconBorder:Hide()
+                if btn.QualityBorder then btn.QualityBorder:Hide() end
+                
+                if questId and not isActive then
+                    btn.IconBorder:SetTexture(TEXTURE_ITEM_QUEST_BANG)
+                    btn.IconBorder:SetVertexColor(1, 1, 1)
+                    btn.IconBorder:Show()
+                elseif questId or isQuestItem then
+                    btn.IconBorder:SetTexture(TEXTURE_ITEM_QUEST_BORDER)
+                    btn.IconBorder:SetVertexColor(1, 1, 1)
+                    btn.IconBorder:Show()
+                elseif itemData.quality and itemData.quality > 1 then
+                    local r, g, b = GetItemQualityColor(itemData.quality)
+                    if btn.QualityBorder then
+                        btn.QualityBorder:SetVertexColor(r, g, b)
+                        btn.QualityBorder:Show()
+                    end
                 end
-                ContainerFrame_UpdateCooldown(itemData.bagID, btn)
-            end
-            
-            -- Junk Overlay
-            if not btn.junkIcon then
-                btn.junkIcon = btn:CreateTexture(nil, "OVERLAY")
-                btn.junkIcon:SetTexture("Interface\\Buttons\\UI-GroupLoot-Coin-Up")
-                btn.junkIcon:SetPoint("TOPLEFT", 2, -2)
-                btn.junkIcon:SetSize(12, 12)
-            end
-            if itemData.quality == 0 then btn.junkIcon:Show() else btn.junkIcon:Hide() end
+                
+                -- Cooldown
+                if btn.cooldown then
+                    ContainerFrame_UpdateCooldown(itemData.bagID, btn)
+                else
+                    if not btn.Cooldown then
+                        btn.Cooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
+                        btn.Cooldown:SetAllPoints()
+                    end
+                    ContainerFrame_UpdateCooldown(itemData.bagID, btn)
+                end
+                
+                -- Junk Overlay
+                if not btn.junkIcon then
+                    btn.junkIcon = btn:CreateTexture(nil, "OVERLAY")
+                    btn.junkIcon:SetTexture("Interface\\Buttons\\UI-GroupLoot-Coin-Up")
+                    btn.junkIcon:SetPoint("TOPLEFT", 2, -2)
+                    btn.junkIcon:SetSize(12, 12)
+                end
+                if itemData.quality == 0 then btn.junkIcon:Show() else btn.junkIcon:Hide() end
 
-            -- Store item data reference
-            btn.itemData = itemData
-            
-            -- Standard Template handles clicks now!
-            -- We only need to ensure the button is shown
-            btn:Show()
-            
-            btnIdx = btnIdx + 1
-        end
+                -- Store item data reference
+                btn.itemData = itemData
+                
+                -- Standard Template handles clicks now!
+                -- We only need to ensure the button is shown
+                btn:Show()
+                
+                btnIdx = btnIdx + 1
+            end
 
-        
-        -- Calculate section height
-        if not isCollapsed then
-            local numRows = math.ceil(#catItems / COLS_PER_SECTION)
+            -- Calculate section height
+            local numRows = math.ceil(#catItems / cols)
             local sectionHeight = numRows * (ITEM_SIZE + PADDING)
             yOffset = yOffset + sectionHeight + SECTION_PADDING
         else
             -- Collapsed: just add padding
             yOffset = yOffset + SECTION_PADDING
         end
-        end  -- Close if not isCollapsed
     end
     
     self.content:SetHeight(yOffset)
