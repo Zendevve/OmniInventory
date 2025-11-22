@@ -124,32 +124,37 @@ function NS.Pools:Init()
             btn:RegisterForDrag("LeftButton")
             btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
             
-            -- Disable default OnUpdate to prevent tooltip flickering
-            -- (Default OnUpdate calls OnEnter repeatedly, which fails for offline items)
-            btn:SetScript("OnUpdate", nil)
+            -- Dummy Overlay for Offline/Cached Items
+            -- (Prevents default OnUpdate from hiding tooltips for offline items)
+            local dummy = CreateFrame("Button", nil, btn)
+            dummy:SetAllPoints(btn)
+            dummy:RegisterForClicks("AnyUp")
+            dummy:SetFrameLevel(btn:GetFrameLevel() + 5)
+            dummy:Hide() -- Hidden by default
             
-            -- Custom Tooltip Handler (fixes offline bank items & flickering)
-            btn:SetScript("OnEnter", function(self)
+            dummy:SetScript("OnEnter", function(self)
                 if not NS.Config:Get("showTooltips") then return end
+                if not self.itemLink then return end
                 
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                
-                -- Try standard bag item first (best for live items with cooldowns etc)
-                local hasItem = GameTooltip:SetBagItem(self:GetParent():GetID(), self:GetID())
-                
-                -- If standard failed (e.g. offline bank), fallback to link
-                if not hasItem and self.itemLink then
-                    GameTooltip:SetHyperlink(self.itemLink)
-                end
-                
+                GameTooltip:SetHyperlink(self.itemLink)
                 GameTooltip:Show()
                 CursorUpdate(self)
             end)
             
-            btn:SetScript("OnLeave", function(self)
+            dummy:SetScript("OnLeave", function(self)
                 GameTooltip:Hide()
                 ResetCursor()
             end)
+            
+            dummy:SetScript("OnClick", function(self, button)
+                -- Pass clicks to parent if needed, or handle offline clicks
+                -- For now, just consume the click to prevent errors
+            end)
+            
+            btn.dummyOverlay = dummy
+            
+            return btn
             
             return btn
         end,

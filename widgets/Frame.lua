@@ -593,7 +593,16 @@ function Frames:Update(fullUpdate)
                 
                 -- Data
                 btn:SetID(itemData.slotID)
-                btn.itemLink = itemData.link -- Store link for tooltips
+                
+                -- Handle Offline vs Live Tooltips
+                local isOffline = (self.currentView == "bank" and not NS.Inventory.isBankOpen)
+                
+                if isOffline then
+                    btn.dummyOverlay:Show()
+                    btn.dummyOverlay.itemLink = itemData.link
+                else
+                    btn.dummyOverlay:Hide()
+                end
                 
                 SetItemButtonTexture(btn, itemData.texture)
                 SetItemButtonCount(btn, itemData.count)
