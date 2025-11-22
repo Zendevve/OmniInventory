@@ -412,8 +412,8 @@ function Frames:Update(fullUpdate)
 
     -- Dynamic column calculation
     local width = self.mainFrame:GetWidth()
-    local availableWidth = width - 30 -- Padding (left+right)
-    local cols = math.floor(availableWidth / ITEM_SIZE)
+    local availableWidth = width - 60 -- Padding (left+right+scrollbar)
+    local cols = math.floor((availableWidth + PADDING) / (ITEM_SIZE + PADDING))
     if cols < 1 then cols = 1 end
 
     -- Render Sections
