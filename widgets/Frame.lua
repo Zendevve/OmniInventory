@@ -51,7 +51,7 @@ function Frames:Init()
 
     -- Header Background
     self.headerBg = self.mainFrame:CreateTexture(nil, "BACKGROUND")
-    self.headerBg:SetColorTexture(0.1, 0.1, 0.1, 0.9)
+    self.headerBg:SetTexture(0.1, 0.1, 0.1, 0.9) -- Classic-compatible
     self.headerBg:SetPoint("TOPLEFT", 0, 0)
     self.headerBg:SetPoint("TOPRIGHT", 0, 0)
     self.headerBg:SetHeight(60)
