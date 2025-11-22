@@ -22,31 +22,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         end
         
         print("|cFF00FF00ZenBags|r loaded. Type /zb to toggle.")
-```lua
--- Namespace
-local addonName, NS = ...
-
--- Global DB
-ZenBagsDB = ZenBagsDB or {}
-
--- Event Handling
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("ADDON_LOADED")
-eventFrame:RegisterEvent("PLAYER_LOGIN")
-
-eventFrame:SetScript("OnEvent", function(self, event, arg1)
-    if event == "ADDON_LOADED" and arg1 == addonName then
-        -- Initialize Config (must be first)
-        if NS.Config then
-            NS.Config:Init()
-        end
-        
-        -- Initialize Pools (must be before other modules)
-        if NS.Pools then
-            NS.Pools:Init()
-        end
-        
-        print("|cFF00FF00ZenBags|r loaded. Type /zb to toggle.")
         
     elseif event == "PLAYER_LOGIN" then
         -- Initialize modules
@@ -110,4 +85,3 @@ SlashCmdList["ZENBAGS"] = function(msg)
         end
     end
 end
-```
