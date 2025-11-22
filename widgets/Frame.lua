@@ -174,21 +174,27 @@ function Frames:Init()
 end
 
 function Frames:CreateTabs()
-    -- Inventory Tab
-    self.inventoryTab = CreateFrame("Button", nil, self.mainFrame, "UIPanelButtonTemplate")
-    self.inventoryTab:SetSize(80, 22)
-    self.inventoryTab:SetPoint("BOTTOMLEFT", 15, 40)
+    self.mainFrame.numTabs = 2
+    self.mainFrame.Tabs = {}
+
+    -- Tab 1: Inventory
+    self.inventoryTab = CreateFrame("Button", "$parentTab1", self.mainFrame, "CharacterFrameTabButtonTemplate")
+    self.inventoryTab:SetID(1)
+    self.inventoryTab:SetPoint("TOPLEFT", self.mainFrame, "BOTTOMLEFT", 20, 0)
     self.inventoryTab:SetText("Inventory")
     self.inventoryTab:SetScript("OnClick", function() self:SwitchView("bags") end)
-    self.inventoryTab:Disable() -- Default selected
+    table.insert(self.mainFrame.Tabs, self.inventoryTab)
     
-    -- Bank Tab
-    self.bankTab = CreateFrame("Button", nil, self.mainFrame, "UIPanelButtonTemplate")
-    self.bankTab:SetSize(80, 22)
-    self.bankTab:SetPoint("LEFT", self.inventoryTab, "RIGHT", 5, 0)
+    -- Tab 2: Bank
+    self.bankTab = CreateFrame("Button", "$parentTab2", self.mainFrame, "CharacterFrameTabButtonTemplate")
+    self.bankTab:SetID(2)
+    self.bankTab:SetPoint("TOPLEFT", self.inventoryTab, "TOPRIGHT", -16, 0)
     self.bankTab:SetText("Bank")
     self.bankTab:SetScript("OnClick", function() self:SwitchView("bank") end)
-    self.bankTab:SetScript("OnClick", function() self:SwitchView("bank") end)
+    table.insert(self.mainFrame.Tabs, self.bankTab)
+    
+    PanelTemplates_SetNumTabs(self.mainFrame, 2)
+    PanelTemplates_SetTab(self.mainFrame, 1)
     
     -- Show bank tab if we have cached data
     if NS.Inventory:HasCachedBankItems() then
@@ -210,12 +216,10 @@ function Frames:SwitchView(view)
     self.currentView = view
     
     if view == "bags" then
-        self.inventoryTab:Disable()
-        self.bankTab:Enable()
+        PanelTemplates_SetTab(self.mainFrame, 1)
         self.mainFrame.title:SetText("ZenBags")
     else
-        self.inventoryTab:Enable()
-        self.bankTab:Disable()
+        PanelTemplates_SetTab(self.mainFrame, 2)
         if NS.Inventory.isBankOpen then
             self.mainFrame.title:SetText("ZenBags - Bank")
         else
