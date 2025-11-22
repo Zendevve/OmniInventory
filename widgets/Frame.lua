@@ -22,7 +22,6 @@ function Frames:Init()
     self.mainFrame:SetMovable(true)
     self.mainFrame:SetResizable(true) -- Enable resizing
     self.mainFrame:SetMinResize(300, 300)
-    self.mainFrame:SetClampedToScreen(true) -- Prevent frame and tooltips from going off-screen
     self.mainFrame:RegisterForDrag("LeftButton")
     self.mainFrame:SetScript("OnDragStart", self.mainFrame.StartMoving)
     self.mainFrame:SetScript("OnDragStop", self.mainFrame.StopMovingOrSizing)
@@ -50,28 +49,18 @@ function Frames:Init()
     
     self.mainFrame:Hide()
 
-    -- Title Banner (separate frame above main window)
-    self.titleBanner = CreateFrame("Frame", nil, self.mainFrame)
-    self.titleBanner:SetSize(200, 32)
-    self.titleBanner:SetPoint("BOTTOM", self.mainFrame, "TOP", 0, -5)
-    self.titleBanner:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 }
-    })
-    
-    self.titleText = self.titleBanner:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    self.titleText:SetPoint("CENTER")
-    self.titleText:SetText("ZenBags")
+    -- Title
+    self.mainFrame.title = self.mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    self.mainFrame.title:SetPoint("TOP", 0, -15)
+    self.mainFrame.title:SetText("ZenBags")
 
     -- Close Button
     self.mainFrame.closeBtn = CreateFrame("Button", nil, self.mainFrame, "UIPanelCloseButton")
     self.mainFrame.closeBtn:SetPoint("TOPRIGHT", -5, -5)
     
     -- Space Counter
-    self.spaceCounter = self.mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    self.spaceCounter:SetPoint("TOPRIGHT", -30, -15)
+    self.spaceCounter = self.mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    self.spaceCounter:SetPoint("TOPLEFT", self.mainFrame.title, "TOPRIGHT", 10, 0)
     self.spaceCounter:SetText("0/0")
 
     -- Search Box (custom with icon for Classic compatibility)
@@ -93,46 +82,39 @@ function Frames:Init()
     -- Adjust text inset to make room for icon
     self.searchBox:SetTextInsets(20, 10, 0, 0)
 
-    -- Currency Bar (separate frame below main window)
-    self.currencyBar = CreateFrame("Frame", nil, self.mainFrame)
-    self.currencyBar:SetSize(300, 24)
-    self.currencyBar:SetPoint("TOPLEFT", self.mainFrame, "BOTTOMLEFT", 0, 5)
-    self.currencyBar:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    self.currencyBar:SetBackdropColor(0, 0, 0, 0.8)
+    -- Money Frame
+    self.moneyFrame = CreateFrame("Frame", nil, self.mainFrame)
+    self.moneyFrame:SetSize(250, 25)
+    self.moneyFrame:SetPoint("BOTTOMLEFT", self.mainFrame, "BOTTOMLEFT", 15, 40) -- Inside frame, above tabs
     
-    -- Gold
-    self.goldText = self.currencyBar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    self.goldText:SetPoint("LEFT", 10, 0)
+    -- Gold (leftmost)
+    self.goldText = self.moneyFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    self.goldText:SetPoint("LEFT", self.moneyFrame, "LEFT", 0, 0)
     self.goldText:SetText("0")
     
-    self.goldIcon = self.currencyBar:CreateTexture(nil, "ARTWORK")
+    self.goldIcon = self.moneyFrame:CreateTexture(nil, "ARTWORK")
     self.goldIcon:SetTexture("Interface\\MoneyFrame\\UI-GoldIcon")
-    self.goldIcon:SetSize(14, 14)
+    self.goldIcon:SetSize(16, 16)
     self.goldIcon:SetPoint("LEFT", self.goldText, "RIGHT", 3, 0)
     
-    -- Silver
-    self.silverText = self.currencyBar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    -- Silver (middle)
+    self.silverText = self.moneyFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     self.silverText:SetPoint("LEFT", self.goldIcon, "RIGHT", 8, 0)
     self.silverText:SetText("0")
     
-    self.silverIcon = self.currencyBar:CreateTexture(nil, "ARTWORK")
+    self.silverIcon = self.moneyFrame:CreateTexture(nil, "ARTWORK")
     self.silverIcon:SetTexture("Interface\\MoneyFrame\\UI-SilverIcon")
-    self.silverIcon:SetSize(14, 14)
+    self.silverIcon:SetSize(16, 16)
     self.silverIcon:SetPoint("LEFT", self.silverText, "RIGHT", 3, 0)
     
-    -- Copper
-    self.copperText = self.currencyBar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    -- Copper (rightmost)
+    self.copperText = self.moneyFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     self.copperText:SetPoint("LEFT", self.silverIcon, "RIGHT", 8, 0)
     self.copperText:SetText("0")
     
-    self.copperIcon = self.currencyBar:CreateTexture(nil, "ARTWORK")
+    self.copperIcon = self.moneyFrame:CreateTexture(nil, "ARTWORK")
     self.copperIcon:SetTexture("Interface\\MoneyFrame\\UI-CopperIcon")
-    self.copperIcon:SetSize(14, 14)
+    self.copperIcon:SetSize(16, 16)
     self.copperIcon:SetPoint("LEFT", self.copperText, "RIGHT", 3, 0)
 
     -- Scroll Frame (for scrolling through sections)
@@ -245,13 +227,13 @@ function Frames:SwitchView(view)
     
     if view == "bags" then
         PanelTemplates_SetTab(self.mainFrame, 1)
-        self.titleText:SetText("ZenBags")
+        self.mainFrame.title:SetText("ZenBags")
     else
         PanelTemplates_SetTab(self.mainFrame, 2)
         if NS.Inventory.isBankOpen then
-            self.titleText:SetText("ZenBags - Bank")
+            self.mainFrame.title:SetText("ZenBags - Bank")
         else
-            self.titleText:SetText("ZenBags - Bank (Offline)")
+            self.mainFrame.title:SetText("ZenBags - Bank (Offline)")
         end
     end
     
@@ -380,9 +362,9 @@ function Frames:Update(fullUpdate)
         allItems = combinedItems
         
         -- Update title to indicate offline
-        self.titleText:SetText("ZenBags - Bank (Offline)")
+        self.mainFrame.title:SetText("ZenBags - Bank (Offline)")
     elseif self.currentView == "bank" then
-        self.titleText:SetText("ZenBags - Bank")
+        self.mainFrame.title:SetText("ZenBags - Bank")
     end
     
     -- Filter by View and Search
