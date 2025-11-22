@@ -57,7 +57,7 @@ function Frames:Init()
     self.headerDragArea = CreateFrame("Button", nil, self.mainFrame)
     self.headerDragArea:SetPoint("TOPLEFT", 12, -12)
     self.headerDragArea:SetPoint("TOPRIGHT", -12, -12)
-    self.headerDragArea:SetHeight(55)
+    self.headerDragArea:SetHeight(25) -- Only cover title area, not search box
     self.headerDragArea:RegisterForDrag("LeftButton")
     self.headerDragArea:SetScript("OnDragStart", function() self.mainFrame:StartMoving() end)
     self.headerDragArea:SetScript("OnDragStop", function() self.mainFrame:StopMovingOrSizing() end)
