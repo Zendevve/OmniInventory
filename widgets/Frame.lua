@@ -397,19 +397,20 @@ function Frames:Update(fullUpdate)
         self.mainFrame.title:SetText("ZenBags - Bank")
     end
     
-    -- Filter by View and Search
+    -- Filter by View (keep all items, track matches for highlighting)
     for _, item in ipairs(allItems) do
         -- Filter by location (bags vs bank)
         if item.location == self.currentView then
-            -- Filter by search query
+            -- Check if item matches search (but don't filter out)\n            item.searchMatch = false  -- Default to no match
             if query == "" then
-                table.insert(items, item)
+                item.searchMatch = true  -- Empty search = all match
             else
                 local name = GetItemInfo(item.link)
                 if name and name:lower():find(query, 1, true) then
-                    table.insert(items, item)
+                    item.searchMatch = true
                 end
             end
+            table.insert(items, item)
         end
     end
 
@@ -623,6 +624,17 @@ function Frames:Update(fullUpdate)
 
                 -- Store item data reference
                 btn.itemData = itemData
+                
+                -- Search Highlighting: Dim non-matching items
+                if itemData.searchMatch then
+                    -- Matching item - bright and normal
+                    btn.icon:SetAlpha(1.0)
+                    btn.icon:SetDesaturated(false)
+                else
+                    -- Non-matching item - dimmed and desaturated
+                    btn.icon:SetAlpha(0.35)
+                    btn.icon:SetDesaturated(true)
+                end
                 
                 -- Standard Template handles clicks now!
                 -- We only need to ensure the button is shown
