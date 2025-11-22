@@ -49,16 +49,16 @@ function Frames:Init()
     
     self.mainFrame:Hide()
 
-    -- Header Background
+    -- Header Background (subtle semi-transparent)
     self.headerBg = self.mainFrame:CreateTexture(nil, "BACKGROUND")
-    self.headerBg:SetTexture(0.1, 0.1, 0.1, 0.9) -- Classic-compatible
+    self.headerBg:SetTexture(0, 0, 0, 0.6) -- More subtle black with transparency
     self.headerBg:SetPoint("TOPLEFT", 0, 0)
     self.headerBg:SetPoint("TOPRIGHT", 0, 0)
-    self.headerBg:SetHeight(60)
+    self.headerBg:SetHeight(65)
 
     -- Title
-    self.mainFrame.title = self.mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    self.mainFrame.title:SetPoint("TOP", 0, -15)
+    self.mainFrame.title = self.mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    self.mainFrame.title:SetPoint("TOP", 0, -12)
     self.mainFrame.title:SetText("ZenBags")
 
     -- Close Button
@@ -72,9 +72,9 @@ function Frames:Init()
 
     -- Search Box (custom with icon for Classic compatibility)
     self.searchBox = CreateFrame("EditBox", nil, self.mainFrame, "InputBoxTemplate")
-    self.searchBox:SetPoint("TOPLEFT", 15, -35)
-    self.searchBox:SetPoint("TOPRIGHT", -30, -35)
-    self.searchBox:SetHeight(20)
+    self.searchBox:SetPoint("TOPLEFT", 15, -38)
+    self.searchBox:SetPoint("TOPRIGHT", -30, -38)
+    self.searchBox:SetHeight(22)
     self.searchBox:SetAutoFocus(false)
     self.searchBox:SetScript("OnTextChanged", function(self)
         NS.Frames:Update()
@@ -127,7 +127,7 @@ function Frames:Init()
 
     -- Scroll Frame (for scrolling through sections)
     self.scrollFrame = CreateFrame("ScrollFrame", "ZenBagsScrollFrame", self.mainFrame, "UIPanelScrollFrameTemplate")
-    self.scrollFrame:SetPoint("TOPLEFT", 15, -75)
+    self.scrollFrame:SetPoint("TOPLEFT", 15, -80)
     self.scrollFrame:SetPoint("BOTTOMRIGHT", -35, 70)
 
     self.content = CreateFrame("Frame", nil, self.scrollFrame)
