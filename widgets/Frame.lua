@@ -633,11 +633,15 @@ function Frames:Update(fullUpdate)
                         -- Matching item - bright and normal
                         iconTexture:SetAlpha(1.0)
                         iconTexture:SetDesaturated(false)
+                        print("ZenBags: Highlighting MATCH for " .. (GetItemInfo(itemData.link) or "unknown"))
                     else
                         -- Non-matching item - dimmed and desaturated
                         iconTexture:SetAlpha(0.35)
                         iconTexture:SetDesaturated(true)
+                        print("ZenBags: Dimming NON-MATCH for " .. (GetItemInfo(itemData.link) or "unknown"))
                     end
+                else
+                    print("ZenBags: NO ICON TEXTURE for button " .. tostring(btn:GetName()))
                 end
                 
                 -- Standard Template handles clicks now!
