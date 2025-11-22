@@ -180,7 +180,7 @@ function Frames:CreateTabs()
     -- Tab 1: Inventory
     self.inventoryTab = CreateFrame("Button", "$parentTab1", self.mainFrame, "CharacterFrameTabButtonTemplate")
     self.inventoryTab:SetID(1)
-    self.inventoryTab:SetPoint("TOPLEFT", self.mainFrame, "BOTTOMLEFT", 20, 4) -- Overlap frame border
+    self.inventoryTab:SetPoint("TOPLEFT", self.mainFrame, "BOTTOMLEFT", 20, 8) -- Increased overlap to fix gap
     self.inventoryTab:SetText("Inventory")
     self.inventoryTab:SetScript("OnClick", function() self:SwitchView("bags") end)
     table.insert(self.mainFrame.Tabs, self.inventoryTab)
