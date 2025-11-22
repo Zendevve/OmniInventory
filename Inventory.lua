@@ -46,14 +46,14 @@ function Inventory:Init()
                 NS.Frames:UpdateMoney()
             end
         elseif event == "BANKFRAME_OPENED" then
-            Inventory.isBankOpen = true
+            NS.Data:SetBankOpen(true)
             Inventory:ScanBags()
             if NS.Frames then 
                 NS.Frames:ShowBankTab()
                 NS.Frames:Update(true)
             end
         elseif event == "BANKFRAME_CLOSED" then
-            Inventory.isBankOpen = false
+            NS.Data:SetBankOpen(false)
             if NS.Frames then 
                 -- Don't hide bank tab or switch view!
                 -- Just update to show offline state
@@ -121,7 +121,7 @@ function Inventory:ScanBags()
 
     scanList(BAGS, "bags")
     -- scanList({KEYRING}, "keyring") 
-    if self.isBankOpen then
+    if NS.Data:IsBankOpen() then
         scanList(BANK, "bank")
     end
     
@@ -131,46 +131,12 @@ function Inventory:ScanBags()
     -- Sort
     table.sort(self.items, function(a, b) return NS.Categories:CompareItems(a, b) end)
 
-    -- Save to DB for offline viewing
-    if ZenBagsDB then
-        local charKey = UnitName("player") .. " - " .. GetRealmName()
-        ZenBagsDB.characters = ZenBagsDB.characters or {}
-        ZenBagsDB.characters[charKey] = self.items
-        
-        -- Cache bank items specifically if bank is open
-        if self.isBankOpen then
-            ZenBagsDB.bankCache = ZenBagsDB.bankCache or {}
-            ZenBagsDB.bankCache[charKey] = {}
-            
-            -- Filter only bank items for cache
-            for _, item in ipairs(self.items) do
-                if item.location == "bank" then
-                    table.insert(ZenBagsDB.bankCache[charKey], item)
-                end
-            end
-        end
-    end
+    -- Update the Data Layer cache
+    NS.Data:UpdateCache()
 end
 
 function Inventory:GetItems()
     return self.items
-end
-
-function Inventory:GetCachedBankItems()
-    if ZenBagsDB and ZenBagsDB.bankCache then
-        local charKey = UnitName("player") .. " - " .. GetRealmName()
-        return ZenBagsDB.bankCache[charKey] or {}
-    end
-    return {}
-end
-
-function Inventory:HasCachedBankItems()
-    if ZenBagsDB and ZenBagsDB.bankCache then
-        local charKey = UnitName("player") .. " - " .. GetRealmName()
-        local cache = ZenBagsDB.bankCache[charKey]
-        return cache and #cache > 0
-    end
-    return false
 end
 
 function Inventory:MarkDirty(bagID, slotID)

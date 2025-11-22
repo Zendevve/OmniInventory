@@ -258,7 +258,7 @@ function Frames:CreateTabs()
     PanelTemplates_SetTab(self.mainFrame, 1)
     
     -- Show bank tab if we have cached data
-    if NS.Inventory:HasCachedBankItems() then
+    if NS.Data:HasCachedBankItems() then
         self.bankTab:Show()
     else
         self.bankTab:Hide()
@@ -394,9 +394,9 @@ function Frames:Update(fullUpdate)
     local items = {}
     
     -- If viewing bank and bank is closed, load cached items
-    local isOfflineBank = (self.currentView == "bank" and not NS.Inventory.isBankOpen)
+    local isOfflineBank = (self.currentView == "bank" and not NS.Data:IsBankOpen())
     if isOfflineBank then
-        local cachedItems = NS.Inventory:GetCachedBankItems()
+        local cachedItems = NS.Data:GetCachedBankItems()
         -- Merge cached items into allItems for processing
         -- Note: We create a new list to avoid modifying the live inventory
         local combinedItems = {}
@@ -601,9 +601,10 @@ function Frames:Update(fullUpdate)
                 btn:SetID(itemData.slotID)
                 
                 -- Handle Offline vs Live Tooltips
-                local isOffline = (self.currentView == "bank" and not NS.Inventory.isBankOpen)
+                -- Use Data Layer to determine if this bag is cached
+                local isCached = NS.Data:IsCached(itemData.bagID)
                 
-                if isOffline then
+                if isCached then
                     btn.dummyOverlay:Show()
                     btn.dummyOverlay.itemLink = itemData.link
                 else

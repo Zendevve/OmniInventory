@@ -16,6 +16,11 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             NS.Config:Init()
         end
         
+        -- Initialize Data Layer (must be before Inventory)
+        if NS.Data then
+            NS.Data:Init()
+        end
+        
         -- Initialize Pools (must be before other modules)
         if NS.Pools then
             NS.Pools:Init()
