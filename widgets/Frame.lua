@@ -242,8 +242,19 @@ function Frames:Update()
         return prioA < prioB
     end)
 
-    -- Reset UI Elements
-    for _, btn in pairs(self.buttons) do btn:Hide() end
+    -- Object Pooling: Release old buttons back to pool
+    local pool = NS.Pools:GetPool("ItemButton")
+    if pool then
+        for i = #self.buttons, 1, -1 do
+            local btn = self.buttons[i]
+            if btn then
+                pool:Release(btn)
+            end
+        end
+    end
+    wipe(self.buttons)
+    
+    -- Reset headers
     for _, hdr in pairs(self.headers) do hdr:Hide() end
 
     -- Dummy Bag Getter
@@ -286,40 +297,18 @@ function Frames:Update()
             -- Get the dummy bag frame for this item's bag
             local dummyBag = self:GetDummyBag(itemData.bagID)
             
-            if not btn then
-                -- Parent the button to the dummy bag so GetParent():GetID() returns the bag ID
-                btn = CreateFrame("Button", "ZenBagsItem"..btnIdx, dummyBag, "ContainerFrameItemButtonTemplate")
-                btn:SetSize(ITEM_SIZE, ITEM_SIZE)
-
-                -- Ensure IconBorder exists (ContainerFrameItemButtonTemplate uses $parentIconQuestTexture)
-                if not btn.IconBorder then
-                    btn.IconBorder = _G[btn:GetName() .. "IconQuestTexture"] or btn:CreateTexture(nil, "OVERLAY")
-                end
-                
-                -- Create separate Quality Border (to avoid conflicting with Quest Border)
-                if not btn.QualityBorder then
-                    btn.QualityBorder = btn:CreateTexture(nil, "OVERLAY")
-                    btn.QualityBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-                    btn.QualityBorder:SetBlendMode("ADD")
-                    btn.QualityBorder:SetPoint("CENTER")
-                    btn.QualityBorder:SetSize(ITEM_SIZE * 1.6, ITEM_SIZE * 1.6)
-                    btn.QualityBorder:Hide()
-                end
-
-                -- Register for Drag and Clicks to ensure Template handles them
-                btn:RegisterForDrag("LeftButton")
-                btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-                
-                -- Note: We DO NOT set OnClick or OnReceiveDrag scripts here.
-                -- We rely entirely on ContainerFrameItemButtonTemplate to handle
-                -- pickup, placement, and usage securely.
-
-                self.buttons[btnIdx] = btn
-            else
-                -- Re-parent existing button if needed
-                if btn:GetParent() ~= dummyBag then
-                    btn:SetParent(dummyBag)
-                end
+            -- Object Pooling: Acquire button from pool
+            local pool = NS.Pools:GetPool("ItemButton")
+            btn = pool:Acquire()
+            
+            -- Parent the button to the dummy bag so GetParent():GetID() returns the bag ID
+            btn:SetParent(dummyBag)
+            btn:SetSize(ITEM_SIZE, ITEM_SIZE)
+            
+            self.buttons[btnIdx] = btn
+            -- Re-parent if bag changed
+            if btn:GetParent() ~= dummyBag then
+                btn:SetParent(dummyBag)
             end
 
             -- Grid Position (Relative to content frame, not the dummy bag)
