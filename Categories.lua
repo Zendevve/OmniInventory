@@ -4,7 +4,6 @@ NS.Categories = {}
 local Categories = NS.Categories
 
 -- Constants for Categories
-local CAT_RECENTLY_ACQUIRED = "Recently Acquired"
 local CAT_ARMOR = "Armor"
 local CAT_WEAPON = "Weapon"
 local CAT_JEWELRY = "Jewelry"
@@ -52,7 +51,6 @@ local EQUIP_LOC_MAP = {
 
 -- Priority List (Lower index = Higher priority in UI)
 Categories.Priority = {
-    [CAT_RECENTLY_ACQUIRED] = 0, -- Highest priority!
     [CAT_QUEST] = 1,
     [CAT_WEAPON] = 2,
     [CAT_ARMOR] = 3,
@@ -66,14 +64,8 @@ Categories.Priority = {
     [CAT_JUNK] = 11,
 }
 
-function Categories:GetCategory(itemLink, bagID, slotID)
+function Categories:GetCategory(itemLink)
     if not itemLink then return "Empty" end
-
-    -- PRIORITY 0: Recently Acquired
-    -- Check if item is marked as new in Inventory tracking
-    if bagID and slotID and NS.Inventory:IsNew(bagID, slotID) then
-        return CAT_RECENTLY_ACQUIRED
-    end
 
     local name, _, quality, _, _, itemType, itemSubType, _, equipLoc = GetItemInfo(itemLink)
 

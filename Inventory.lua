@@ -112,7 +112,7 @@ function Inventory:ScanBags()
                         quality = quality,
                         itemID = itemID,
                         location = locationType, -- "bags", "bank", "keyring"
-                        category = NS.Categories:GetCategory(link, bagID, slotID)
+                        category = NS.Categories:GetCategory(link)
                     })
                 end
 
