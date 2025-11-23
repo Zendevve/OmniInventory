@@ -8,11 +8,14 @@ function NS.Settings:Init()
     self.frame:SetSize(400, 500)
     self.frame:SetPoint("CENTER")
     self.frame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, edgeSize = 32,
-        insets = { left = 11, right = 12, top = 12, bottom = 11 }
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        tile = false,
+        edgeSize = 1,
+        insets = { left = 0, right = 0, top = 0, bottom = 0 }
     })
+    self.frame:SetBackdropColor(0.10, 0.10, 0.10, 0.95)
+    self.frame:SetBackdropBorderColor(0.0, 0.0, 0.0, 1)
     self.frame:EnableMouse(true)
     self.frame:SetMovable(true)
     self.frame:RegisterForDrag("LeftButton")
@@ -35,7 +38,7 @@ end
 
 function NS.Settings:CreateControls()
     local yOffset = -60
-    
+
     -- === Appearance Section ===
     self:CreateHeader("Appearance", yOffset)
     yOffset = yOffset - 30
@@ -121,22 +124,22 @@ function NS.Settings:CreateSlider(key, label, minVal, maxVal, step, callback, y)
     slider:SetMinMaxValues(minVal, maxVal)
     slider:SetValueStep(step)
     -- slider:SetObeyStepOnDrag(true) -- Not available in Classic
-    
+
     _G[slider:GetName().."Low"]:SetText(minVal)
     _G[slider:GetName().."High"]:SetText(maxVal)
     _G[slider:GetName().."Text"]:SetText(label)
-    
+
     -- Value Label
     local valueLabel = slider:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     valueLabel:SetPoint("TOP", slider, "BOTTOM", 0, 0)
-    
+
     slider:SetScript("OnValueChanged", function(self, value)
         -- Round to avoid floating point weirdness
         value = math.floor(value / step + 0.5) * step
         valueLabel:SetText(string.format("%.1f", value))
         callback(value)
     end)
-    
+
     -- Store for refresh
     self.controls = self.controls or {}
     self.controls[key] = { type = "slider", frame = slider }
@@ -146,11 +149,11 @@ function NS.Settings:CreateCheckbox(key, label, callback, y)
     local cb = CreateFrame("CheckButton", "ZenBagsCheck"..key, self.frame, "InterfaceOptionsCheckButtonTemplate")
     cb:SetPoint("TOPLEFT", 25, y)
     _G[cb:GetName().."Text"]:SetText(label)
-    
+
     cb:SetScript("OnClick", function(self)
         callback(self:GetChecked())
     end)
-    
+
     -- Store for refresh
     self.controls = self.controls or {}
     self.controls[key] = { type = "checkbox", frame = cb }
@@ -158,16 +161,16 @@ end
 
 function NS.Settings:RefreshControls()
     if not self.controls then return end
-    
+
     -- Update UI with current config values
     local config = NS.Config
-    
+
     -- Sliders
     self.controls["Scale"].frame:SetValue(config:Get("scale"))
     self.controls["Opacity"].frame:SetValue(config:Get("opacity"))
     self.controls["ItemSize"].frame:SetValue(config:Get("itemSize"))
     self.controls["Padding"].frame:SetValue(config:Get("padding"))
-    
+
     -- Checkboxes
     self.controls["EnableSearch"].frame:SetChecked(config:Get("enableSearch"))
     self.controls["ShowTooltips"].frame:SetChecked(config:Get("showTooltips"))
