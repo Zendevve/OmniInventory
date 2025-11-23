@@ -821,9 +821,11 @@ function Frames:Update(fullUpdate)
 
         -- Click handler to toggle
         hdr:SetScript("OnClick", function(self, button)
-            if button == "RightButton" and cat == "New Items" then
+            -- Only handle right-click clear if mouse is actually over the header
+            if button == "RightButton" and cat == "New Items" and MouseIsOver(self) then
                 NS.Inventory:ClearAllNewItems()
-            else
+            elseif button ~= "RightButton" or cat ~= "New Items" then
+                -- Left-click or any click on non-New Items headers
                 NS.Config:ToggleSectionCollapsed(cat)
                 NS.Frames:Update(true)  -- Force full redraw
             end

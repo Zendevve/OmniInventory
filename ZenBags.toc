@@ -1,4 +1,4 @@
-## Interface: 30403
+## Interface: 30300
 ## Title: ZenBags
 ## Notes: A comprehensive "One Bag" inventory management addon.
 ## Author: Antigravity
