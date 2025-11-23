@@ -727,6 +727,8 @@ function Frames:Update(fullUpdate)
         local headerPool = NS.Pools:GetPool("SectionHeader")
         local hdr = headerPool:Acquire()
         hdr:SetParent(self.content)
+        -- Set header width to match section's grid width to prevent separator line overlap
+        hdr:SetWidth(sectionGridWidth)
         -- Align header with the grid start (looks cleaner)
         hdr:SetPoint("TOPLEFT", sectionX + sectionXOffset, -sectionY)
 
