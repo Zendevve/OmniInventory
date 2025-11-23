@@ -96,6 +96,10 @@ function Inventory:ScanBags()
 
                 -- Track current state
                 if link then
+                    -- Capture iLevel for equipment
+                    local _, _, _, iLevel, _, _, _, _, equipSlot = GetItemInfo(link)
+                    local isEquipment = (equipSlot and equipSlot ~= "") and (iLevel and iLevel > 1)
+
                     newState[key] = {
                         link = link,
                         count = count,
@@ -111,6 +115,7 @@ function Inventory:ScanBags()
                         count = count,
                         quality = quality,
                         itemID = itemID,
+                        iLevel = isEquipment and iLevel or nil, -- Store iLevel
                         location = locationType, -- "bags", "bank", "keyring"
                         category = NS.Categories:GetCategory(link)
                     })

@@ -880,6 +880,16 @@ function Frames:Update(fullUpdate)
                 end
                 if itemData.quality == 0 then btn.junkIcon:Show() else btn.junkIcon:Hide() end
 
+                -- Item Level Display
+                if btn.ilvl then
+                    if itemData.iLevel then
+                        btn.ilvl:SetText(itemData.iLevel)
+                        -- Color based on quality? For now, stick to the default yellow defined in Pools
+                    else
+                        btn.ilvl:SetText("")
+                    end
+                end
+
                 -- New Item Highlight
                 if NS.Inventory:IsNew(itemData.bagID, itemData.slotID) then
                     if not btn.newGlow then

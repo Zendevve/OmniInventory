@@ -184,6 +184,16 @@ function NS.Pools:Init()
                 btn.emptySlot:Hide()
             end
 
+            -- Item Level Text
+            if not btn.ilvl then
+                btn.ilvl = btn:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+                btn.ilvl:SetPoint("BOTTOMLEFT", 2, 2)
+                btn.ilvl:SetJustifyH("LEFT")
+                btn.ilvl:SetText("")
+                btn.ilvl:SetFont(btn.ilvl:GetFont(), 10, "OUTLINE") -- Small, readable font
+                btn.ilvl:SetTextColor(1, 1, 0.5) -- Light yellow
+            end
+
             -- Register for interactions
             btn:RegisterForDrag("LeftButton")
             btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
