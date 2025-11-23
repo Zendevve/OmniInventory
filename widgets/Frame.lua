@@ -5,17 +5,65 @@ local Frames = NS.Frames
 
 local SECTION_PADDING = 20
 
+-- =============================================================================
+-- ZENBAGS REFORGED THEME CONSTANTS
+-- =============================================================================
+local COLORS = {
+    BG      = {0.10, 0.10, 0.10, 0.95}, -- Main Background (Dark Grey)
+    HEADER  = {0.15, 0.15, 0.15, 1.00}, -- Header Background (Slightly lighter)
+    BORDER  = {0.00, 0.00, 0.00, 1.00}, -- 1px Black Border
+    ACCENT  = {0.20, 0.20, 0.20, 1.00}, -- Separator Lines
+    TEXT    = {0.90, 0.90, 0.90, 1.00}, -- Main Text
+}
+
+-- Helper to create a 1px border around a frame
+local function CreateBorder(f)
+    if f.border then return end
+    f.border = {}
+
+    -- Top
+    f.border.t = f:CreateTexture(nil, "BORDER")
+    f.border.t:SetTexture(unpack(COLORS.BORDER))
+    f.border.t:SetPoint("TOPLEFT", -1, 1)
+    f.border.t:SetPoint("TOPRIGHT", 1, 1)
+    f.border.t:SetHeight(1)
+
+    -- Bottom
+    f.border.b = f:CreateTexture(nil, "BORDER")
+    f.border.b:SetTexture(unpack(COLORS.BORDER))
+    f.border.b:SetPoint("BOTTOMLEFT", -1, -1)
+    f.border.b:SetPoint("BOTTOMRIGHT", 1, -1)
+    f.border.b:SetHeight(1)
+
+    -- Left
+    f.border.l = f:CreateTexture(nil, "BORDER")
+    f.border.l:SetTexture(unpack(COLORS.BORDER))
+    f.border.l:SetPoint("TOPLEFT", -1, 1)
+    f.border.l:SetPoint("BOTTOMLEFT", -1, -1)
+    f.border.l:SetWidth(1)
+
+    -- Right
+    f.border.r = f:CreateTexture(nil, "BORDER")
+    f.border.r:SetTexture(unpack(COLORS.BORDER))
+    f.border.r:SetPoint("TOPRIGHT", 1, 1)
+    f.border.r:SetPoint("BOTTOMRIGHT", 1, -1)
+    f.border.r:SetWidth(1)
+end
+
 function Frames:Init()
     -- Main Frame
     self.mainFrame = CreateFrame("Frame", "ZenBagsFrame", UIParent)
     self.mainFrame:SetSize(500, 500) -- Wider default size
     self.mainFrame:SetPoint("CENTER")
-    self.mainFrame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, edgeSize = 32,
-        insets = { left = 11, right = 12, top = 12, bottom = 11 }
-    })
+
+    -- Flat Dark Background
+    self.mainFrame.bg = self.mainFrame:CreateTexture(nil, "BACKGROUND")
+    self.mainFrame.bg:SetAllPoints()
+    self.mainFrame.bg:SetTexture(unpack(COLORS.BG))
+
+    -- Pixel Border
+    CreateBorder(self.mainFrame)
+
     self.mainFrame:EnableMouse(true)
     self.mainFrame:SetMovable(true)
     self.mainFrame:SetResizable(true) -- Enable resizing
@@ -24,7 +72,7 @@ function Frames:Init()
     -- Resize Handle
     local resizeButton = CreateFrame("Button", nil, self.mainFrame)
     resizeButton:SetSize(16, 16)
-    resizeButton:SetPoint("BOTTOMRIGHT", -7, 7)
+    resizeButton:SetPoint("BOTTOMRIGHT", -2, 2) -- Tighter fit
     resizeButton:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
     resizeButton:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
     resizeButton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
@@ -52,37 +100,37 @@ function Frames:Init()
 
     self.mainFrame:Hide()
 
-    -- Header Background (inset from frame border) - Only covers title area
-    self.headerBg = self.mainFrame:CreateTexture(nil, "BACKGROUND")
-    self.headerBg:SetTexture(0, 0, 0, 0.5) -- Subtle black with transparency
-    self.headerBg:SetPoint("TOPLEFT", 12, -12)
-    self.headerBg:SetPoint("TOPRIGHT", -12, -12)
-    self.headerBg:SetHeight(30) -- Only covers title and close button
+    -- Header Background (Flat & Darker)
+    self.headerBg = self.mainFrame:CreateTexture(nil, "ARTWORK")
+    self.headerBg:SetTexture(unpack(COLORS.HEADER))
+    self.headerBg:SetPoint("TOPLEFT", 0, 0)
+    self.headerBg:SetPoint("TOPRIGHT", 0, 0)
+    self.headerBg:SetHeight(30)
 
     -- Make header draggable (create invisible button for dragging)
     self.headerDragArea = CreateFrame("Button", nil, self.mainFrame)
-    self.headerDragArea:SetPoint("TOPLEFT", 12, -12)
-    self.headerDragArea:SetPoint("TOPRIGHT", -12, -12)
-    self.headerDragArea:SetHeight(25) -- Only cover title area, not search box
+    self.headerDragArea:SetPoint("TOPLEFT", 0, 0)
+    self.headerDragArea:SetPoint("TOPRIGHT", 0, 0)
+    self.headerDragArea:SetHeight(30)
     self.headerDragArea:RegisterForDrag("LeftButton")
     self.headerDragArea:SetScript("OnDragStart", function() self.mainFrame:StartMoving() end)
     self.headerDragArea:SetScript("OnDragStop", function() self.mainFrame:StopMovingOrSizing() end)
 
-    -- Header Separator Line
+    -- Header Separator Line (Thin & Sharp)
     self.headerSeparator = self.mainFrame:CreateTexture(nil, "OVERLAY")
-    self.headerSeparator:SetTexture(0.3, 0.3, 0.3, 0.8) -- Gray line
-    self.headerSeparator:SetPoint("TOPLEFT", 12, -42)
-    self.headerSeparator:SetPoint("TOPRIGHT", -12, -42)
+    self.headerSeparator:SetTexture(unpack(COLORS.ACCENT))
+    self.headerSeparator:SetPoint("TOPLEFT", 0, -30)
+    self.headerSeparator:SetPoint("TOPRIGHT", 0, -30)
     self.headerSeparator:SetHeight(1)
 
     -- Title
     self.mainFrame.title = self.mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    self.mainFrame.title:SetPoint("TOP", 0, -20)
+    self.mainFrame.title:SetPoint("TOP", 0, -8)
     self.mainFrame.title:SetText("ZenBags")
 
     -- Close Button (raised frame level to be above drag area)
     self.mainFrame.closeBtn = CreateFrame("Button", nil, self.mainFrame, "UIPanelCloseButton")
-    self.mainFrame.closeBtn:SetPoint("TOPRIGHT", -5, -5)
+    self.mainFrame.closeBtn:SetPoint("TOPRIGHT", 0, 0) -- Tighter fit
     self.mainFrame.closeBtn:SetFrameLevel(self.mainFrame:GetFrameLevel() + 10) -- Above drag area
 
     -- Settings Button (Gear Icon)
@@ -105,7 +153,7 @@ function Frames:Init()
     -- Character Dropdown Button (Top Left)
     self.charButton = CreateFrame("Button", "ZenBagsCharButton", self.mainFrame)
     self.charButton:SetSize(100, 18)
-    self.charButton:SetPoint("TOPLEFT", 12, -8) -- Aligned with top-left padding
+    self.charButton:SetPoint("TOPLEFT", 8, -6) -- Aligned with top-left padding
     self.charButton:SetFrameLevel(self.mainFrame:GetFrameLevel() + 10)
 
     -- Dropdown arrow texture
