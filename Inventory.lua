@@ -88,6 +88,7 @@ function Inventory:ScanBags()
     local newState = {}
 
     -- Helper to scan a list of bags
+    local function scanList(bagList, locationType)
         local addedItems = {}
         local removedItems = {}
 
