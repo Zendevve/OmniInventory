@@ -37,8 +37,9 @@ function Inventory:Init()
     ZenBagsDB.newItems = {} -- Always start fresh on login
     ZenBagsDB.previousItemCounts = ZenBagsDB.previousItemCounts or {}
 
-    -- Load saved new items state (fresh start)
+    ZenBagsDB.newItems = {} -- Always start fresh on login
     self.newItems = ZenBagsDB.newItems
+    print("ZenBags DEBUG: Init called. newItems cleared.")
 
     -- Load saved previous item counts (Per Character!)
     local charKey = NS.Data:GetCurrentCharacterKey()
@@ -219,7 +220,9 @@ function Inventory:ScanBags()
 
     if self.firstScan then
         self.firstScan = false
-        print("ZenBags: Initial scan complete. Persistence synced.")
+        local newCount = 0
+        for _ in pairs(self.newItems) do newCount = newCount + 1 end
+        print("ZenBags: Initial scan complete. Persistence synced. NewItems Count: " .. newCount)
     end
 
     -- 5. Build Item List
