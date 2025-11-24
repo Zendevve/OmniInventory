@@ -243,15 +243,24 @@ function Inventory:ScanBags()
 
     -- Detect new items
     if shouldDetect then
+        local markedCount = 0
         for itemID, count in pairs(currentCounts) do
             local prevCount = self.previousItemCounts[itemID] or 0
             if count > prevCount then
                 -- Item count increased, mark as new with timestamp
                 self.itemTimestamps[itemID] = currentTime
+                markedCount = markedCount + 1
                 -- Save to character-specific table
                 local charKey = NS.Data:GetCurrentCharacterKey()
                 ZenBagsDB.itemTimestamps[charKey] = self.itemTimestamps
             end
+        end
+        if markedCount > 0 and self.firstScan then
+            print("ZenBags DEBUG: Marked " .. markedCount .. " items as new (prevCount was less than current)")
+        end
+    else
+        if self.firstScan then
+            print("ZenBags DEBUG: Detection SKIPPED (shouldDetect=false)")
         end
     end
 
