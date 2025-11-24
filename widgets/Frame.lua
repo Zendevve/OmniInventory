@@ -757,15 +757,8 @@ function Frames:Update(fullUpdate)
     for _, item in ipairs(allItems) do
         -- Filter by location (bags vs bank)
         if item.location == self.currentView then
-            -- Filter by search query
-            if query == "" then
-                table.insert(items, item)
-            else
-                local name = GetItemInfo(item.link)
-                if name and name:lower():find(query, 1, true) then
-                    table.insert(items, item)
-                end
-            end
+            -- Don't filter by search - we'll dim non-matches instead
+            table.insert(items, item)
         end
     end
 
