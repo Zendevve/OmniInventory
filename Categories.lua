@@ -111,7 +111,7 @@ function Categories:GetAllCategories()
     return categoryList
 end
 
-function Categories:GetCategory(itemLink, isNew)
+function Categories:GetCategory(itemLink, isRecent)
     if not itemLink then return "Empty" end
 
     -- DEBUG: Log categorization with stack trace
@@ -121,8 +121,7 @@ function Categories:GetCategory(itemLink, isNew)
     end
 
     -- 0. Recent Items (Highest Priority)
-    -- BRUTE FORCE: Only allow if session flag is enabled AND not first scan
-    if isNew and NS.Inventory.allowRecentItems and not NS.Inventory.firstScan then
+    if isRecent then
         return CAT_RECENT
     end
 

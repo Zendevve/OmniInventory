@@ -13,14 +13,19 @@ Inventory.items = {}
 Inventory.itemCounts = {} -- itemID -> count
 Inventory.previousItemCounts = {}
 
--- Event bucketing to reduce spam
-Inventory.updatePending = false
-Inventory.bucketDelay = 0.1  -- 100ms delay for coalescing events
+-- Session-based "Recent Items" tracking
+Inventory.sessionCache = {} -- itemID -> count (snapshot at login/reload)
+Inventory.recentItems = {}  -- itemID -> timestamp (when it became recent)
+Inventory.RECENT_TIMEOUT = 900 -- 15 minutes
+Inventory.startupTime = 0
+Inventory.STARTUP_GRACE_PERIOD = 10 -- Seconds to ignore "new" items after login/load
 
--- Dirty flag system for incremental updates
+Inventory.updatePending = false
+Inventory.bucketDelay = 0.1
+
+-- Dirty flag system
 Inventory.dirtySlots = {}
-Inventory.previousState = {}  -- bagID:slotID -> {link, count, texture}
-Inventory.forceFullUpdate = false
+
 
 function Inventory:Init()
     -- Initialize SavedVariables structure
@@ -34,14 +39,9 @@ function Inventory:Init()
         ZenBagsDB.version = DB_VERSION
     end
 
-    -- NEW SYSTEM: Slot-based tracking (in-memory only, never persisted)
-    -- [bagID][slotID] = timestamp
-    self.newSlots = {}
-    for bag = 0, 4 do
-        self.newSlots[bag] = {}
-    end
+    -- Initialize Session Cache
+    self:InitSessionCache()
 
-    print("ZenBags: New slot-based tracking initialized")
 
     self.frame = CreateFrame("Frame")
     self.frame:RegisterEvent("BAG_UPDATE")
@@ -55,15 +55,24 @@ function Inventory:Init()
 
     self.frame:SetScript("OnEvent", function(self, event, arg1)
         if event == "PLAYER_LOGIN" then
-            -- Clear all new item highlights on fresh login
-            wipe(Inventory.newSlots)
-            for bag = 0, 4 do Inventory.newSlots[bag] = {} end
+            -- Reset session cache on login
+            Inventory:InitSessionCache()
+
         elseif event == "PLAYER_ENTERING_WORLD" then
+            -- Start grace period
+            Inventory.startupTime = GetTime()
+
+            -- Ensure we have a baseline snapshot
+            if not Inventory.sessionCacheInitialized then
+                 Inventory:InitSessionCache()
+                 Inventory.sessionCacheInitialized = true
+            end
             Inventory:ScanBags()
             if NS.Frames then NS.Frames:Update(true) end
         elseif event == "BAG_UPDATE" then
-            -- Mark slots as dirty/new
-            Inventory:MarkSlotDirty(arg1)
+            -- Check for new items
+            Inventory:CheckForNewItems(arg1)
+
         elseif event == "PLAYERBANKSLOTS_CHANGED" then
              -- Bank updates
              if NS.Data:IsBankOpen() then
@@ -96,34 +105,89 @@ function Inventory:Init()
     end)
 end
 
-function Inventory:MarkSlotDirty(bagID)
-    if not bagID or bagID < 0 or bagID > 4 then return end
+function Inventory:InitSessionCache()
+    wipe(self.sessionCache)
+    wipe(self.recentItems)
 
-    self.dirtySlots = self.dirtySlots or {}
-    self.dirtySlots[bagID] = true
-
-    -- NEW: Mark new slots when BAG_UPDATE fires
-    local numSlots = GetContainerNumSlots(bagID)
-    if numSlots then
-        for slotID = 1, numSlots do
-            local itemID = GetContainerItemID(bagID, slotID)
-
-            if itemID then
-               -- Slot has item - mark as new if not already marked
-                if not self.newSlots[bagID][slotID] then
-                    self.newSlots[bagID][slotID] = time()
+    for bag = 0, 4 do
+        local numSlots = GetContainerNumSlots(bag)
+        if numSlots then
+            for slot = 1, numSlots do
+                local itemID = GetContainerItemID(bag, slot)
+                if itemID then
+                    local _, count = GetContainerItemInfo(bag, slot)
+                    self.sessionCache[itemID] = (self.sessionCache[itemID] or 0) + (count or 1)
                 end
-            else
-                -- Slot is empty - clear any mark
-                self.newSlots[bagID][slotID] = nil
+            end
+        end
+    end
+end
+
+function Inventory:CheckForNewItems(bagID)
+    -- Snapshot current state of this bag
+    local currentCounts = {}
+
+    -- We need to scan ALL bags to get accurate totals, sadly,
+    -- because an item moving from Bag 1 to Bag 2 looks like +1 in Bag 2 and -1 in Bag 1.
+    -- If we only scan Bag 2, we think it's new.
+    -- Optimization: We could defer this to the OnUpdate bucket, but let's try full scan first for correctness.
+
+    local tempCounts = {}
+    for bag = 0, 4 do
+        local numSlots = GetContainerNumSlots(bag)
+        if numSlots then
+            for slot = 1, numSlots do
+                local itemID = GetContainerItemID(bag, slot)
+                if itemID then
+                    local _, count = GetContainerItemInfo(bag, slot)
+                    tempCounts[itemID] = (tempCounts[itemID] or 0) + (count or 1)
+                end
             end
         end
     end
 
-    -- Debounce updates
+    -- Guard: If session cache isn't initialized (e.g. during login load),
+    -- just update the cache without marking anything as recent.
+    if not self.sessionCacheInitialized then
+        for itemID, count in pairs(tempCounts) do
+            self.sessionCache[itemID] = count
+        end
+        return
+    end
+
+    -- Guard: Startup Grace Period
+    -- During the first few seconds of gameplay, bag updates might be sporadic or partial.
+    -- We suppress "New Item" detection here to prevent the entire inventory from glowing.
+    if (GetTime() - self.startupTime) < self.STARTUP_GRACE_PERIOD then
+         for itemID, count in pairs(tempCounts) do
+            self.sessionCache[itemID] = count
+        end
+        return
+    end
+
+    -- Compare with session cache
+    local now = time()
+    for itemID, count in pairs(tempCounts) do
+        local oldCount = self.sessionCache[itemID] or 0
+        if count > oldCount then
+            -- It's new!
+            self.recentItems[itemID] = { time = now, viewed = false }
+        end
+        -- Update session cache to match current reality
+        self.sessionCache[itemID] = count
+    end
+
+    -- Handle items that were removed (count < oldCount)
+    -- We just update the cache, no need to mark as recent
+    for itemID, count in pairs(self.sessionCache) do
+        if not tempCounts[itemID] then
+             self.sessionCache[itemID] = 0
+        end
+    end
+
+    -- Trigger UI update
     if not self.updatePending then
         self.updatePending = true
-        -- Use OnUpdate for WotLK compatibility
         if not self.timerFrame then
             self.timerFrame = CreateFrame("Frame")
             self.timerFrame:Hide()
@@ -141,6 +205,7 @@ function Inventory:MarkSlotDirty(bagID)
         self.timerFrame:Show()
     end
 end
+
 
 --- Fast path for updating item slot colors without full layout recalculation.
 --- Use this for search highlighting, category color changes, etc.
@@ -160,10 +225,14 @@ function Inventory:UpdateItemSlotColors()
             end
 
             -- Update new item glow
-            if NS.Inventory:IsNew(button.itemData.bagID, button.itemData.slotID) then
-                button.NewItemTexture:Show()
-            else
-                button.NewItemTexture:Hide()
+            if button.newGlow then
+                if NS.Inventory:IsNew(button.itemData.itemID) then
+                    button.newGlow:Show()
+                    if button.newGlow.ag then button.newGlow.ag:Play() end
+                else
+                    button.newGlow:Hide()
+                    if button.newGlow.ag then button.newGlow.ag:Stop() end
+                end
             end
         end
     end
@@ -173,12 +242,11 @@ function Inventory:ScanBags()
     wipe(self.items)
 
     -- Auto-expire old new slots (5 minutes)
+    -- Auto-expire recent items
     local currentTime = time()
-    for bag = 0, 4 do
-        for slot, timestamp in pairs(self.newSlots[bag]) do
-            if currentTime - timestamp > 300 then
-                self.newSlots[bag][slot] = nil
-            end
+    for itemID, data in pairs(self.recentItems) do
+        if currentTime - data.time > self.RECENT_TIMEOUT then
+            self.recentItems[itemID] = nil
         end
     end
 
@@ -195,8 +263,9 @@ function Inventory:ScanBags()
                         local _, _, _, iLevel, _, _, _, _, equipSlot = GetItemInfo(link)
                         local isEquipment = (equipSlot and equipSlot ~= "") and (iLevel and iLevel > 1)
 
-                        -- Check if slot is marked as new
-                        local isNew = self.newSlots[bagID] and self.newSlots[bagID][slotID] ~= nil
+                        -- Check if item is recent
+                        local isRecent = self:IsRecent(itemID)
+
 
                         table.insert(self.items, {
                             bagID = bagID,
@@ -208,7 +277,7 @@ function Inventory:ScanBags()
                             itemID = itemID,
                             iLevel = isEquipment and iLevel or nil,
                             location = locationType,
-                            category = NS.Categories:GetCategory(link, isNew)
+                            category = NS.Categories:GetCategory(link, isRecent)
                         })
                     end
                 end
@@ -261,32 +330,42 @@ end
 -- New Item Tracking
 -- =============================================================================
 
-function Inventory:IsNew(bagID, slotID)
-    if not bagID or not slotID then return false end
-    if bagID < 0 or bagID > 4 then return false end -- Only track main bags
-    return self.newSlots[bagID] and self.newSlots[bagID][slotID] ~= nil
+function Inventory:IsRecent(itemID)
+    if not itemID then return false end
+    return self.recentItems[itemID] ~= nil
 end
 
-function Inventory:ClearNew(bagID, slotID)
-    if not bagID or not slotID then return end
-    if bagID < 0 or bagID > 4 then return end
+function Inventory:IsNew(itemID)
+    if not itemID then return false end
+    local data = self.recentItems[itemID]
+    return data and not data.viewed
+end
 
-    if self.newSlots[bagID] then
-        self.newSlots[bagID][slotID] = nil
+function Inventory:MarkItemViewed(itemID)
+    if self.recentItems[itemID] then
+        self.recentItems[itemID].viewed = true
+        -- Update glow only (fast path)
+        self:UpdateItemSlotColors()
     end
-
-    -- Force update to remove glow
-    if NS.Frames then NS.Frames:Update(true) end
 end
 
 function Inventory:ClearRecentItems()
-    for bag = 0, 4 do
-        wipe(self.newSlots[bag])
-    end
+    wipe(self.recentItems)
     -- Force full update to re-categorize items
     self:ScanBags()
     if NS.Frames then NS.Frames:Update(true) end
 end
+
+function Inventory:ClearRecentItem(itemID)
+    if self.recentItems[itemID] then
+        self.recentItems[itemID] = nil
+        -- Force full update to re-categorize items (it will move out of Recent category)
+        self:ScanBags()
+        if NS.Frames then NS.Frames:Update(true) end
+    end
+end
+
+
 
 function Inventory:GetTrashItems()
     local trashItems = {}
