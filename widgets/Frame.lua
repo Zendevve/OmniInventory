@@ -659,7 +659,7 @@ function Frames:UpdateDropdownList()
 
             -- Text
             btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            btn.text:SetPoint("LEFT", 10, 0)
+            btn.text:SetPoint("LEFT", 20, 0) -- More padding so dot is inside
             btn.text:SetJustifyH("LEFT")
 
             -- Current Indicator (Green Dot)
