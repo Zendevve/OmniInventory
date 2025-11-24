@@ -120,10 +120,10 @@ function Categories:GetCategory(itemLink, isNew)
         print("  Stack: " .. debugstack(2, 1, 0))
     end
 
-    -- 0. Recent Items (Highest Priority)
-    if isNew then
-        return CAT_RECENT
-    end
+    -- DISABLED: Recent Items (debugging)
+    -- if isNew then
+    --     return CAT_RECENT
+    -- end
 
     local name, _, quality, _, _, itemType, itemSubType, _, equipLoc = GetItemInfo(itemLink)
 
