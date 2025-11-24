@@ -283,6 +283,11 @@ function Inventory:ScanBags()
                     -- Check if item is new (by timestamp)
                     local isNew = self.itemTimestamps[itemID] ~= nil
 
+                    -- DEBUG: Log first few items
+                    if self.firstScan and #self.items < 3 then
+                        print("ZenBags DEBUG: Item " .. itemID .. " isNew=" .. tostring(isNew) .. " (timestamp=" .. tostring(self.itemTimestamps[itemID]) .. ")")
+                    end
+
                     table.insert(self.items, {
                         bagID = bagID,
                         slotID = slotID,

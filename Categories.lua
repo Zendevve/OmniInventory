@@ -114,6 +114,11 @@ end
 function Categories:GetCategory(itemLink, isNew)
     if not itemLink then return "Empty" end
 
+    -- DEBUG: Log categorization
+    if isNew then
+        print("ZenBags DEBUG: GetCategory called with isNew=TRUE for " .. (itemLink or "nil"))
+    end
+
     -- 0. Recent Items (Highest Priority)
     if isNew then
         return CAT_RECENT
