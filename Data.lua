@@ -242,6 +242,7 @@ function Data:GetCachedInventoryItems()
                 local itemData = bagData[slot]
                 if itemData then
                     -- Build item in same format as Inventory.lua
+                    -- Cached items are never "new" (they're from offline characters)
                     table.insert(items, {
                         bagID = bag,
                         slotID = slot,
@@ -251,7 +252,7 @@ function Data:GetCachedInventoryItems()
                         quality = itemData.quality,
                         itemID = itemData.itemID,
                         location = "bags",
-                        category = NS.Categories:GetCategory(itemData.link)
+                        category = NS.Categories:GetCategory(itemData.link, false)
                     })
                 end
             end
@@ -279,6 +280,7 @@ function Data:GetCachedBankItems()
                 local itemData = bagData[slot]
                 if itemData then
                     -- Build item in same format as Inventory.lua
+                    -- Cached items are never "new" (they're from offline characters)
                     table.insert(items, {
                         bagID = bag,
                         slotID = slot,
@@ -288,7 +290,7 @@ function Data:GetCachedBankItems()
                         quality = itemData.quality,
                         itemID = itemData.itemID,
                         location = "bank",
-                        category = NS.Categories:GetCategory(itemData.link)
+                        category = NS.Categories:GetCategory(itemData.link, false)
                     })
                 end
             end

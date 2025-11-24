@@ -15,6 +15,7 @@ local CAT_GEM = "Gem"
 local CAT_GLYPH = "Glyph"
 local CAT_MISC = "Miscellaneous"
 local CAT_JUNK = "Junk"
+local CAT_RECENT = "Recent Items"
 
 -- Equipment Slot Mapping
 local EQUIP_LOC_MAP = {
@@ -51,6 +52,7 @@ local EQUIP_LOC_MAP = {
 
 -- Priority List (Lower index = Higher priority in UI)
 Categories.Priority = {
+    [CAT_RECENT] = 0, -- Highest Priority
     [CAT_QUEST] = 1,
     [CAT_WEAPON] = 2,
     [CAT_ARMOR] = 3,
@@ -64,8 +66,13 @@ Categories.Priority = {
     [CAT_JUNK] = 11,
 }
 
-function Categories:GetCategory(itemLink)
+function Categories:GetCategory(itemLink, isNew)
     if not itemLink then return "Empty" end
+
+    -- 0. Recent Items (Highest Priority)
+    if isNew then
+        return CAT_RECENT
+    end
 
     local name, _, quality, _, _, itemType, itemSubType, _, equipLoc = GetItemInfo(itemLink)
 

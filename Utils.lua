@@ -197,6 +197,6 @@ function Utils:SetupSellingProtection()
 
         -- In a real addon, you'd hook the merchant click logic.
         -- For now, let's just print a safety message.
-        print("|cFFFF0000SuperBags:|r Selling Protection Active. Be careful!")
+        print("|cFFFF0000ZenBags:|r Selling Protection Active. Be careful!")
     end)
 end

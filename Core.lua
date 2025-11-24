@@ -15,26 +15,26 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if NS.Config then
             NS.Config:Init()
         end
-        
+
         -- Initialize Data Layer (must be before Inventory)
         if NS.Data then
             NS.Data:Init()
         end
-        
+
         -- Initialize Pools (must be before other modules)
         if NS.Pools then
             NS.Pools:Init()
         end
-        
-        print("|cFF00FF00ZenBags|r loaded. Type /zb to toggle.")
-        
+
+        print("|cFF00FF00ZenBags v0.1|r loaded. Made by |cFF00FFFFZendevve|r. Type /zb to toggle.")
+
     elseif event == "PLAYER_LOGIN" then
         -- Initialize modules
         if NS.Inventory then NS.Inventory:Init() end
         if NS.Frames then NS.Frames:Init() end
         if NS.Utils then NS.Utils:Init() end
         if NS.Settings then NS.Settings:Init() end -- Initialize Settings UI
-        
+
         -- Close any default bags that might be open
         CloseBackpack()
         for i = 1, NUM_BAG_SLOTS do
@@ -65,7 +65,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         function CloseBackpack()
             if NS.Frames then NS.Frames:Hide() end
         end
-        
+
         function ToggleBag(id)
             if NS.Frames then NS.Frames:Toggle() end
         end

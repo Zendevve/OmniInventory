@@ -125,6 +125,21 @@ function Inventory:ScanBags()
                         itemID = itemID
                     }
 
+                    -- Check if item is new BEFORE categorization
+                    -- First check if it's already tracked as new
+                    local isNew = self:IsNew(bagID, slotID)
+
+                    -- If not in our tracking AND this isn't the first scan, it's potentially new
+                    if not isNew and not self.firstScan then
+                        local prev = self.previousState[key]
+                        if not prev then
+                            -- This is a genuinely new item (not a move)
+                            isNew = true
+                            self.newItems[key] = true
+                            ZenBagsDB.newItems = self.newItems
+                        end
+                    end
+
                     table.insert(self.items, {
                         bagID = bagID,
                         slotID = slotID,
@@ -135,11 +150,11 @@ function Inventory:ScanBags()
                         itemID = itemID,
                         iLevel = isEquipment and iLevel or nil, -- Store iLevel
                         location = locationType, -- "bags", "bank", "keyring"
-                        category = NS.Categories:GetCategory(link)
+                        category = NS.Categories:GetCategory(link, isNew)
                     })
                 end
 
-                -- Compare with previous state to detect changes
+                -- Compare with previous state to detect changes (for dirty tracking)
                 local prev = self.previousState[key]
                 local curr = newState[key]
 
@@ -161,26 +176,10 @@ function Inventory:ScanBags()
             end
         end
 
-        -- Process New Items (Filter out moves)
-        if not self.firstScan then
-            for _, added in ipairs(addedItems) do
-                local isMove = false
-                -- Check if this itemID was removed elsewhere
-                for i, removed in ipairs(removedItems) do
-                    if removed.itemID == added.itemID then
-                        -- It's a move! Remove from removedItems so we don't match it again
-                        table.remove(removedItems, i)
-                        isMove = true
-                        break
-                    end
-                end
-
-                if not isMove then
-                    self.newItems[added.bagID .. ":" .. added.slotID] = true
-                    -- Persist to SavedVariables
-                    ZenBagsDB.newItems = self.newItems
-                end
-            end
+        -- Mark dirty slots for removed items
+        for _, removed in ipairs(removedItems) do
+            -- We don't have bag/slot for removed items anymore, just itemID
+            -- Can't mark dirty without coordinates
         end
     end
 
@@ -251,6 +250,14 @@ function Inventory:ClearNew(bagID, slotID)
         -- Force update to remove glow
         if NS.Frames then NS.Frames:Update(true) end
     end
+end
+
+function Inventory:ClearRecentItems()
+    wipe(self.newItems)
+    ZenBagsDB.newItems = self.newItems
+    -- Force full update to re-categorize items
+    self:ScanBags()
+    if NS.Frames then NS.Frames:Update(true) end
 end
 
 -- Helper to extract Item ID from link

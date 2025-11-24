@@ -834,24 +834,47 @@ function Frames:Update(fullUpdate)
         hdr.icon:SetTexture(nil)
 
         -- hdr.text:SetText(cat .. " (" .. #catItems .. ")")
-
         -- Ensure header is clickable and on top
         hdr:SetFrameLevel(self.content:GetFrameLevel() + 10)
         hdr:RegisterForClicks("AnyUp")
 
-        -- Click handler to toggle
-        hdr:SetScript("OnClick", function(self, button)
-            NS.Config:ToggleSectionCollapsed(cat)
-            NS.Frames:Update(true)  -- Force full redraw
-        end)
-
-        -- Hover effects
-        hdr:SetScript("OnEnter", function(self)
-            self.text:SetTextColor(1, 1, 0)  -- Yellow
-        end)
-        hdr:SetScript("OnLeave", function(self)
-            self.text:SetTextColor(1, 1, 1)  -- White
-        end)
+        -- Right-click to clear recent items
+        if cat == "Recent Items" then
+            hdr:SetScript("OnMouseUp", function(self, button)
+                if button == "RightButton" then
+                    NS.Inventory:ClearRecentItems()
+                elseif button == "LeftButton" then
+                    NS.Config:ToggleSectionCollapsed(cat)
+                    NS.Frames:Update(true)
+                end
+            end)
+            -- Add tooltip hint
+            hdr:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText(cat)
+                GameTooltip:AddLine("Left-Click to Collapse/Expand", 1, 1, 1)
+                GameTooltip:AddLine("Right-Click to Clear Recent Items", 1, 0.2, 0.2)
+                GameTooltip:Show()
+                self.text:SetTextColor(1, 1, 0)  -- Yellow
+            end)
+            hdr:SetScript("OnLeave", function(self)
+                GameTooltip:Hide()
+                self.text:SetTextColor(1, 1, 1)  -- White
+            end)
+        else
+            hdr:SetScript("OnMouseUp", function(self, button)
+                if button == "LeftButton" then
+                    NS.Config:ToggleSectionCollapsed(cat)
+                    NS.Frames:Update(true)
+                end
+            end)
+            hdr:SetScript("OnEnter", function(self)
+                self.text:SetTextColor(1, 1, 0)  -- Yellow
+            end)
+            hdr:SetScript("OnLeave", function(self)
+                self.text:SetTextColor(1, 1, 1)  -- White
+            end)
+        end
 
         hdr:Show()
         table.insert(self.headers, hdr)
