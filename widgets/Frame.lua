@@ -594,106 +594,164 @@ function Frames:UpdateMoney()
 end
 
 -- Show character selection dropdown
-function Frames:ShowCharacterDropdown()
-    local chars = NS.Data:GetAvailableCharacters()
+-- Create the custom dropdown frame if it doesn't exist
+function Frames:CreateDropdownFrame()
+    if self.dropdownFrame then return self.dropdownFrame end
 
-    -- Build dropdown menu
-    local menu = {}
+    -- 1. Full-screen Overlay (to catch clicks outside)
+    local overlay = CreateFrame("Button", "ZenBagsDropdownOverlay", UIParent)
+    overlay:SetFrameStrata("FULLSCREEN_DIALOG")
+    overlay:SetAllPoints()
+    overlay:EnableMouse(true)
+    overlay:SetScript("OnClick", function()
+        self.dropdownFrame:Hide()
+    end)
+    overlay:Hide()
+
+    -- 2. Dropdown Container
+    local f = CreateFrame("Frame", "ZenBagsCharacterDropdown", overlay)
+    f:SetSize(200, 100) -- Dynamic height
+    f:SetPoint("TOPLEFT", self.charButton, "BOTTOMLEFT", 0, -2)
+
+    NS.Utils:CreateBackdrop(f)
+    f:SetBackdropColor(0.12, 0.12, 0.12, 1)
+    f:SetBackdropBorderColor(0.2, 0.2, 0.2, 1)
+
+    f.overlay = overlay
+    f.buttons = {}
+
+    f:SetScript("OnShow", function() overlay:Show() end)
+    f:SetScript("OnHide", function() overlay:Hide() end)
+
+    self.dropdownFrame = f
+    return f
+end
+
+-- Populate the dropdown list
+function Frames:UpdateDropdownList()
+    local f = self:CreateDropdownFrame()
+    local chars = NS.Data:GetAvailableCharacters()
+    local BUTTON_HEIGHT = 24
+    local PADDING = 5
+
+    -- Hide existing buttons
+    for _, btn in ipairs(f.buttons) do btn:Hide() end
+
+    local yOffset = -PADDING
+    local btnIdx = 1
+
     for _, charData in ipairs(chars) do
-        local displayName = charData.name
-        if charData.isCurrent then
-            displayName = displayName .. " (Current)"
+        -- Get or Create Button
+        local btn = f.buttons[btnIdx]
+        if not btn then
+            btn = CreateFrame("Button", nil, f)
+            btn:SetSize(190, BUTTON_HEIGHT)
+
+            -- Highlight texture
+            local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+            hl:SetAllPoints()
+            hl:SetTexture(1, 1, 1, 0.1)
+
+            -- Text
+            btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            btn.text:SetPoint("LEFT", 10, 0)
+            btn.text:SetJustifyH("LEFT")
+
+            -- Current Indicator (Green Dot)
+            btn.dot = btn:CreateTexture(nil, "OVERLAY")
+            btn.dot:SetSize(6, 6)
+            btn.dot:SetTexture("Interface\\Buttons\\WHITE8X8")
+            btn.dot:SetVertexColor(0, 1, 0)
+            btn.dot:SetPoint("RIGHT", btn.text, "LEFT", -5, 0)
+
+            -- Delete Button (Trash Icon)
+            local del = CreateFrame("Button", nil, btn)
+            del:SetSize(14, 14)
+            del:SetPoint("RIGHT", -5, 0)
+
+            local delIcon = del:CreateTexture(nil, "ARTWORK")
+            delIcon:SetAllPoints()
+            delIcon:SetTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+            delIcon:SetVertexColor(0.7, 0.7, 0.7)
+            del.icon = delIcon
+
+            del:SetScript("OnEnter", function(self) self.icon:SetVertexColor(1, 0.2, 0.2) end)
+            del:SetScript("OnLeave", function(self) self.icon:SetVertexColor(0.7, 0.7, 0.7) end)
+
+            btn.delBtn = del
+            f.buttons[btnIdx] = btn
         end
 
-        table.insert(menu, {
-            text = displayName,
-            notCheckable = true,
-            func = function()
-                -- Set selected character
-                if charData.isCurrent then
-                    NS.Data:SetSelectedCharacter(nil) -- nil = current character
-                else
-                    NS.Data:SetSelectedCharacter(charData.key)
-                end
+        -- Configure Button
+        btn:ClearAllPoints()
+        btn:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING, yOffset)
+        btn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PADDING, yOffset)
+        btn:Show()
 
-                -- Update button text
-                self.charButton.text:SetText(charData.name)
+        -- Text & State
+        btn.text:SetText(charData.name)
 
-                -- Clear search box when switching characters
-                self.searchBox:SetText("")
+        if charData.isCurrent then
+            btn.dot:Show()
+            btn.text:SetTextColor(1, 1, 1) -- White for current
+            btn.delBtn:Hide() -- Can't delete current
+        else
+            btn.dot:Hide()
+            btn.text:SetTextColor(0.7, 0.7, 0.7) -- Grey for others
+            btn.delBtn:Show()
+        end
 
-                -- Force full update
+        -- Click Handler (Select Character)
+        btn:SetScript("OnClick", function()
+            if charData.isCurrent then
+                NS.Data:SetSelectedCharacter(nil)
+            else
+                NS.Data:SetSelectedCharacter(charData.key)
+            end
+
+            self.charButton.text:SetText(charData.name)
+            self.searchBox:SetText("")
+            self:Update(true)
+            f:Hide()
+        end)
+
+        -- Delete Handler
+        btn.delBtn:SetScript("OnClick", function()
+            -- Simple confirmation by changing text color/icon?
+            -- For now, direct delete with print message (MVP)
+            -- Or better: StaticPopup? No, let's keep it simple.
+
+            NS.Data:DeleteCharacter(charData.key)
+            print("|cFFFF0000ZenBags:|r Deleted data for " .. charData.name)
+
+            -- Refresh list immediately
+            self:UpdateDropdownList()
+
+            -- Reset view if we deleted the viewed character
+            if NS.Data:GetSelectedCharacter() == nil then
+                self.charButton.text:SetText(UnitName("player"))
                 self:Update(true)
             end
-        })
+        end)
+
+        yOffset = yOffset - BUTTON_HEIGHT
+        btnIdx = btnIdx + 1
     end
 
-    -- Add Separator
-    table.insert(menu, { text = "", notCheckable = true, disabled = true })
+    -- Resize Frame
+    f:SetHeight(math.abs(yOffset) + PADDING)
+end
 
-    -- Add Delete Character Submenu
-    local deleteMenu = {}
-    for _, charData in ipairs(chars) do
-        if not charData.isCurrent then -- Can't delete current character
-            table.insert(deleteMenu, {
-                text = "Delete " .. charData.name,
-                notCheckable = true,
-                func = function()
-                    NS.Data:DeleteCharacter(charData.key)
-                    -- Refresh dropdown if open (tricky, so just close it)
-                    CloseDropDownMenus()
-                    -- Reset view if needed
-                    if NS.Data:GetSelectedCharacter() == nil then
-                        self.charButton.text:SetText(UnitName("player"))
-                        self:Update(true)
-                    end
-                    print("|cFFFF0000ZenBags:|r Deleted character data for " .. charData.name)
-                end
-            })
-        end
-    end
+-- Show character selection dropdown
+function Frames:ShowCharacterDropdown()
+    local f = self:CreateDropdownFrame()
 
-    if #deleteMenu > 0 then
-        table.insert(menu, {
-            text = "|cFFFF0000Delete Character|r",
-            notCheckable = true,
-            hasArrow = true,
-            menuList = deleteMenu
-        })
+    if f:IsShown() then
+        f:Hide()
     else
-        table.insert(menu, {
-            text = "|cFF808080Delete Character|r",
-            notCheckable = true,
-            disabled = true,
-            tooltipTitle = "No Characters to Delete",
-            tooltipText = "You can only delete other characters' data.",
-            tooltipOnButton = true
-        })
+        self:UpdateDropdownList()
+        f:Show()
     end
-
-    -- Show dropdown at cursor
-    EasyMenu(menu, CreateFrame("Frame", "ZenBagsCharDropdown", UIParent, "UIDropDownMenuTemplate"), "cursor", 0, 0, "MENU")
-
-    -- Apply flat dark styling to the dropdown
-    -- Use OnUpdate for WotLK compatibility (C_Timer not available)
-    local timer = CreateFrame("Frame")
-    timer:SetScript("OnUpdate", function(self, elapsed)
-        self.elapsed = (self.elapsed or 0) + elapsed
-        if self.elapsed >= 0.01 then
-            local dropdown = _G["DropDownList1"]
-            if dropdown then
-                dropdown:SetBackdrop({
-                    bgFile = "Interface\\Buttons\\WHITE8X8",
-                    edgeFile = "Interface\\Buttons\\WHITE8X8",
-                    tile = false,
-                    edgeSize = 1,
-                })
-                dropdown:SetBackdropColor(0.12, 0.12, 0.12, 0.95)
-                dropdown:SetBackdropBorderColor(0.2, 0.2, 0.2, 1)
-            end
-            self:SetScript("OnUpdate", nil) -- Stop timer
-        end
-    end)
 end
 
 -- Dummy Bag Getter
