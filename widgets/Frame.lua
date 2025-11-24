@@ -609,7 +609,10 @@ function Frames:CreateDropdownFrame()
     overlay:Hide()
 
     -- 2. Dropdown Container
-    local f = CreateFrame("Frame", "ZenBagsCharacterDropdown", overlay)
+    -- Parent to UIParent, NOT overlay, so we can control visibility independently
+    local f = CreateFrame("Frame", "ZenBagsCharacterDropdown", UIParent)
+    f:SetFrameStrata("FULLSCREEN_DIALOG") -- Same strata as overlay
+    f:SetFrameLevel(overlay:GetFrameLevel() + 10) -- Above overlay
     f:SetSize(200, 100) -- Dynamic height
     f:SetPoint("TOPLEFT", self.charButton, "BOTTOMLEFT", 0, -2)
 
@@ -620,6 +623,7 @@ function Frames:CreateDropdownFrame()
     f.overlay = overlay
     f.buttons = {}
 
+    -- Sync overlay visibility with dropdown
     f:SetScript("OnShow", function() overlay:Show() end)
     f:SetScript("OnHide", function() overlay:Hide() end)
 
