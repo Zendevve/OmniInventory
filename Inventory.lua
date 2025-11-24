@@ -37,33 +37,32 @@ function Inventory:Init()
     self.frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
     self.frame:SetScript("OnEvent", function(self, event, arg1)
+        if event == "PLAYER_LOGIN" then
+            -- Clear all new item highlights on fresh login
+            -- Each session starts clean
+            wipe(Inventory.newItems)
+            ZenBagsDB.newItems = Inventory.newItems
+        elseif event == "PLAYER_ENTERING_WORLD" then
+            -- Delayed bag scan to ensure everything is loaded
+            NS.Utils:After(1.0, function()
+                Inventory:ScanBags()
+                if NS.Frames then NS.Frames:Update(true) end
+            end)
+        elseif event == "BAG_UPDATE" or event == "PLAYERBANKSLOTS_CHANGED" then
+            -- Event Bucketing: Coalesce rapid-fire BAG_UPDATE events
+            if not Inventory.updatePending then
+                Inventory.updatePending = true
+                NS.Utils:After(Inventory.bucketDelay, function()
+                    Inventory.updatePending = false
+                    Inventory:ScanBags()
+                    if NS.Frames then NS.Frames:Update() end
+                end)
+            end
+        elseif event == "PLAYER_MONEY" then
+            -- Update money display
+            if NS.Frames and NS.Frames.mainFrame and NS.Frames.mainFrame:IsShown() then
                 NS.Frames:UpdateMoney()
             end
-        elseif event == "BANKFRAME_OPENED" then
-            NS.Data:SetBankOpen(true)
-            Inventory:ScanBags()
-            if NS.Frames then
-                NS.Frames:ShowBankTab()
-                NS.Frames:Update(true)
-            end
-        elseif event == "BANKFRAME_CLOSED" then
-            NS.Data:SetBankOpen(false)
-            if NS.Frames then
-                -- Don't hide bank tab or switch view!
-                -- Just update to show offline state
-                NS.Frames:Update(true)
-            end
-        end
-    end)
-    -- Don't scan here - bags aren't loaded yet!
-    -- Wait for first BAG_UPDATE event instead
-end
-
-function Inventory:ScanBags()
-    wipe(self.items)
-    local newState = {}
-
-    -- Helper to scan a list of bags
     local function scanList(bagList, locationType)
         local addedItems = {}
         local removedItems = {}
