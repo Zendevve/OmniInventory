@@ -186,5 +186,4 @@ function Utils:SkinScrollFrame(scrollFrame)
     for _, child in ipairs(kids) do
         child:Hide()
     end
-    end
 end
