@@ -25,18 +25,14 @@ Inventory.forceFullUpdate = false
 function Inventory:Init()
     -- Initialize SavedVariables structure
     ZenBagsDB = ZenBagsDB or {}
-    ZenBagsDB.newItems = ZenBagsDB.newItems or {}
+    ZenBagsDB.newItems = {} -- Always start fresh on login
     ZenBagsDB.previousItemCounts = ZenBagsDB.previousItemCounts or {}
 
-    -- Load saved new items state
+    -- Load saved new items state (fresh start)
     self.newItems = ZenBagsDB.newItems
 
     -- Load saved previous item counts
     self.previousItemCounts = ZenBagsDB.previousItemCounts
-
-    local count = 0
-    for _ in pairs(self.previousItemCounts) do count = count + 1 end
-    print("ZenBags: Loaded " .. count .. " previous item counts from DB.")
 
     self.frame = CreateFrame("Frame")
     self.frame:RegisterEvent("BAG_UPDATE")
@@ -224,11 +220,8 @@ function Inventory:ScanBags()
         ZenBagsDB.previousItemCounts = self.previousItemCounts
 
         if self.firstScan then
-            print("ZenBags: First scan complete. Found items. persistence initialized.")
             self.firstScan = false
         end
-    else
-        print("ZenBags: First scan found 0 items. Waiting for data...")
     end
 
     -- Sort
