@@ -6,6 +6,18 @@ ZenBags brings zen to your inventory management with blazing-fast performance, i
 
 ---
 
+## 🎉 Recent Updates
+
+**Latest improvements to ZenBags:**
+- ✅ **Recent Items Fixed**: Session-based tracking now works reliably - items marked as new only when actually looted in the current session, with automatic 5-minute expiry
+- ✅ **Vendor Trash Button**: Instantly sell all gray (poor quality) items at merchants with a single click
+- ✅ **Flat Dark UI Theme**: Modern, sleek interface with improved visual hierarchy and professional styling
+- ✅ **Enhanced Settings Panel**: Comprehensive configuration with improved layout and above-UI positioning
+- ✅ **Search Bar Auto-Clear**: Automatically clears when switching character views to prevent unintended filtering
+- ✅ **Performance Optimizations**: Refined event bucketing and object pooling for even smoother operation
+
+---
+
 ## ✨ Features
 
 ### 🚀 Performance First
@@ -40,10 +52,23 @@ ZenBags brings zen to your inventory management with blazing-fast performance, i
 
 ## 📦 Installation
 
+### Option 1: Download Release
 1. Download the latest release from [GitHub Releases](https://github.com/Zendevve/ZenBags/releases)
 2. Extract to `World of Warcraft/Interface/AddOns/`
 3. Restart WoW or reload UI (`/reload`)
-4. Press `B` or type `/zb` to open ZenBags
+
+### Option 2: Clone Repository
+1. Download or clone this repository:
+   ```bash
+   git clone https://github.com/Zendevve/ZenBags.git
+   ```
+2. Copy the `ZenBags` folder to your WoW addons directory:
+   ```
+   World of Warcraft/Interface/AddOns/ZenBags
+   ```
+3. Restart WoW or type `/reload` if already in-game
+
+Once installed, press `B` or type `/zb` to open ZenBags!
 
 ---
 
