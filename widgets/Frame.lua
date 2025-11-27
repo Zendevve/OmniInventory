@@ -141,7 +141,7 @@ function Frames:Init()
     -- Settings Button (Gear Icon) - Now skinned to match Close Button
     self.settingsBtn = NS.Utils:CreateFlatButton(self.mainFrame, "", 20, 20, function()
         if NS.Settings then
-            NS.Settings:Toggle()
+            NS.Settings:Open()
         else
             print("|cFFFF0000ZenBags Error:|r Settings module not loaded.")
         end

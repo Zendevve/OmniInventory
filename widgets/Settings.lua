@@ -2,103 +2,25 @@ local addonName, NS = ...
 
 NS.Settings = {}
 
--- Helper to create a 1px border around a frame (matching main frame)
-local function CreateBorder(f)
-    if f.border then return end
-    f.border = {}
-
-    -- Top
-    f.border.t = f:CreateTexture(nil, "BORDER")
-    f.border.t:SetTexture(0.0, 0.0, 0.0, 1) -- Black
-    f.border.t:SetPoint("TOPLEFT", -1, 1)
-    f.border.t:SetPoint("TOPRIGHT", 1, 1)
-    f.border.t:SetHeight(1)
-
-    -- Bottom
-    f.border.b = f:CreateTexture(nil, "BORDER")
-    f.border.b:SetTexture(0.0, 0.0, 0.0, 1)
-    f.border.b:SetPoint("BOTTOMLEFT", -1, -1)
-    f.border.b:SetPoint("BOTTOMRIGHT", 1, -1)
-    f.border.b:SetHeight(1)
-
-    -- Left
-    f.border.l = f:CreateTexture(nil, "BORDER")
-    f.border.l:SetTexture(0.0, 0.0, 0.0, 1)
-    f.border.l:SetPoint("TOPLEFT", -1, 1)
-    f.border.l:SetPoint("BOTTOMLEFT", -1, -1)
-    f.border.l:SetWidth(1)
-
-    -- Right
-    f.border.r = f:CreateTexture(nil, "BORDER")
-    f.border.r:SetTexture(0.0, 0.0, 0.0, 1)
-    f.border.r:SetPoint("TOPRIGHT", 1, 1)
-    f.border.r:SetPoint("BOTTOMRIGHT", 1, -1)
-    f.border.r:SetWidth(1)
-end
-
 function NS.Settings:Init()
-    -- Create Settings Frame
-    self.frame = CreateFrame("Frame", "ZenBagsSettingsFrame", UIParent)
-    self.frame:SetSize(400, 500)
-    self.frame:SetPoint("CENTER")
+    -- Create Settings Panel for Interface Options
+    self.panel = CreateFrame("Frame", "ZenBagsOptionsPanel", UIParent)
+    self.panel.name = "ZenBags"
 
-    -- Flat Dark Background
-    local bg = self.frame:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetTexture(0.10, 0.10, 0.10, 0.95)
+    -- Title
+    local title = self.panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 16, -16)
+    title:SetText("ZenBags Settings")
 
-    -- Pixel Border (matching main frame)
-    CreateBorder(self.frame)
-
-    self.frame:SetFrameStrata("DIALOG") -- Ensure it appears above other frames
-    self.frame:SetFrameLevel(100) -- High frame level
-    self.frame:EnableMouse(true)
-    self.frame:SetMovable(true)
-    self.frame:RegisterForDrag("LeftButton")
-    self.frame:SetScript("OnDragStart", self.frame.StartMoving)
-    self.frame:SetScript("OnDragStop", self.frame.StopMovingOrSizing)
-    self.frame:Hide()
-
-    -- Header Background (matching main frame)
-    local headerBg = self.frame:CreateTexture(nil, "ARTWORK")
-    headerBg:SetTexture(0.15, 0.15, 0.15, 1) -- COLORS.HEADER
-    headerBg:SetPoint("TOPLEFT", 0, 0)
-    headerBg:SetPoint("TOPRIGHT", 0, 0)
-    headerBg:SetHeight(40)
-
-    -- Header Drag Area
-    local headerDrag = CreateFrame("Button", nil, self.frame)
-    headerDrag:SetPoint("TOPLEFT", 0, 0)
-    headerDrag:SetPoint("TOPRIGHT", 0, 0)
-    headerDrag:SetHeight(40)
-    headerDrag:RegisterForDrag("LeftButton")
-    headerDrag:SetScript("OnDragStart", function() self.frame:StartMoving() end)
-    headerDrag:SetScript("OnDragStop", function() self.frame:StopMovingOrSizing() end)
-
-    -- Header Separator Line
-    local separator = self.frame:CreateTexture(nil, "OVERLAY")
-    separator:SetTexture(0.20, 0.20, 0.20, 1) -- COLORS.ACCENT
-    separator:SetPoint("TOPLEFT", 0, -40)
-    separator:SetPoint("TOPRIGHT", 0, -40)
-    separator:SetHeight(1)
-
-    -- Title (in header)
-    self.title = self.frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    self.title:SetPoint("LEFT", headerBg, "LEFT", 15, 0)
-    self.title:SetText("ZenBags Settings")
-
-    -- Close Button (in header, raised frame level)
-    self.closeBtn = NS.Utils:CreateCloseButton(self.frame)
-    self.closeBtn:SetPoint("TOPRIGHT", -5, -10)
-    self.closeBtn:SetFrameLevel(self.frame:GetFrameLevel() + 10)
-    self.closeBtn:SetScript("OnClick", function() self:Toggle() end)
+    -- Register with Blizzard's Interface Options
+    InterfaceOptions_AddCategory(self.panel)
 
     -- Create Controls
     self:CreateControls()
 end
 
 function NS.Settings:CreateControls()
-    local yOffset = -55 -- Start below header
+    local yOffset = -50 -- Start below title
 
     -- === Appearance Section ===
     self:CreateHeader("Appearance", yOffset)
@@ -160,32 +82,58 @@ function NS.Settings:CreateControls()
     yOffset = yOffset - 50
 
     -- Reset Button
-    local resetBtn = NS.Utils:CreateFlatButton(self.frame, "Reset Defaults", 120, 25, function()
+    local resetBtn = CreateFrame("Button", nil, self.panel, "UIPanelButtonTemplate")
+    resetBtn:SetSize(120, 25)
+    resetBtn:SetText("Reset Defaults")
+    resetBtn:SetScript("OnClick", function()
         NS.Config:Reset()
         self:RefreshControls()
         NS.Frames:Update(true)
         print("|cFF00FF00ZenBags:|r Settings reset to defaults.")
     end)
-    resetBtn:SetPoint("BOTTOM", 0, 20)
+    resetBtn:SetPoint("TOPLEFT", 20, yOffset)
+
+    -- Initial Refresh
+    self:RefreshControls()
+
+    -- Hook into the panel's OnShow to refresh controls
+    self.panel:SetScript("OnShow", function()
+        self:RefreshControls()
+    end)
 end
 
 function NS.Settings:CreateHeader(text, y)
-    local header = self.frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local header = self.panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     header:SetPoint("TOPLEFT", 20, y)
     header:SetText(text)
-    header:SetTextColor(0.9, 0.9, 0.9, 1)
+    header:SetTextColor(1, 0.82, 0, 1) -- Standard gold header color
 
     -- Add separator line under header
-    local line = self.frame:CreateTexture(nil, "ARTWORK")
-    line:SetTexture(0.20, 0.20, 0.20, 1)
+    local line = self.panel:CreateTexture(nil, "ARTWORK")
+    line:SetTexture(0.4, 0.4, 0.4, 0.5)
     line:SetHeight(1)
     line:SetPoint("TOPLEFT", 20, y - 18)
-    line:SetPoint("TOPRIGHT", -20, y - 18)
+    line:SetPoint("RIGHT", -20, 0)
 end
 
 function NS.Settings:CreateSlider(key, label, minVal, maxVal, step, callback, y)
-    local slider = NS.Utils:CreateFlatSlider(self.frame, label, minVal, maxVal, step, callback)
+    -- Use standard slider template but parent to our panel
+    local slider = CreateFrame("Slider", "ZenBagsOption_"..key, self.panel, "OptionsSliderTemplate")
     slider:SetPoint("TOPLEFT", 30, y)
+    slider:SetWidth(200)
+
+    getglobal(slider:GetName() .. 'Low'):SetText(minVal)
+    getglobal(slider:GetName() .. 'High'):SetText(maxVal)
+    getglobal(slider:GetName() .. 'Text'):SetText(label)
+
+    slider:SetMinMaxValues(minVal, maxVal)
+    slider:SetValueStep(step)
+
+    slider:SetScript("OnValueChanged", function(self, value)
+        -- Round to step
+        value = math.floor(value / step + 0.5) * step
+        callback(value)
+    end)
 
     -- Store for refresh
     self.controls = self.controls or {}
@@ -193,8 +141,14 @@ function NS.Settings:CreateSlider(key, label, minVal, maxVal, step, callback, y)
 end
 
 function NS.Settings:CreateCheckbox(key, label, callback, y)
-    local cb = NS.Utils:CreateFlatCheckbox(self.frame, label, callback)
+    local cb = CreateFrame("CheckButton", "ZenBagsOption_"..key, self.panel, "InterfaceOptionsCheckButtonTemplate")
     cb:SetPoint("TOPLEFT", 25, y)
+    getglobal(cb:GetName() .. 'Text'):SetText(label)
+
+    cb:SetScript("OnClick", function(self)
+        local checked = self:GetChecked()
+        callback(checked)
+    end)
 
     -- Store for refresh
     self.controls = self.controls or {}
@@ -208,22 +162,19 @@ function NS.Settings:RefreshControls()
     local config = NS.Config
 
     -- Sliders
-    self.controls["Scale"].frame:SetValue(config:Get("scale"))
-    self.controls["Opacity"].frame:SetValue(config:Get("opacity"))
-    self.controls["ItemSize"].frame:SetValue(config:Get("itemSize"))
-    self.controls["Padding"].frame:SetValue(config:Get("padding"))
+    if self.controls["Scale"] then self.controls["Scale"].frame:SetValue(config:Get("scale")) end
+    if self.controls["Opacity"] then self.controls["Opacity"].frame:SetValue(config:Get("opacity")) end
+    if self.controls["ItemSize"] then self.controls["ItemSize"].frame:SetValue(config:Get("itemSize")) end
+    if self.controls["Padding"] then self.controls["Padding"].frame:SetValue(config:Get("padding")) end
 
     -- Checkboxes
-    self.controls["EnableSearch"].frame:SetChecked(config:Get("enableSearch"))
-    self.controls["ShowTooltips"].frame:SetChecked(config:Get("showTooltips"))
-    self.controls["SortOnUpdate"].frame:SetChecked(config:Get("sortOnUpdate"))
+    if self.controls["EnableSearch"] then self.controls["EnableSearch"].frame:SetChecked(config:Get("enableSearch")) end
+    if self.controls["ShowTooltips"] then self.controls["ShowTooltips"].frame:SetChecked(config:Get("showTooltips")) end
+    if self.controls["SortOnUpdate"] then self.controls["SortOnUpdate"].frame:SetChecked(config:Get("sortOnUpdate")) end
 end
 
-function NS.Settings:Toggle()
-    if self.frame:IsShown() then
-        self.frame:Hide()
-    else
-        self:RefreshControls()
-        self.frame:Show()
-    end
+function NS.Settings:Open()
+    InterfaceOptionsFrame_OpenToCategory(self.panel)
+    -- Double call is sometimes needed in 3.3.5a to properly select the category if the frame wasn't shown
+    InterfaceOptionsFrame_OpenToCategory(self.panel)
 end
