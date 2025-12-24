@@ -9,6 +9,7 @@
 Core.lua
 Config.lua
 Pools.lua
+ItemCache.lua
 
 # Utilities
 Utils.lua
