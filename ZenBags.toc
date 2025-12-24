@@ -12,6 +12,7 @@ Pools.lua
 ItemCache.lua
 Filter.lua
 Sorter.lua
+Layout.lua
 
 # Utilities
 Utils.lua
