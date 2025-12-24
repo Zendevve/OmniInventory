@@ -1,0 +1,36 @@
+## Interface: 30300
+## Title: |cFF00FF00Omni|r Inventory
+## Notes: The definitive inventory management addon for WoW 3.3.5a
+## Author: Zendevve
+## Version: 2.0-alpha
+## SavedVariables: OmniInventoryDB
+
+## X-Website: https://github.com/Zendevve/OmniInventory
+## X-Category: Inventory
+## X-License: MIT
+
+# =============================================================================
+# Core Architecture (Load Order Critical)
+# =============================================================================
+Omni\API.lua
+Omni\Events.lua
+Omni\Pool.lua
+Omni\Utils.lua
+Omni\Data.lua
+Omni\Categorizer.lua
+Omni\Sorter.lua
+Omni\Rules.lua
+
+# =============================================================================
+# UI Components
+# =============================================================================
+UI\ItemButton.lua
+UI\GridView.lua
+UI\FlowView.lua
+UI\ListView.lua
+UI\Frame.lua
+
+# =============================================================================
+# Main Entry Point
+# =============================================================================
+Core.lua
