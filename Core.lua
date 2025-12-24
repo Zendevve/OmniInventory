@@ -8,6 +8,8 @@ ZenBagsDB = ZenBagsDB or {}
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
+eventFrame:RegisterEvent("MERCHANT_SHOW")
+eventFrame:RegisterEvent("MERCHANT_CLOSED")
 
 eventFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == addonName then
@@ -45,6 +47,23 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if NS.JunkLearner then NS.JunkLearner:Init() end -- Smart junk learning
         if NS.GearUpgrade then NS.GearUpgrade:Init() end -- Gear upgrade detection
 
+        -- ==========================================================
+        -- SMART SORTING (UX: Track item usage)
+        -- ==========================================================
+        local originalUseContainerItem = UseContainerItem
+        UseContainerItem = function(bag, slot, ...)
+            -- Track the usage
+            local link = GetContainerItemLink(bag, slot)
+            if link then
+                local itemID = tonumber(string.match(link, "item:(%d+)"))
+                if itemID and NS.Config then
+                    NS.Config:TrackItemUsage(itemID)
+                end
+            end
+            -- Call original function
+            return originalUseContainerItem(bag, slot, ...)
+        end
+
         -- Close any default bags that might be open
         CloseBackpack()
         for i = 1, NUM_BAG_SLOTS do
@@ -78,6 +97,16 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
         function ToggleBag(id)
             if NS.Frames then NS.Frames:Toggle() end
+        end
+
+    -- Merchant events (for Sell Junk button)
+    elseif event == "MERCHANT_SHOW" then
+        if NS.Frames and NS.Frames.sellJunkBtn then
+            NS.Frames.sellJunkBtn:Show()
+        end
+    elseif event == "MERCHANT_CLOSED" then
+        if NS.Frames and NS.Frames.sellJunkBtn then
+            NS.Frames.sellJunkBtn:Hide()
         end
     end
 end)

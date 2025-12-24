@@ -20,6 +20,8 @@ local defaults = {
     newItemGlowIgnoreJunk = true, -- Ignore grey quality items
     -- Tooltip Enhancements
     showTotalItemCount = true, -- Show total count across all bags in tooltip
+    -- Smart Sorting (UX: Most used items at top)
+    itemUsage = {},  -- { [itemID] = usageCount }
 }
 
 function NS.Config:Init()
@@ -70,4 +72,25 @@ function NS.Config:Reset()
     end
     -- Preserve collapsed sections if desired, or reset them too
     -- ZenBagsDB.collapsedSections = {}
+end
+
+-- ==========================================================
+-- SMART SORTING (UX: Most used items at top)
+-- ==========================================================
+
+function NS.Config:TrackItemUsage(itemID)
+    if not itemID then return end
+
+    ZenBagsDB.itemUsage = ZenBagsDB.itemUsage or {}
+    ZenBagsDB.itemUsage[itemID] = (ZenBagsDB.itemUsage[itemID] or 0) + 1
+end
+
+function NS.Config:GetItemUsage(itemID)
+    if not itemID or not ZenBagsDB.itemUsage then return 0 end
+    return ZenBagsDB.itemUsage[itemID] or 0
+end
+
+function NS.Config:GetItemUsageSortValue(itemID)
+    -- Higher usage = lower sort value (appears first)
+    return -self:GetItemUsage(itemID)
 end

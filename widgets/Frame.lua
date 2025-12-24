@@ -317,6 +317,38 @@ function Frames:Init()
     -- Adjust text inset to make room for icon
     self.searchBox:SetTextInsets(25, 10, 0, 0)
 
+    -- ==========================================================
+    -- QUICK SEARCH (UX: Auto-focus on any keypress)
+    -- ==========================================================
+    self.mainFrame:EnableKeyboard(true)
+    self.mainFrame:SetPropagateKeyboardInput(true)
+    self.mainFrame:SetScript("OnKeyDown", function(self, key)
+        local searchBox = NS.Frames.searchBox
+        if not searchBox then return end
+
+        -- If already focused in search, let it handle input
+        if searchBox:HasFocus() then return end
+
+        -- Escape clears search and removes focus
+        if key == "ESCAPE" then
+            searchBox:SetText("")
+            searchBox:ClearFocus()
+            return
+        end
+
+        -- Only capture alphanumeric keys for search
+        if key:len() == 1 and key:match("[%a%d]") then
+            searchBox:SetFocus()
+            -- The key will be typed into the search box naturally
+        end
+    end)
+
+    -- Clear search on Escape in search box
+    self.searchBox:SetScript("OnEscapePressed", function(self)
+        self:SetText("")
+        self:ClearFocus()
+    end)
+
     -- Money Frame
     self.moneyFrame = CreateFrame("Frame", nil, self.mainFrame)
     self.moneyFrame:SetSize(250, 25)
@@ -351,6 +383,47 @@ function Frames:Init()
     self.copperIcon:SetTexture("Interface\\MoneyFrame\\UI-CopperIcon")
     self.copperIcon:SetSize(16, 16)
     self.copperIcon:SetPoint("LEFT", self.copperText, "RIGHT", 3, 0)
+
+    -- ==========================================================
+    -- SELL JUNK BUTTON (UX: One-Click Selling)
+    -- ==========================================================
+    self.sellJunkBtn = NS.Utils:CreateFlatButton(self.mainFrame, "Sell Junk", 70, 22, function()
+        if not MerchantFrame or not MerchantFrame:IsShown() then
+            print("|cFF3399FFZenBags|r: Open a vendor to sell junk!")
+            return
+        end
+
+        -- Sell all grey (Poor quality) items
+        local soldCount = 0
+        local totalValue = 0
+
+        for bag = 0, 4 do
+            for slot = 1, GetContainerNumSlots(bag) do
+                local link = GetContainerItemLink(bag, slot)
+                if link then
+                    local _, _, quality = GetItemInfo(link)
+                    if quality == 0 then -- Poor (Grey) quality
+                        local _, count = GetContainerItemInfo(bag, slot)
+                        local vendorPrice = select(11, GetItemInfo(link)) or 0
+                        totalValue = totalValue + (vendorPrice * (count or 1))
+                        UseContainerItem(bag, slot)
+                        soldCount = soldCount + 1
+                    end
+                end
+            end
+        end
+
+        if soldCount > 0 then
+            local gold = math.floor(totalValue / 10000)
+            local silver = math.floor((totalValue % 10000) / 100)
+            print("|cFF3399FFZenBags|r: Sold " .. soldCount .. " junk items for " .. gold .. "g " .. silver .. "s")
+        else
+            print("|cFF3399FFZenBags|r: No junk to sell!")
+        end
+    end)
+    self.sellJunkBtn:SetPoint("BOTTOMRIGHT", self.mainFrame, "BOTTOMRIGHT", -15, 15)
+    -- Hide by default, show when at vendor
+    self.sellJunkBtn:Hide()
 
     -- Scroll Frame (starts below sticky search bar)
     self.scrollFrame = CreateFrame("ScrollFrame", "ZenBagsScrollFrame", self.mainFrame, "UIPanelScrollFrameTemplate")
