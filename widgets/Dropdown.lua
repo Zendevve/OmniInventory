@@ -118,14 +118,9 @@ function Frames:UpdateDropdownList()
             DRUID = {1.00, 0.49, 0.04},
         }
 
-        -- Get character info from Alts module if available
-        local gold = 0
-        local charClass = nil
-        if NS.Alts and NS.Alts:GetCharacter(charData.key) then
-            local altData = NS.Alts:GetCharacter(charData.key)
-            gold = altData.gold or 0
-            charClass = altData.class
-        end
+        -- Use class and gold from Data:GetAvailableCharacters() (already includes Alts data)
+        local charClass = charData.class
+        local gold = charData.gold or 0
 
         -- Format gold display
         local goldStr = ""

@@ -395,7 +395,7 @@ function Data:IsViewingOtherCharacter()
 end
 
 --- Get list of available characters (all characters with cached data)
--- @return table Array of {name="CharName", realm="RealmName", key="CharName - RealmName", isCurrent=boolean}
+-- @return table Array of {name, realm, key, isCurrent, class, gold}
 function Data:GetAvailableCharacters()
     local chars = {}
     local currentKey = self:GetCurrentCharacterKey()
@@ -405,11 +405,27 @@ function Data:GetAvailableCharacters()
             -- Parse character key
             local name, realm = charKey:match("^(.+) %- (.+)$")
             if name and realm then
+                -- Get class and gold from Alts module if available
+                local charClass = nil
+                local gold = 0
+
+                if NS.Alts then
+                    -- Try to find matching alt data (Alts uses "Name-Realm" format)
+                    local altKey = name .. "-" .. realm
+                    local altData = NS.Alts:GetCharacter(altKey)
+                    if altData then
+                        charClass = altData.class
+                        gold = altData.gold or 0
+                    end
+                end
+
                 table.insert(chars, {
                     name = name,
                     realm = realm,
                     key = charKey,
-                    isCurrent = (charKey == currentKey)
+                    isCurrent = (charKey == currentKey),
+                    class = charClass,
+                    gold = gold
                 })
             end
         end

@@ -1080,16 +1080,26 @@ function Frames:Update(fullUpdate)
                         end
 
                         -- Cross-Alt Total (from Alts module)
+                        -- Only show if item exists on OTHER characters
                         if NS.Alts then
                             local altTotal, breakdown = NS.Alts:GetTotalItemCount(self.itemData.itemID)
-                            if altTotal > totalCount and #breakdown > 1 then
-                                -- Show total across all alts
-                                local breakdownText = {}
-                                for _, char in ipairs(breakdown) do
-                                    table.insert(breakdownText, char.name .. ": " .. char.count)
+                            local currentName = UnitName("player")
+
+                            -- Filter out current character from breakdown
+                            local otherAlts = {}
+                            for _, char in ipairs(breakdown) do
+                                if char.name ~= currentName then
+                                    table.insert(otherAlts, char.name .. ": " .. char.count)
                                 end
-                                GameTooltip:AddLine("|cFF00FF00Across All Alts:|r " .. altTotal, 1, 1, 1)
-                                GameTooltip:AddLine("|cFF888888" .. table.concat(breakdownText, ", ") .. "|r", 0.5, 0.5, 0.5)
+                            end
+
+                            -- Only show if other alts have the item
+                            if #otherAlts > 0 then
+                                GameTooltip:AddLine(" ")
+                                GameTooltip:AddLine("|cFF00FF00Other Characters:|r", 1, 1, 1)
+                                for _, altText in ipairs(otherAlts) do
+                                    GameTooltip:AddLine("  " .. altText, 0.7, 0.7, 0.7)
+                                end
                                 GameTooltip:Show()
                             end
                         end
