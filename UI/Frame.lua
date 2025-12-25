@@ -96,7 +96,8 @@ function Frame:CreateHeader()
     -- Background
     header.bg = header:CreateTexture(nil, "BACKGROUND")
     header.bg:SetAllPoints()
-    header.bg:SetColorTexture(0.15, 0.15, 0.15, 1)
+    header.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    header.bg:SetVertexColor(0.15, 0.15, 0.15, 1)
 
     -- Title
     header.title = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -165,7 +166,8 @@ function Frame:CreateSearchBar()
     -- Background
     searchBar.bg = searchBar:CreateTexture(nil, "BACKGROUND")
     searchBar.bg:SetAllPoints()
-    searchBar.bg:SetColorTexture(0.1, 0.1, 0.1, 1)
+    searchBar.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    searchBar.bg:SetVertexColor(0.1, 0.1, 0.1, 1)
 
     -- Search icon
     searchBar.icon = searchBar:CreateTexture(nil, "ARTWORK")
@@ -240,7 +242,8 @@ function Frame:CreateFooter()
     -- Background
     footer.bg = footer:CreateTexture(nil, "BACKGROUND")
     footer.bg:SetAllPoints()
-    footer.bg:SetColorTexture(0.12, 0.12, 0.12, 1)
+    footer.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    footer.bg:SetVertexColor(0.12, 0.12, 0.12, 1)
 
     -- Bag space counter
     footer.slots = footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")

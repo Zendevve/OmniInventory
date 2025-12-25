@@ -73,7 +73,8 @@ function ItemButton:Create(parent)
     -- Search dim overlay
     button.dimOverlay = button:CreateTexture(nil, "OVERLAY")
     button.dimOverlay:SetAllPoints()
-    button.dimOverlay:SetColorTexture(0, 0, 0, 0.7)
+    button.dimOverlay:SetTexture("Interface\\Buttons\\WHITE8X8")
+    button.dimOverlay:SetVertexColor(0, 0, 0, 0.7)
     button.dimOverlay:Hide()
 
     -- Store item info reference
