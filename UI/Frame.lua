@@ -83,15 +83,35 @@ function Frame:CreateMainFrame()
     self:CreateFooter()
     self:CreateResizeHandle()
 
-    -- NO animation - just show immediately
     -- Register for updates
     self:RegisterEvents()
 
     -- Start hidden
     mainFrame:Hide()
 
-    -- OnShow handler
+    -- Simple fade-in animation (WoTLK 3.3.5a compatible - no AnimationGroups)
+    local FADE_DURATION = 0.15  -- 150ms fade
+    local fadeStartTime = nil
+
+    local function FadeIn()
+        fadeStartTime = GetTime()
+        mainFrame:SetAlpha(0)
+        mainFrame:SetScript("OnUpdate", function(self, elapsed)
+            if not fadeStartTime then return end
+            local progress = (GetTime() - fadeStartTime) / FADE_DURATION
+            if progress >= 1 then
+                self:SetAlpha(1)
+                self:SetScript("OnUpdate", nil)
+                fadeStartTime = nil
+            else
+                self:SetAlpha(progress)
+            end
+        end)
+    end
+
+    -- OnShow handler - trigger fade
     mainFrame:SetScript("OnShow", function(self)
+        FadeIn()
         if Frame.UpdateFooterButton then Frame:UpdateFooterButton() end
     end)
 
