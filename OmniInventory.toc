@@ -29,6 +29,7 @@ UI\GridView.lua
 UI\FlowView.lua
 UI\ListView.lua
 UI\Frame.lua
+UI\Options.lua
 
 # =============================================================================
 # Main Entry Point

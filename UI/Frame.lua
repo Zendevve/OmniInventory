@@ -69,6 +69,10 @@ function Frame:CreateMainFrame()
     mainFrame:SetBackdropColor(0.08, 0.08, 0.08, 0.95)
     mainFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
 
+    -- Apply saved scale
+    local scale = OmniInventoryDB and OmniInventoryDB.char and OmniInventoryDB.char.settings and OmniInventoryDB.char.settings.scale
+    mainFrame:SetScale(scale or 1)
+
     -- Make tabbable
     tinsert(UISpecialFrames, "OmniInventoryFrame")
 
@@ -453,6 +457,26 @@ function Frame:LoadPosition()
             mainFrame:SetSize(pos.width, pos.height)
         end
     end
+end
+
+function Frame:SetScale(scale)
+    if not mainFrame then return end
+    scale = math.max(0.5, math.min(scale or 1, 2.0))
+    mainFrame:SetScale(scale)
+
+    -- Save to DB
+    OmniInventoryDB = OmniInventoryDB or {}
+    OmniInventoryDB.char = OmniInventoryDB.char or {}
+    OmniInventoryDB.char.settings = OmniInventoryDB.char.settings or {}
+    OmniInventoryDB.char.settings.scale = scale
+end
+
+function Frame:ResetPosition()
+    if not mainFrame then return end
+    mainFrame:ClearAllPoints()
+    mainFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    self:SavePosition()
+    self:SetScale(1.0)
 end
 
 -- =============================================================================
