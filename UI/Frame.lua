@@ -331,6 +331,7 @@ local activeFilter = nil  -- Current active filter
 
 local QUICK_FILTERS = {
     { name = "All", filter = nil },
+    { name = "New", filter = "NEW_ITEMS", isSpecial = true },
     { name = "Quest", filter = "Quest" },
     { name = "Gear", filter = "Equipment" },
     { name = "Cons", filter = "Consumable" },
@@ -770,11 +771,18 @@ function Frame:UpdateLayout(changedBags)
     local quickFilter = self:GetActiveFilter()
     if quickFilter then
         for _, item in ipairs(items) do
-            -- Check if item category matches the filter
             local matches = false
-            if item.category and string.find(item.category, quickFilter) then
-                matches = true
+
+            -- Special filter: NEW_ITEMS - filter by isNew flag
+            if quickFilter == "NEW_ITEMS" then
+                matches = item.isNew == true
+            else
+                -- Normal filter: match by category
+                if item.category and string.find(item.category, quickFilter) then
+                    matches = true
+                end
             end
+
             item.isQuickFiltered = not matches
         end
     else
