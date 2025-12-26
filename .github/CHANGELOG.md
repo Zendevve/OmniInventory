@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MCAF framework documentation structure
 - AGENTS.md with self-learning rules
 - Smooth fade-in animation on bag window open (150ms)
+- **Minimap Button** - Draggable minimap icon to toggle inventory (left-click: toggle, right-click: settings)
+- **Quick Filter Bar** - One-click filter buttons: All, New, Quest, Gear, Cons, Junk
+- **New Items Filter** - Shows recently looted items (acquired since login)
+- **Favorites/Pin System** - Shift+Right-click to pin items (star icon), pinned items sort first
+- **Auto-Sort on Close** - Optional physical bag sorting when inventory window closes
 
 ### Changed
 - Moved ZenBags v1 to `legacy/` folder
