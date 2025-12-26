@@ -15,9 +15,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SavedVariables persistence (`Omni/Data.lua`) - cross-character data
 - MCAF framework documentation structure
 - AGENTS.md with self-learning rules
+- Smooth fade-in animation on bag window open (150ms)
 
 ### Changed
 - Moved ZenBags v1 to `legacy/` folder
+- Consolidated bank event handling into Events.lua
+- Wrapped Pawn addon integration in pcall for safety
+
+### Fixed
+- **C_Container API** - Replaced Retail-only C_Container calls with native WotLK functions
+- **BackdropTemplate** - Removed (doesn't exist in 3.3.5a)
+- **SetFromAlpha/SetToAlpha** - Replaced with SetChange() for animations
+- **SetObeyStepOnDrag** - Removed from Options slider (not in 3.3.5a)
+- **SetTexture color calls** - Fixed to use SetTexture(file) + SetVertexColor()
+- **Bag toggle bug** - Fixed window appearing then disappearing when pressing B
+- **isBankOpen state** - Added SetBankOpen() function for proper state management
+- **Duplicate event handlers** - Removed redundant bank event handlers from Frame.lua
+- **Unused variables** - Cleaned up origToggleAllBags, origOpenBag, origCloseBag
 
 ## [1.0.0] - Legacy (ZenBags)
 

@@ -52,6 +52,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if Omni.Rules then Omni.Rules:Init() end
         if Omni.Frame then Omni.Frame:Init() end
         if Omni.Settings then Omni.Settings:Init() end
+        if Omni.MinimapButton then Omni.MinimapButton:Init() end
 
         -- Override default bag functions
         local function OverrideBags()

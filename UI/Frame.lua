@@ -272,6 +272,12 @@ function Frame:CreateHeader()
         Frame:SavePosition()
     end)
 
+    -- Slot Counter (e.g., "42/120")
+    header.slotCounter = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    header.slotCounter:SetPoint("RIGHT", header.sortBtn, "LEFT", -10, 0)
+    header.slotCounter:SetTextColor(0.7, 0.7, 0.7)
+    header.slotCounter:SetText("0/0")
+
     mainFrame.header = header
 end
 
@@ -1133,7 +1139,13 @@ function Frame:UpdateSlotCount()
     end
 
     local used = total - free
-    mainFrame.footer.slots:SetText(string.format("%d/%d", used, total))
+    local slotText = string.format("%d/%d", used, total)
+    mainFrame.footer.slots:SetText(slotText)
+
+    -- Also update header slot counter if it exists
+    if mainFrame.header and mainFrame.header.slotCounter then
+        mainFrame.header.slotCounter:SetText(slotText)
+    end
 end
 
 function Frame:UpdateMoney()
