@@ -767,6 +767,7 @@ function ItemButton:OnPreClick(button, mouseButton)
     end
 
     if mouseButton == "LeftButton" then
+        button.forceContainerUse = false
         if IsModifiedClick("CHATLINK")
             or IsModifiedClick("DRESSUP")
             or IsModifiedClick("PICKUPACTION")
@@ -779,12 +780,14 @@ function ItemButton:OnPreClick(button, mouseButton)
             button:SetAttribute("item1", button.secureItemRef)
         end
     elseif mouseButton == "RightButton" then
-        if IsShiftKeyDown() then
+        if IsShiftKeyDown() or (MerchantFrame and MerchantFrame:IsShown()) then
             button:SetAttribute("type2", nil)
             button:SetAttribute("item2", nil)
+            button.forceContainerUse = true
         else
             button:SetAttribute("type2", "item")
             button:SetAttribute("item2", button.secureItemRef)
+            button.forceContainerUse = false
         end
     end
 end
@@ -851,10 +854,11 @@ function ItemButton:OnClick(button, mouseButton)
             if Omni.Frame then
                 Omni.Frame:UpdateLayout()
             end
-        elseif canUseContainer and not button.secureUseConfigured then
+        elseif canUseContainer and (button.forceContainerUse or not button.secureUseConfigured) then
             if not InCombatLockdown or not InCombatLockdown() then
                 UseContainerItem(bagID, slotID)
             end
+            button.forceContainerUse = false
         end
     end
 end

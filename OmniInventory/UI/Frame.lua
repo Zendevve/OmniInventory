@@ -1211,12 +1211,14 @@ function Frame:RenderListView(items)
 
         if bagID and slotID and bagID >= 0 and slotID > 0 then
             local itemRef = string.format("%d %d", bagID, slotID)
+            row.secureItemRef = itemRef
             row:SetAttribute("type1", "item")
             row:SetAttribute("item1", itemRef)
             row:SetAttribute("type2", "item")
             row:SetAttribute("item2", itemRef)
             row.secureUseConfigured = true
         else
+            row.secureItemRef = nil
             row:SetAttribute("type1", nil)
             row:SetAttribute("item1", nil)
             row:SetAttribute("type2", nil)
@@ -1290,16 +1292,39 @@ function Frame:RenderListView(items)
                     ResetCursor()
                 end
             end)
+            row:SetScript("PreClick", function(self, mouseButton)
+                if not self.secureItemRef then
+                    return
+                end
+                if InCombatLockdown and InCombatLockdown() then
+                    return
+                end
+                if mouseButton == "RightButton" and MerchantFrame and MerchantFrame:IsShown() then
+                    self:SetAttribute("type2", nil)
+                    self:SetAttribute("item2", nil)
+                    self.forceContainerUse = true
+                else
+                    if mouseButton == "LeftButton" then
+                        self:SetAttribute("type1", "item")
+                        self:SetAttribute("item1", self.secureItemRef)
+                    elseif mouseButton == "RightButton" then
+                        self:SetAttribute("type2", "item")
+                        self:SetAttribute("item2", self.secureItemRef)
+                    end
+                    self.forceContainerUse = false
+                end
+            end)
 
             -- Click handler
             row:HookScript("OnClick", function(self, mouseButton)
                 if self.itemInfo and self.itemInfo.bagID and self.itemInfo.slotID then
                     local bagID = self.itemInfo.bagID
                     local slotID = self.itemInfo.slotID
-                    if (mouseButton == "LeftButton" or mouseButton == "RightButton") and not self.secureUseConfigured then
+                    if (mouseButton == "LeftButton" or mouseButton == "RightButton") and (self.forceContainerUse or not self.secureUseConfigured) then
                         if not InCombatLockdown or not InCombatLockdown() then
                             UseContainerItem(bagID, slotID)
                         end
+                        self.forceContainerUse = false
                     end
                 end
             end)
