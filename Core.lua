@@ -25,7 +25,7 @@ eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 
 -- Masque Support
-local Masque = LibStub("Masque", true)
+local Masque = LibStub and LibStub("Masque", true)
 if Masque then
     Omni.MasqueGroup = Masque:Group("OmniInventory")
 end

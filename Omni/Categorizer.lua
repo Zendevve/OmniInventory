@@ -79,6 +79,10 @@ function Categorizer:ClearAllNewItems()
     newItems = {}
 end
 
+function Categorizer:SnapshotInventory()
+    SnapshotInventory()
+end
+
 -- =============================================================================
 -- Category Filters
 -- =============================================================================

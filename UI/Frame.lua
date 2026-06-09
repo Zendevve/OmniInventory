@@ -934,14 +934,14 @@ function Frame:RenderFlowView(items)
 
                     -- Error boundary: Protect against rendering bad items
                     local success, err = pcall(function()
-                         btn:SetItem(itemInfo)
+                         Omni.ItemButton:SetItem(btn, itemInfo)
                          btn:Show()
                     end)
 
                     if not success then
-                        btn:SetItem(nil)
-                        if btn.icon then btn.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark") end
-                        btn:Show()
+                         Omni.ItemButton:SetItem(btn, nil)
+                         if btn.icon then btn.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark") end
+                         btn:Show()
                     end
 
                     table.insert(itemButtons, btn)
