@@ -190,6 +190,9 @@ function Events:Init()
         if Omni.API and Omni.API.ClearContainerBindScanCache then
             Omni.API:ClearContainerBindScanCache()
         end
+        if Omni.Data and Omni.Data.SaveCharacterInventory then
+            Omni.Data:SaveCharacterInventory()
+        end
         local perfToken = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("events.BAG_UPDATE.flush")
         local hasPlayerBagChange = false
         local hasBankBagChange = false
@@ -241,6 +244,9 @@ function Events:Init()
 
     -- ʕ •ᴥ•ʔ✿ Bank events drive the standalone BankFrame to the left ✿ ʕ •ᴥ•ʔ
     self:RegisterEvent("BANKFRAME_OPENED", function()
+        if Omni.Data and Omni.Data.SaveBankItems then
+            Omni.Data:SaveBankItems()
+        end
         if Omni.Frame then
             Omni.Frame:Show()
         end
@@ -250,6 +256,9 @@ function Events:Init()
     end)
 
     self:RegisterEvent("PLAYERBANKSLOTS_CHANGED", function()
+        if Omni.Data and Omni.Data.SaveBankItems then
+            Omni.Data:SaveBankItems()
+        end
         if Omni.BankFrame and Omni.BankFrame:IsShown() then
             Omni.BankFrame:UpdateLayout()
         end
@@ -321,6 +330,9 @@ function Events:Init()
 
     -- Player money changed
     self:RegisterEvent("PLAYER_MONEY", function()
+        if Omni.Data and Omni.Data.SaveCharacterInventory then
+            Omni.Data:SaveCharacterInventory()
+        end
         if Omni.Frame then
             Omni.Frame:UpdateMoney()
         end
@@ -439,6 +451,15 @@ function Events:Init()
         end
     end)
 
+    -- Save initial state on login
+    if Omni.Data then
+        if Omni.Data.SaveCharacterInventory then
+            Omni.Data:SaveCharacterInventory()
+        end
+        if Omni.Data.SaveBankItems then
+            Omni.Data:SaveBankItems()
+        end
+    end
 end
 
 print("|cFF00FF00OmniInventory|r: Event Bucketing system loaded")
