@@ -23,6 +23,46 @@ local TEXTURE_QUEST_DAILY = "Interface\\GossipFrame\\DailyQuestIcon"
 local QUEST_STARTER_ICON_SIZE = 20
 local ConfigureSecureItemUse
 
+local function isTextColorRed(textTable)
+    if not textTable then return false end
+    local text = textTable:GetText()
+    if not text or text == "" or string.find(text, "^0 / %d+$") then return false end
+    local r, g, b = textTable:GetTextColor()
+    return r > 0.95 and g < 0.2 and b < 0.2
+end
+
+local function CheckIfItemUnusable(bag, slot, itemID)
+    if not bag or not slot or not itemID then return false end
+
+    -- Fast pre-check by level
+    local _, _, _, _, minLevel = GetItemInfo(itemID)
+    if minLevel and minLevel > 0 then
+        if minLevel > UnitLevel("player") then
+            return true
+        end
+    end
+
+    -- Tooltip check
+    local scanningTooltip = _G["OmniScanningTooltip"]
+    if not scanningTooltip then return false end
+
+    scanningTooltip:ClearLines()
+    scanningTooltip:SetBagItem(bag, slot)
+
+    for i = 2, scanningTooltip:NumLines() do
+        local leftFrame = _G["OmniScanningTooltipTextLeft" .. i]
+        if leftFrame and isTextColorRed(leftFrame) then
+            return true
+        end
+        local rightFrame = _G["OmniScanningTooltipTextRight" .. i]
+        if rightFrame and isTextColorRed(rightFrame) then
+            return true
+        end
+    end
+
+    return false
+end
+
 local function NormalizeMouseButton(mouseButton)
     if mouseButton == "LeftButtonUp" or mouseButton == "LeftButtonDown" then
         return "LeftButton"
@@ -741,15 +781,32 @@ function ItemButton:SetItem(button, itemInfo)
         pcall(button.SetID, button, itemInfo.slotID)
     end
 
+    -- Apply unusable item red overlay
+    local isUnusable = false
+    if not itemInfo.isQuickFiltered
+            and OmniInventoryDB
+            and OmniInventoryDB.global
+            and OmniInventoryDB.global.enableUnusableOverlay ~= false
+            and itemInfo.bagID
+            and itemInfo.slotID then
+        isUnusable = CheckIfItemUnusable(itemInfo.bagID, itemInfo.slotID, itemInfo.itemID)
+    end
+
     -- Apply quick filter dimming or clear search dim
     if itemInfo.isQuickFiltered then
         button.dimOverlay:Show()
         button.icon:SetDesaturated(true)
         button.icon:SetAlpha(0.4)
+        button.icon:SetVertexColor(1, 1, 1)
     else
         button.dimOverlay:Hide()
         button.icon:SetDesaturated(false)
         button.icon:SetAlpha(1)
+        if isUnusable then
+            button.icon:SetVertexColor(1, 0.1, 0.1)
+        else
+            button.icon:SetVertexColor(1, 1, 1)
+        end
     end
     UpdateEmptyDropHighlight(button)
 
@@ -997,6 +1054,7 @@ function ItemButton:Reset(button)
     if button.icon then
         button.icon:SetDesaturated(false)
         button.icon:SetAlpha(1)
+        button.icon:SetVertexColor(1, 1, 1)
     end
 
     pcall(button.Hide, button)

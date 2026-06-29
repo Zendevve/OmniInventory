@@ -10,6 +10,27 @@ local addonName, Omni = ...
 Omni.Categorizer = {}
 local Categorizer = Omni.Categorizer
 
+local CATEGORY_COLORS = {
+    ["Perishable"]       = { r = 0.90, g = 0.35, b = 0.20 },  -- Orange-red
+    ["Quest Items"]      = { r = 0.95, g = 0.85, b = 0.15 },  -- Gold/yellow
+    ["Equipment Sets"]   = { r = 0.35, g = 0.70, b = 0.95 },  -- Steel blue
+    ["BoE"]              = { r = 0.30, g = 0.85, b = 0.45 },  -- Green
+    ["New Items"]        = { r = 0.85, g = 0.30, b = 0.85 },  -- Magenta
+    ["Soulbound"]        = { r = 0.50, g = 0.65, b = 0.85 },  -- Muted blue-grey
+    ["Account Bound"]    = { r = 0.00, g = 0.85, b = 0.95 },  -- Cyan/Heirloom
+    ["Equipment"]        = { r = 0.65, g = 0.65, b = 0.70 },  -- Muted grey
+    ["Consumables"]      = { r = 0.90, g = 0.65, b = 0.25 },  -- Amber
+    ["Trade Goods"]      = { r = 0.75, g = 0.50, b = 0.90 },  -- Purple
+    ["Reagents"]         = { r = 0.55, g = 0.75, b = 0.55 },  -- Sage green
+    ["Tools"]            = { r = 0.50, g = 0.50, b = 0.55 },  -- Slate
+    ["Keys"]             = { r = 0.85, g = 0.65, b = 0.45 },  -- Copper
+    ["Bags"]             = { r = 0.60, g = 0.45, b = 0.30 },  -- Brown
+    ["Ammo"]             = { r = 0.75, g = 0.60, b = 0.40 },  -- Leather
+    ["Glyphs"]           = { r = 0.45, g = 0.80, b = 0.80 },  -- Teal
+    ["Junk"]             = { r = 0.45, g = 0.45, b = 0.45 },  -- Dark grey
+    ["Miscellaneous"]    = { r = 0.55, g = 0.55, b = 0.55 },  -- Medium grey
+}
+
 -- =============================================================================
 -- Category Registry
 -- =============================================================================
@@ -264,6 +285,23 @@ local function IsBoEItem(itemInfo)
     return IsEquipmentItem(itemInfo)
 end
 
+local function IsSoulboundItem(itemInfo)
+    if not itemInfo then
+        return false
+    end
+    if itemInfo.bindType ~= "BoP" and not itemInfo.isBound then
+        return false
+    end
+    return IsEquipmentItem(itemInfo)
+end
+
+local function IsAccountBoundItem(itemInfo)
+    if not itemInfo then
+        return false
+    end
+    return itemInfo.bindType == "BoA" or itemInfo.quality == 7
+end
+
 
 local function IsToolsItem(itemInfo)
     local itemID = GetItemID(itemInfo)
@@ -403,6 +441,23 @@ function Categorizer:GetCategory(itemInfo)
         return "Equipment Sets"
     end
 
+    -- Bound categories (Priority 4.1 & 4.2)
+    if not OmniInventoryDB or not OmniInventoryDB.global or OmniInventoryDB.global.enableBoundCategories ~= false then
+        if IsAccountBoundItem(itemInfo) then
+            if Omni._perfEnabled and Omni.Perf then
+                Omni.Perf:End("categorizer.GetCategory", perfToken)
+            end
+            return "Account Bound"
+        end
+
+        if IsSoulboundItem(itemInfo) then
+            if Omni._perfEnabled and Omni.Perf then
+                Omni.Perf:End("categorizer.GetCategory", perfToken)
+            end
+            return "Soulbound"
+        end
+    end
+
 
     -- Prio 5 : Tools
     if IsToolsItem(itemInfo) then
@@ -531,6 +586,8 @@ function Categorizer:Init()
     self:RegisterCategory("Perishable", 1, nil, CATEGORY_COLORS["Perishable"])
     self:RegisterCategory("Quest Items", 2, nil, CATEGORY_COLORS["Quest Items"])
     self:RegisterCategory("Equipment Sets", 4, nil, CATEGORY_COLORS["Equipment Sets"])
+    self:RegisterCategory("Soulbound", 4.1, nil, CATEGORY_COLORS["Soulbound"])
+    self:RegisterCategory("Account Bound", 4.2, nil, CATEGORY_COLORS["Account Bound"])
     self:RegisterCategory("BoE", 5, nil, CATEGORY_COLORS["BoE"])
     self:RegisterCategory("New Items", 6, nil, CATEGORY_COLORS["New Items"])
     self:RegisterCategory("Equipment", 10, nil, CATEGORY_COLORS["Equipment"])

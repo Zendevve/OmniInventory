@@ -38,6 +38,7 @@ local SOULBOUND_TEXT = ITEM_SOULBOUND or "Soulbound"
 local BOE_TEXT = ITEM_BIND_ON_EQUIP or "Binds when equipped"
 local BOP_TEXT = ITEM_BIND_ON_PICKUP or "Binds when picked up"
 local BOA_TEXT = ITEM_BIND_TO_ACCOUNT or "Binds to account"
+local BOA_BNET_TEXT = ITEM_BIND_TO_BNETACCOUNT or "Binds to Battle.net account"
 
 local function ScanTooltipForBinding(bag, slot, resolvedLink)
     local link = resolvedLink or GetContainerItemLink(bag, slot)
@@ -49,17 +50,31 @@ local function ScanTooltipForBinding(bag, slot, resolvedLink)
         end
     end
 
+    local boundResult, typeResult = false, "BoE"
+    if link then
+        local _, _, quality = GetItemInfo(link)
+        if quality == 7 then
+            boundResult, typeResult = true, "BoA"
+            if cacheKey then
+                bindScanCache[cacheKey] = { boundResult, typeResult }
+            end
+            return boundResult, typeResult
+        end
+    end
+
     scanningTooltip:ClearLines()
     scanningTooltip:SetBagItem(bag, slot)
 
-    local boundResult, typeResult = false, "BoE"
     for i = 2, math.min(5, scanningTooltip:NumLines()) do
         local textFrame = _G["OmniScanningTooltipTextLeft" .. i]
         if textFrame then
             local line = textFrame:GetText()
             if line then
-                if line == SOULBOUND_TEXT or line == BOP_TEXT or line == BOA_TEXT then
+                if line == SOULBOUND_TEXT or line == BOP_TEXT then
                     boundResult, typeResult = true, "BoP"
+                    break
+                elseif line == BOA_TEXT or line == BOA_BNET_TEXT then
+                    boundResult, typeResult = true, "BoA"
                     break
                 elseif line == BOE_TEXT then
                     boundResult, typeResult = false, "BoE"
@@ -81,6 +96,12 @@ end
 ---@return string bindType "BoP" | "BoE"
 function API:GetBindingFromHyperlink(itemLink)
     if not itemLink then return true, "BoP" end
+
+    local _, _, quality = GetItemInfo(itemLink)
+    if quality == 7 then
+        return true, "BoA"
+    end
+
     scanningTooltip:ClearLines()
     scanningTooltip:SetHyperlink(itemLink)
 
@@ -89,8 +110,10 @@ function API:GetBindingFromHyperlink(itemLink)
         if textFrame then
             local line = textFrame:GetText()
             if line then
-                if line == SOULBOUND_TEXT or line == BOP_TEXT or line == BOA_TEXT then
+                if line == SOULBOUND_TEXT or line == BOP_TEXT then
                     return true, "BoP"
+                elseif line == BOA_TEXT or line == BOA_BNET_TEXT then
+                    return true, "BoA"
                 elseif line == BOE_TEXT then
                     return false, "BoE"
                 end

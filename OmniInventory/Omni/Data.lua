@@ -29,6 +29,8 @@ local defaults = {
             x = 24,
             y = 140,
         },
+        enableBoundCategories = true,
+        enableUnusableOverlay = true,
         -- ʕ •ᴥ•ʔ✿ Footer: larger outlined gold + slot count; slots tint blue→red by fill ✿ ʕ •ᴥ•ʔ
         footerMoneyEmphasis = true,
         -- ʕ •ᴥ•ʔ✿ Custom footer launcher buttons (mini-mode themed) ✿ ʕ •ᴥ•ʔ

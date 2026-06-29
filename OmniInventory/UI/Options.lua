@@ -429,6 +429,54 @@ function Settings:CreateControls(parent)
     end)
     self.footerMoneyEmphasisCb = footerMoneyCb
 
+    yOffset = yOffset - 22
+
+    local boundCatsCb = CreateFrame("CheckButton", "OmniEnableBoundCategories", parent, "UICheckButtonTemplate")
+    boundCatsCb:SetSize(24, 24)
+    boundCatsCb:SetPoint("TOPLEFT", 14, yOffset)
+    local boundCatsLabel = boundCatsCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    boundCatsLabel:SetPoint("LEFT", boundCatsCb, "RIGHT", 2, 1)
+    boundCatsLabel:SetText("Bound lanes")
+    boundCatsCb:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Categorize bound items", 1, 0.82, 0)
+        GameTooltip:AddLine("Separate Soulbound (BoP) equipment and Account Bound (BoA/Heirlooms) into their own lanes.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    boundCatsCb:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    boundCatsCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            Omni.Data:Set("enableBoundCategories", self:GetChecked() and true or false)
+            RefreshAllInventory()
+        end
+    end)
+    self.enableBoundCategoriesCb = boundCatsCb
+
+    local unusableCb = CreateFrame("CheckButton", "OmniEnableUnusableOverlay", parent, "UICheckButtonTemplate")
+    unusableCb:SetSize(24, 24)
+    unusableCb:SetPoint("TOPLEFT", 160, yOffset)
+    local unusableLabel = unusableCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    unusableLabel:SetPoint("LEFT", unusableCb, "RIGHT", 2, 1)
+    unusableLabel:SetText("Red overlays")
+    unusableCb:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Unusable red overlay", 1, 0.82, 0)
+        GameTooltip:AddLine("Tints unusable gear (level/class locks) and unlearned recipes red.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    unusableCb:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    unusableCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            Omni.Data:Set("enableUnusableOverlay", self:GetChecked() and true or false)
+            RefreshAllInventory()
+        end
+    end)
+    self.enableUnusableOverlayCb = unusableCb
+
     yOffset = yOffset - SPACING - 4
 
     local tipPlacementHeader = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -663,6 +711,12 @@ function Settings:UpdateValues()
     end
     if self.footerMoneyEmphasisCb and Omni.Data then
         self.footerMoneyEmphasisCb:SetChecked(Omni.Data:Get("footerMoneyEmphasis") == true)
+    end
+    if self.enableBoundCategoriesCb and Omni.Data then
+        self.enableBoundCategoriesCb:SetChecked(Omni.Data:Get("enableBoundCategories") ~= false)
+    end
+    if self.enableUnusableOverlayCb and Omni.Data then
+        self.enableUnusableOverlayCb:SetChecked(Omni.Data:Get("enableUnusableOverlay") ~= false)
     end
     self._syncingTooltipFixedSliders = true
     if Omni.Data and self.tooltipFixedXSlider and self.tooltipFixedYSlider then

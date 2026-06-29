@@ -4671,6 +4671,13 @@ function Frame:RenderListView(items)
         row:SetScript("PreClick", nil)
         ConfigureSecureRowUse(row, itemInfo.bagID, itemInfo.slotID)
 
+        -- Apply quick filter dimming
+        if itemInfo.isQuickFiltered then
+            row:SetAlpha(0.28)
+        else
+            row:SetAlpha(1.0)
+        end
+
         row:Show()
         yOffset = yOffset - ROW_HEIGHT
     end

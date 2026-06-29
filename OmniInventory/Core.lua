@@ -303,6 +303,97 @@ SLASH_OMNIINVENTORY3 = "/oi"
 SLASH_ZENBAGS1 = "/zb"
 SLASH_ZENBAGS2 = "/zenbags"
 
+local clamOpenerFrame = CreateFrame("Frame")
+local CLAM_IDS = {
+    [5523]  = true,  -- Small Barnacled Clam
+    [5524]  = true,  -- Thick-shelled Clam
+    [7973]  = true,  -- Big-mouth Clam
+    [15874] = true,  -- Soft-shelled Clam
+}
+local openClamsRunning = false
+local delayAccumulator = 0
+local OPEN_DELAY = 0.5
+
+local function FindNextClam()
+    for bagID = 0, 4 do
+        local numSlots = GetContainerNumSlots(bagID) or 0
+        for slotID = 1, numSlots do
+            local link = GetContainerItemLink(bagID, slotID)
+            if link then
+                local itemID = tonumber(string.match(link, "item:(%d+)"))
+                if itemID and CLAM_IDS[itemID] then
+                    return bagID, slotID
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function StopClamOpener(reason)
+    openClamsRunning = false
+    clamOpenerFrame:SetScript("OnUpdate", nil)
+    if reason then
+        print("|cFF00FF00OmniInventory|r: " .. reason)
+    end
+end
+
+local function StartClamOpener()
+    if openClamsRunning then
+        StopClamOpener("Clam opener stopped.")
+        return
+    end
+
+    if InCombatLockdown and InCombatLockdown() then
+        print("|cFF00FF00OmniInventory|r: Cannot open clams in combat.")
+        return
+    end
+
+    local bagID, slotID = FindNextClam()
+    if not bagID then
+        print("|cFF00FF00OmniInventory|r: No clams found in your bags.")
+        return
+    end
+
+    openClamsRunning = true
+    delayAccumulator = 0
+    print("|cFF00FF00OmniInventory|r: Opening clams...")
+
+    clamOpenerFrame:SetScript("OnUpdate", function(self, elapsed)
+        delayAccumulator = delayAccumulator + elapsed
+        if delayAccumulator >= OPEN_DELAY then
+            delayAccumulator = 0
+
+            if not openClamsRunning then
+                StopClamOpener()
+                return
+            end
+
+            if InCombatLockdown and InCombatLockdown() then
+                StopClamOpener("Clam opener stopped due to combat.")
+                return
+            end
+
+            if CursorHasItem() then
+                return
+            end
+
+            local blocking = (LootFrame and LootFrame:IsShown()) or (MailFrame and MailFrame:IsShown()) or (TradeFrame and TradeFrame:IsShown()) or (MerchantFrame and MerchantFrame:IsShown())
+            if blocking then
+                return
+            end
+
+            local nextBag, nextSlot = FindNextClam()
+            if not nextBag then
+                StopClamOpener("All clams opened.")
+                return
+            end
+
+            UseContainerItem(nextBag, nextSlot)
+        end
+    end)
+end
+
 local function HandleSlashCommand(msg)
     msg = string.lower(msg or "")
 
@@ -418,10 +509,14 @@ local function HandleSlashCommand(msg)
     elseif msg == "reset" then
         print("|cFF00FF00OmniInventory|r: Resetting...")
 
+    elseif msg == "openclams" or msg == "clams" then
+        StartClamOpener()
+
     elseif msg == "help" then
         print("|cFF00FF00OmniInventory|r Commands:")
         print("  |cFFFFFF00/oi|r - Toggle bags")
         print("  |cFFFFFF00/oi config|r - Open settings")
+        print("  |cFFFFFF00/oi openclams|r - Automatically open clams in bags")
         print("  |cFFFFFF00/oi debug|r - Toggle stats / combat / overrides")
         print("  |cFFFFFF00/oi forceshow|r - Bypass and try raw mainFrame:Show")
         print("  |cFFFFFF00/oi forcehide|r - Bypass and try raw mainFrame:Hide")

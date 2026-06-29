@@ -33,6 +33,7 @@ UI\Frame.lua
 UI\BankFrame.lua
 UI\GuildBankFrame.lua
 UI\Options.lua
+UI\Tooltip.lua
 
 # =============================================================================
 # Main Entry Point
