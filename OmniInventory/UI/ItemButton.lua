@@ -23,6 +23,37 @@ local TEXTURE_QUEST_DAILY = "Interface\\GossipFrame\\DailyQuestIcon"
 local QUEST_STARTER_ICON_SIZE = 20
 local ConfigureSecureItemUse
 
+local function GetSpecialtyBagColor(bagID)
+    if not bagID or bagID < 1 or bagID > 11 then
+        return nil
+    end
+    local family = GetContainerFamily(bagID) or 0
+    if family == 0 then
+        return nil
+    end
+
+    if bit.band(family, 1) > 0 or bit.band(family, 2) > 0 then
+        return 0.9, 0.8, 0.2  -- Ammo / Quiver (Yellow-gold)
+    elseif bit.band(family, 4) > 0 then
+        return 0.6, 0.2, 0.85  -- Soul Bag (Purple)
+    elseif bit.band(family, 8) > 0 then
+        return 0.6, 0.4, 0.25  -- Leatherworking (Brown)
+    elseif bit.band(family, 16) > 0 then
+        return 0.4, 0.6, 1.0   -- Inscription (Light Blue)
+    elseif bit.band(family, 32) > 0 then
+        return 0.12, 0.85, 0.12 -- Herbs (Green)
+    elseif bit.band(family, 64) > 0 then
+        return 0.9, 0.45, 0.1  -- Mining (Copper)
+    elseif bit.band(family, 128) > 0 then
+        return 0.12, 0.64, 1.0 -- Engineering (Cyan)
+    elseif bit.band(family, 512) > 0 then
+        return 0.0, 0.8, 0.7   -- Gems (Teal)
+    elseif bit.band(family, 1024) > 0 then
+        return 0.0, 0.5, 0.9   -- Tackle Box (Deep Blue)
+    end
+    return nil
+end
+
 local function isTextColorRed(textTable)
     if not textTable then return false end
     local text = textTable:GetText()
@@ -670,11 +701,15 @@ function ItemButton:SetItem(button, itemInfo)
         button.count:SetText("")
         button.count:Hide()
         pcall(button.EnableMouse, button, true)
-        local grey = 0.3
-        if button.borderTop then button.borderTop:SetVertexColor(grey, grey, grey, 1) end
-        if button.borderBottom then button.borderBottom:SetVertexColor(grey, grey, grey, 1) end
-        if button.borderLeft then button.borderLeft:SetVertexColor(grey, grey, grey, 1) end
-        if button.borderRight then button.borderRight:SetVertexColor(grey, grey, grey, 1) end
+        local r, g, b = 0.3, 0.3, 0.3
+        local sr, sg, sb = GetSpecialtyBagColor(itemInfo.bagID)
+        if sr then
+            r, g, b = sr, sg, sb
+        end
+        if button.borderTop then button.borderTop:SetVertexColor(r, g, b, 1) end
+        if button.borderBottom then button.borderBottom:SetVertexColor(r, g, b, 1) end
+        if button.borderLeft then button.borderLeft:SetVertexColor(r, g, b, 1) end
+        if button.borderRight then button.borderRight:SetVertexColor(r, g, b, 1) end
         button.dimOverlay:Hide()
         UpdateEmptyDropHighlight(button)
         HideItemCooldown(button)
@@ -756,8 +791,14 @@ function ItemButton:SetItem(button, itemInfo)
 
     -- Set quality border color
     local quality = itemInfo.quality or 1
-    local color = QUALITY_COLORS[quality] or QUALITY_COLORS[1]
-    local r, g, b = color[1], color[2], color[3]
+    local r, g, b
+    local sr, sg, sb = GetSpecialtyBagColor(itemInfo.bagID)
+    if quality <= 1 and sr then
+        r, g, b = sr, sg, sb
+    else
+        local color = QUALITY_COLORS[quality] or QUALITY_COLORS[1]
+        r, g, b = color[1], color[2], color[3]
+    end
 
     if button.borderTop then button.borderTop:SetVertexColor(r, g, b, 1) end
     if button.borderBottom then button.borderBottom:SetVertexColor(r, g, b, 1) end
