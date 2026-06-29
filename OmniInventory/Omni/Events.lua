@@ -27,6 +27,12 @@ local eventFrame = CreateFrame("Frame")
 local bagUpdateChunkFrame = nil
 local bagUpdateChunkQueue = nil
 
+local bagSlotContents = {}
+local newItems = {}
+local hasDoneInitialScan = false
+
+Omni.NewItems = newItems
+
 local function StopBagUpdateChunking()
     if bagUpdateChunkFrame then
         bagUpdateChunkFrame:SetScript("OnUpdate", nil)
@@ -192,6 +198,39 @@ function Events:Init()
         end
         if Omni.Data and Omni.Data.SaveCharacterInventory then
             Omni.Data:SaveCharacterInventory()
+        end
+
+        -- New item detection scan
+        if not hasDoneInitialScan then
+            hasDoneInitialScan = true
+            for bagID = 0, 4 do
+                local numSlots = GetContainerNumSlots(bagID) or 0
+                for slotID = 1, numSlots do
+                    local link = GetContainerItemLink(bagID, slotID)
+                    local itemID = link and tonumber(string.match(link, "item:(%d+)")) or nil
+                    local slotKey = bagID .. "_" .. slotID
+                    bagSlotContents[slotKey] = itemID
+                end
+            end
+        else
+            for bagID in pairs(modifiedBags or {}) do
+                if type(bagID) == "number" and bagID >= 0 and bagID <= 4 then
+                    local numSlots = GetContainerNumSlots(bagID) or 0
+                    for slotID = 1, numSlots do
+                        local link = GetContainerItemLink(bagID, slotID)
+                        local itemID = link and tonumber(string.match(link, "item:(%d+)")) or nil
+                        local slotKey = bagID .. "_" .. slotID
+                        
+                        local oldItemID = bagSlotContents[slotKey]
+                        if itemID and oldItemID ~= nil and itemID ~= oldItemID then
+                            newItems[slotKey] = true
+                        elseif itemID and oldItemID == nil then
+                            newItems[slotKey] = true
+                        end
+                        bagSlotContents[slotKey] = itemID
+                    end
+                end
+            end
         end
         local perfToken = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("events.BAG_UPDATE.flush")
         local hasPlayerBagChange = false

@@ -5117,11 +5117,21 @@ function Frame:Hide()
     ClearMap(optimisticFlowRefreshWatches)
     ClearArray(itemButtons)
 
+    if Omni.NewItems then
+        wipe(Omni.NewItems)
+    end
+
     for _, byBag in pairs(slotButtons) do
         for _, btn in pairs(byBag) do
             if btn then
                 btn._cachedSearchName = nil
                 btn._cachedSearchNameLower = nil
+                if btn.newGlow then
+                    if btn.newGlow.pulse then
+                        btn.newGlow.pulse:Stop()
+                    end
+                    btn.newGlow:Hide()
+                end
             end
         end
     end

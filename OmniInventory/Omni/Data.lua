@@ -21,7 +21,7 @@ local defaults = {
         itemSize = 37,
         scale = 1.0,
         opacity = 0.95,
-        highlightNewItems = false,
+        highlightNewItems = true,
         -- ʕ •ᴥ•ʔ✿ right | left | fixed_br | fixed_bl | fixed_tl | fixed_tr (ItemButton) ✿ ʕ •ᴥ•ʔ
         itemTooltipPlacement = "right",
         -- ʕ •ᴥ•ʔ✿ x = pixels inset from bottom-right; y = up from bottom ✿ ʕ •ᴥ•ʔ

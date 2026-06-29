@@ -586,6 +586,32 @@ function ItemButton:Create(parent)
     button.questStarterIcon:SetSize(QUEST_STARTER_ICON_SIZE, QUEST_STARTER_ICON_SIZE)
     button.questStarterIcon:Hide()
 
+    -- New item golden pulsing glow (Bagnon style)
+    button.newGlow = button:CreateTexture(nil, "OVERLAY", nil, 6)
+    button.newGlow:SetPoint("TOPLEFT", -2, 2)
+    button.newGlow:SetPoint("BOTTOMRIGHT", 2, -2)
+    button.newGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+    button.newGlow:SetVertexColor(1, 0.85, 0.0, 1)
+    button.newGlow:SetBlendMode("ADD")
+    button.newGlow:Hide()
+
+    local ag = button.newGlow:CreateAnimationGroup()
+    
+    local anim1 = ag:CreateAnimation("Alpha")
+    anim1:SetFromAlpha(1.0)
+    anim1:SetToAlpha(0.2)
+    anim1:SetDuration(0.8)
+    anim1:SetOrder(1)
+    
+    local anim2 = ag:CreateAnimation("Alpha")
+    anim2:SetFromAlpha(0.2)
+    anim2:SetToAlpha(1.0)
+    anim2:SetDuration(0.8)
+    anim2:SetOrder(2)
+    
+    ag:SetLooping("REPEAT")
+    button.newGlow.pulse = ag
+
 
 
 
@@ -713,6 +739,12 @@ function ItemButton:SetItem(button, itemInfo)
         if button.borderRight then button.borderRight:SetVertexColor(r, g, b, 1) end
         button.dimOverlay:Hide()
         UpdateEmptyDropHighlight(button)
+        if button.newGlow then
+            if button.newGlow.pulse then
+                button.newGlow.pulse:Stop()
+            end
+            button.newGlow:Hide()
+        end
         HideItemCooldown(button)
         if button.questStarterIcon then button.questStarterIcon:Hide() end
         button.__lastRenderKey = nil
@@ -862,6 +894,27 @@ function ItemButton:SetItem(button, itemInfo)
     UpdateQuestStarterIcon(button, itemInfo)
     self:UpdateCooldown(button)
 
+    -- Update new item glow highlight
+    local isNew = false
+    if not itemInfo.__empty and itemInfo.bagID and itemInfo.slotID then
+        local slotKey = itemInfo.bagID .. "_" .. itemInfo.slotID
+        if Omni.NewItems and Omni.NewItems[slotKey] and OmniInventoryDB and OmniInventoryDB.global.highlightNewItems ~= false then
+            isNew = true
+        end
+    end
+
+    if isNew then
+        button.newGlow:Show()
+        if button.newGlow.pulse and not button.newGlow.pulse:IsPlaying() then
+            button.newGlow.pulse:Play()
+        end
+    else
+        if button.newGlow.pulse then
+            button.newGlow.pulse:Stop()
+        end
+        button.newGlow:Hide()
+    end
+
     button.__lastRenderKey = {
         hyperlink = itemInfo.hyperlink,
         iconFileID = itemInfo.iconFileID,
@@ -997,6 +1050,21 @@ end
 
 function ItemButton:OnEnter(button)
     if not button or not button.itemInfo then return end
+
+    -- Clear new item status on hover
+    local info = button.itemInfo
+    if info.bagID and info.slotID then
+        local slotKey = info.bagID .. "_" .. info.slotID
+        if Omni.NewItems and Omni.NewItems[slotKey] then
+            Omni.NewItems[slotKey] = nil
+            if button.newGlow then
+                if button.newGlow.pulse then
+                    button.newGlow.pulse:Stop()
+                end
+                button.newGlow:Hide()
+            end
+        end
+    end
 
     button.__omniUsesCustomTooltip = true
     local info = button.itemInfo
