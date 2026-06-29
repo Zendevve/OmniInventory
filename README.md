@@ -3,6 +3,7 @@
 [![Version](https://img.shields.io/badge/version-2.0--alpha-blue.svg)](#)
 [![WoW](https://img.shields.io/badge/world%20of%20warcraft-3.3.5a-orange.svg)](#)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
+[![Donate](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://buymeacoffee.com/zendevve)
 
 **OmniInventory** is a premium, high-performance inventory, bags, bank, and guild bank management addon for World of Warcraft 3.3.5a (Wrath of the Lich King). Developed by **Zendevve**, it cleans up stock Blizzard clutter and unifies all bag slots into cohesive, searchable, and highly custom views.
 
@@ -63,6 +64,16 @@ Filter your unified bags instantly. The search bar supports advanced prefix matc
 2. Move the `OmniInventory` subdirectory to your World of Warcraft installation:
    `World of Warcraft/Interface/AddOns/OmniInventory`
 3. Restart or log in to the game and ensure the addon is checked in your AddOns menu.
+
+---
+
+## ☕ Support the Project
+
+If OmniInventory makes your WoW experience better and saves you time, please consider buying me a coffee to support its ongoing development!
+
+👉 **[Buy Me A Coffee](https://buymeacoffee.com/zendevve)**
+
+Your support is highly appreciated and directly helps keep the addon updated, optimized, and packed with new features. Thank you!
 
 ---
 
