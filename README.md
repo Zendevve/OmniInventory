@@ -1,6 +1,6 @@
 # OmniInventory
 
-[![Version](https://img.shields.io/badge/version-2.0--alpha-blue.svg)](#)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](#)
 [![WoW](https://img.shields.io/badge/world%20of%20warcraft-3.3.5a-orange.svg)](#)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 [![Donate](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://buymeacoffee.com/zendevve)

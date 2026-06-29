@@ -13,7 +13,7 @@ local addonName, Omni = ...
 
 _G.OmniInventory = Omni
 
-Omni.version = "2.0-alpha"
+Omni.version = "2.0.0"
 Omni.author = "Zendevve"
 
 -- =============================================================================
