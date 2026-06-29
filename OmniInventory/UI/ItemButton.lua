@@ -27,7 +27,8 @@ local function GetSpecialtyBagColor(bagID)
     if not bagID or bagID < 1 or bagID > 11 then
         return nil
     end
-    local family = GetContainerFamily(bagID) or 0
+    local _, family = GetContainerNumFreeSlots(bagID)
+    family = family or 0
     if family == 0 then
         return nil
     end
