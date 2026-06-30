@@ -137,13 +137,73 @@ function API:IsItemSoulbound(bagID, slotID)
     return bound
 end
 
+local equipmentSetCache = {}
+
+local function UpdateEquipmentSetCache()
+    for k in pairs(equipmentSetCache) do
+        equipmentSetCache[k] = nil
+    end
+
+    local numSets = GetNumEquipmentSets and GetNumEquipmentSets() or 0
+    for i = 1, numSets do
+        local name = GetEquipmentSetInfo(i)
+        if name then
+            local locations = GetEquipmentSetLocations(name)
+            if locations then
+                for slot, location in pairs(locations) do
+                    if location and location ~= 0 and location ~= 1 then
+                        local player, bank, bags, voidStorage, slotIndex, bagIndex = EquipmentManager_UnpackLocation(location)
+                        if bags and slotIndex and bagIndex then
+                            local key = bagIndex .. "_" .. slotIndex
+                            equipmentSetCache[key] = equipmentSetCache[key] or {}
+                            table.insert(equipmentSetCache[key], name)
+                        elseif not bags and slotIndex then
+                            if bank then
+                                local key = "-1_" .. slotIndex
+                                equipmentSetCache[key] = equipmentSetCache[key] or {}
+                                table.insert(equipmentSetCache[key], name)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+local eqFrame = CreateFrame("Frame")
+eqFrame:RegisterEvent("EQUIPMENT_SETS_CHANGED")
+eqFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eqFrame:SetScript("OnEvent", function(self, event)
+    UpdateEquipmentSetCache()
+end)
+
+-- Initial population
+UpdateEquipmentSetCache()
+
 --- Check whether the item in (bagID, slotID) is referenced by any equipment
---- manager set. Returns nil so the caller can fall back to the slow GetEquipmentSetItemIDs iteration.
+--- manager set. Supports targetSetName substring matches.
 ---@param bagID number
 ---@param slotID number
----@return boolean|nil inSet
-function API:IsItemInEquipmentSet(bagID, slotID)
-    return nil
+---@param targetSetName string|nil
+---@return boolean inSet
+function API:IsItemInEquipmentSet(bagID, slotID, targetSetName)
+    if not bagID or not slotID then return false end
+    local key = bagID .. "_" .. slotID
+    local sets = equipmentSetCache[key]
+    if not sets then return false end
+
+    if not targetSetName or targetSetName == "" then
+        return true
+    end
+
+    local targetLower = string.lower(targetSetName)
+    for _, name in ipairs(sets) do
+        if string.find(string.lower(name), targetLower, 1, true) then
+            return true
+        end
+    end
+    return false
 end
 
 --- Replacement for GetContainerItemLink.

@@ -706,6 +706,10 @@ function ItemButton:Create(parent)
         end
     end
 
+    if Omni.MasqueGroup then
+        pcall(Omni.MasqueGroup.AddButton, Omni.MasqueGroup, button)
+    end
+
     return button
 end
 
@@ -879,10 +883,34 @@ function ItemButton:SetItem(button, itemInfo)
         r, g, b = color[1], color[2], color[3]
     end
 
-    if button.borderTop then button.borderTop:SetVertexColor(r, g, b, 1) end
-    if button.borderBottom then button.borderBottom:SetVertexColor(r, g, b, 1) end
-    if button.borderLeft then button.borderLeft:SetVertexColor(r, g, b, 1) end
-    if button.borderRight then button.borderRight:SetVertexColor(r, g, b, 1) end
+    if Omni.MasqueGroup then
+        if button.borderTop then button.borderTop:Hide() end
+        if button.borderBottom then button.borderBottom:Hide() end
+        if button.borderLeft then button.borderLeft:Hide() end
+        if button.borderRight then button.borderRight:Hide() end
+        if Omni.MasqueGroup.SetColors then
+            pcall(Omni.MasqueGroup.SetColors, Omni.MasqueGroup, button, {
+                Border = { r, g, b, 1 }
+            })
+        end
+    else
+        if button.borderTop then
+            button.borderTop:SetVertexColor(r, g, b, 1)
+            button.borderTop:Show()
+        end
+        if button.borderBottom then
+            button.borderBottom:SetVertexColor(r, g, b, 1)
+            button.borderBottom:Show()
+        end
+        if button.borderLeft then
+            button.borderLeft:SetVertexColor(r, g, b, 1)
+            button.borderLeft:Show()
+        end
+        if button.borderRight then
+            button.borderRight:SetVertexColor(r, g, b, 1)
+            button.borderRight:Show()
+        end
+    end
 
     -- ʕ •ᴥ•ʔ✿ ContainerFrameItemButton_OnClick reads bag from
     -- self:GetParent():GetID() and slot from self:GetID(); the parenting

@@ -5360,10 +5360,16 @@ local function MatchType(info, queryVal)
 end
 
 local function IsItemInEquipmentSet(itemInfo, targetSetName)
+    if not itemInfo then return false end
+    if Omni.API and Omni.API.IsItemInEquipmentSet and itemInfo.bagID and itemInfo.slotID then
+        local inSet = Omni.API:IsItemInEquipmentSet(itemInfo.bagID, itemInfo.slotID, targetSetName)
+        if inSet then return true end
+    end
+
     if not GetNumEquipmentSets or not GetEquipmentSetInfo then return false end
     local numSets = GetNumEquipmentSets()
     local link = itemInfo.hyperlink
-    local targetItemID = tonumber(string.match(link, "item:(%d+)"))
+    local targetItemID = link and tonumber(string.match(link, "item:(%d+)"))
     if not targetItemID then return false end
 
     for index = 1, numSets do
