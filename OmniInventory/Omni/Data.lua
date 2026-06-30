@@ -47,6 +47,47 @@ local defaults = {
         addonButtons = {
             atlasLoot   = true,
         },
+        -- ʕ •ᴥ•ʔ✿ Configurable auto-display: per-event open/close of the
+        -- main inventory frame. Mirrors Bagnon's per-frame/per-event model
+        -- but scoped to the single Omni main bag window. ✿ ʕ •ᴥ•ʔ
+        autoDisplay = {
+            bank    = true,   -- BANKFRAME_OPENED
+            vendor  = false,  -- MERCHANT_SHOW
+            mail    = false,  -- MAIL_SHOW
+            ah      = false,  -- AUCTION_HOUSE_SHOW
+            trade   = false,  -- TRADE_SHOW
+            guildbank = true, -- GUILDBANKFRAME_OPENED
+            craft   = false,  -- TRADE_SKILL_SHOW / CRAFT_SHOW
+            player  = false,  -- PLAYER_FRAME_OPENED-ish (character frame)
+        },
+        -- ʕ •ᴥ•ʔ✿ Junk filter include/exclude lists (AdiBags-style). ✿ ʕ •ᴥ•ʔ
+        junkInclude = {},     -- itemIDs always treated as junk
+        junkExclude = { [6948] = true }, -- itemIDs never treated as junk (Hearthstone default)
+        -- ʕ •ᴥ•ʔ✿ Global lock: when true, all layout updates are paused
+        -- (sort/swap/equipment changes). Mirrors AdiBags SetGlobalLock. ✿ ʕ •ᴥ•ʔ
+        globalLock = false,
+        -- ʕ •ᴥ•ʔ✿ Theme: "rounded" (default WoW borders) or "square"
+        -- (pfUI-compatible, cropped icons, hidden rounded borders). ✿ ʕ •ᴥ•ʔ
+        theme = "rounded",
+        -- ʕ •ᴥ•ʔ✿ Auto-tidy: compact layout on close (AdiBags TidyBags). ✿ ʕ •ᴥ•ʔ
+        autoTidyOnClose = false,
+        -- ʕ •ᴥ•ʔ✿ Auto-loot: automatically loot loot frames when opened. ✿ ʕ •ᴥ•ʔ
+        autoLoot = false,
+        -- ʕ •ᴥ•ʔ✿ Cache warmer: pre-load GetItemInfo for known item IDs
+        -- on PLAYER_ENTERING_WORLD to avoid tooltip delays. ✿ ʕ •ᴥ•ʔ
+        cacheWarmer = true,
+        -- ʕ •ᴥ•ʔ✿ Money tracker: record gold history per character over
+        -- time for trend display. ✿ ʕ •ᴥ•ʔ
+        moneyTracker = false,
+        -- ʕ •ᴥ•ʔ✿ Bound item indicator: show a small chain icon on
+        -- soulbound items in the bag. ✿ ʕ •ᴥ•ʔ
+        showBoundIndicator = false,
+        -- ʕ •ᴥ•ʔ✿ Bag type tags: show family tag text on specialty
+        -- bag slot icons in the header. ✿ ʕ •ᴥ•ʔ
+        showBagTypeTags = false,
+        -- ʕ •ᴥ•ʔ✿ Resort button: show a button when a dry-run detects
+        -- the layout could be reorganized (Bagshui-style). ✿ ʕ •ᴥ•ʔ
+        showResortButton = false,
     },
     char = {
         position = nil,         -- { point, x, y }

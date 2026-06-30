@@ -220,7 +220,7 @@ function Events:Init()
                         local link = GetContainerItemLink(bagID, slotID)
                         local itemID = link and tonumber(string.match(link, "item:(%d+)")) or nil
                         local slotKey = bagID .. "_" .. slotID
-                        
+
                         local oldItemID = bagSlotContents[slotKey]
                         if itemID and oldItemID ~= nil and itemID ~= oldItemID then
                             newItems[slotKey] = true
@@ -283,11 +283,18 @@ function Events:Init()
 
     -- ʕ •ᴥ•ʔ✿ Bank events drive the standalone BankFrame to the left ✿ ʕ •ᴥ•ʔ
     self:RegisterEvent("BANKFRAME_OPENED", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            Omni.Features:SetInteractingWindow("bank")
+        end
         if Omni.Data and Omni.Data.SaveBankItems then
             Omni.Data:SaveBankItems()
         end
-        if Omni.Frame then
-            Omni.Frame:Show()
+        if Omni.Features and Omni.Features.ApplyAutoDisplay then
+            Omni.Features:ApplyAutoDisplay("bank", true)
+        else
+            if Omni.Frame then
+                Omni.Frame:Show()
+            end
         end
         if Omni.BankFrame then
             Omni.BankFrame:Show()
@@ -310,6 +317,11 @@ function Events:Init()
     end)
 
     self:RegisterEvent("BANKFRAME_CLOSED", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            if Omni.Features:GetInteractingWindow() == "bank" then
+                Omni.Features:SetInteractingWindow(nil)
+            end
+        end
         if Omni.BankFrame then
             Omni.BankFrame:Hide()
         end
@@ -317,12 +329,23 @@ function Events:Init()
 
     -- ʕ •ᴥ•ʔ✿ Guild bank events drive the Omni.GuildBankFrame override ✿ ʕ •ᴥ•ʔ
     self:RegisterEvent("GUILDBANKFRAME_OPENED", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            Omni.Features:SetInteractingWindow("guildbank")
+        end
+        if Omni.Features and Omni.Features.ApplyAutoDisplay then
+            Omni.Features:ApplyAutoDisplay("guildbank", true)
+        end
         if Omni.GuildBankFrame then
             Omni.GuildBankFrame:Show()
         end
     end)
 
     self:RegisterEvent("GUILDBANKFRAME_CLOSED", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            if Omni.Features:GetInteractingWindow() == "guildbank" then
+                Omni.Features:SetInteractingWindow(nil)
+            end
+        end
         if Omni.GuildBankFrame then
             Omni.GuildBankFrame:Hide()
         end
@@ -375,20 +398,30 @@ function Events:Init()
         if Omni.Frame then
             Omni.Frame:UpdateMoney()
         end
+        -- ʕ •ᴥ•ʔ✿ Money tracker records gold history when enabled. ✿ ʕ •ᴥ•ʔ
+        if Omni.Features and Omni.Features.RecordMoney then
+            Omni.Features:RecordMoney()
+        end
     end)
 
     self:RegisterEvent("MERCHANT_SHOW", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            Omni.Features:SetInteractingWindow("vendor")
+        end
         if Omni.Frame and Omni.Frame.SetMerchantOpen then
             Omni.Frame:SetMerchantOpen(true)
             if Omni.Frame.IsShown and Omni.Frame:IsShown() then
                 Omni.Frame:UpdateLayout(nil, { forceFull = true, reason = "vendor_transition" })
             end
         end
+        if Omni.Features and Omni.Features.ApplyAutoDisplay then
+            Omni.Features:ApplyAutoDisplay("vendor", true)
+        end
 
         -- Auto Sell Junk & Auto Repair
         local db = OmniInventoryDB and OmniInventoryDB.global
         if db then
-            -- 1. Auto Sell Junk
+            -- 1. Auto Sell Junk (uses Features junk filter if available)
             if db.autoSellJunk ~= false then
                 local soldCount = 0
                 local earnedMoney = 0
@@ -398,7 +431,19 @@ function Events:Init()
                         local link = GetContainerItemLink(bagID, slotID)
                         if link then
                             local _, _, quality, _, _, _, _, _, _, _, price = GetItemInfo(link)
-                            if quality == 0 and price and price > 0 then
+                            local itemID = tonumber(string.match(link, "item:(%d+)"))
+                            -- ʕ •ᴥ•ʔ✿ Use Features.IsJunkItem for include/exclude lists,
+                            -- fall back to plain quality==0 check. ✿ ʕ •ᴥ•ʔ
+                            local isJunk = false
+                            if Omni.Features and Omni.Features.IsJunkItem then
+                                isJunk = Omni.Features:IsJunkItem({
+                                    itemID = itemID,
+                                    quality = quality,
+                                })
+                            else
+                                isJunk = (quality == 0)
+                            end
+                            if isJunk and price and price > 0 then
                                 local _, count = GetContainerItemInfo(bagID, slotID)
                                 earnedMoney = earnedMoney + (price * (count or 1))
                                 UseContainerItem(bagID, slotID)
@@ -447,10 +492,101 @@ function Events:Init()
     end)
 
     self:RegisterEvent("MERCHANT_CLOSED", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            if Omni.Features:GetInteractingWindow() == "vendor" then
+                Omni.Features:SetInteractingWindow(nil)
+            end
+        end
         if Omni.Frame and Omni.Frame.SetMerchantOpen then
             Omni.Frame:SetMerchantOpen(false)
             if Omni.Frame.IsShown and Omni.Frame:IsShown() then
                 Omni.Frame:UpdateLayout(nil, { forceFull = true, reason = "vendor_transition" })
+            end
+        end
+    end)
+
+    -- ʕ •ᴥ•ʔ✿ Interacting window tracking + auto-display for mail/AH/trade/craft ✿ ʕ •ᴥ•ʔ
+    self:RegisterEvent("MAIL_SHOW", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            Omni.Features:SetInteractingWindow("mail")
+        end
+        if Omni.Features and Omni.Features.ApplyAutoDisplay then
+            Omni.Features:ApplyAutoDisplay("mail", true)
+        end
+    end)
+
+    self:RegisterEvent("MAIL_CLOSED", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            if Omni.Features:GetInteractingWindow() == "mail" then
+                Omni.Features:SetInteractingWindow(nil)
+            end
+        end
+    end)
+
+    self:RegisterEvent("AUCTION_HOUSE_SHOW", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            Omni.Features:SetInteractingWindow("ah")
+        end
+        if Omni.Features and Omni.Features.ApplyAutoDisplay then
+            Omni.Features:ApplyAutoDisplay("ah", true)
+        end
+    end)
+
+    self:RegisterEvent("AUCTION_HOUSE_CLOSED", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            if Omni.Features:GetInteractingWindow() == "ah" then
+                Omni.Features:SetInteractingWindow(nil)
+            end
+        end
+    end)
+
+    self:RegisterEvent("TRADE_SHOW", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            Omni.Features:SetInteractingWindow("trade")
+        end
+        if Omni.Features and Omni.Features.ApplyAutoDisplay then
+            Omni.Features:ApplyAutoDisplay("trade", true)
+        end
+    end)
+
+    self:RegisterEvent("TRADE_CLOSED", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            if Omni.Features:GetInteractingWindow() == "trade" then
+                Omni.Features:SetInteractingWindow(nil)
+            end
+        end
+    end)
+
+    self:RegisterEvent("TRADE_SKILL_SHOW", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            Omni.Features:SetInteractingWindow("craft")
+        end
+        if Omni.Features and Omni.Features.ApplyAutoDisplay then
+            Omni.Features:ApplyAutoDisplay("craft", true)
+        end
+    end)
+
+    self:RegisterEvent("TRADE_SKILL_CLOSE", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            if Omni.Features:GetInteractingWindow() == "craft" then
+                Omni.Features:SetInteractingWindow(nil)
+            end
+        end
+    end)
+
+    self:RegisterEvent("CRAFT_SHOW", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            Omni.Features:SetInteractingWindow("craft")
+        end
+        if Omni.Features and Omni.Features.ApplyAutoDisplay then
+            Omni.Features:ApplyAutoDisplay("craft", true)
+        end
+    end)
+
+    self:RegisterEvent("CRAFT_CLOSE", function()
+        if Omni.Features and Omni.Features.SetInteractingWindow then
+            if Omni.Features:GetInteractingWindow() == "craft" then
+                Omni.Features:SetInteractingWindow(nil)
             end
         end
     end)

@@ -599,6 +599,15 @@ function ItemButton:Create(parent)
     button.pinIcon:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
     button.pinIcon:Hide()
 
+    -- ʕ •ᴥ•ʔ✿ Bound item indicator (chain icon, bottom-left) ✿ ʕ •ᴥ•ʔ
+    button.boundIcon = button:CreateTexture(nil, "OVERLAY", nil, 4)
+    button.boundIcon:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+    button.boundIcon:SetTexCoord(0.5, 0.75, 0.0, 0.25)
+    button.boundIcon:SetSize(14, 14)
+    button.boundIcon:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 1, 1)
+    button.boundIcon:SetVertexColor(0.6, 0.6, 0.9, 0.9)
+    button.boundIcon:Hide()
+
     button.questStarterIcon = button:CreateTexture(nil, "OVERLAY", nil, 3)
     button.questStarterIcon:SetSize(QUEST_STARTER_ICON_SIZE, QUEST_STARTER_ICON_SIZE)
     button.questStarterIcon:Hide()
@@ -613,17 +622,17 @@ function ItemButton:Create(parent)
     button.newGlow:Hide()
 
     local ag = button.newGlow:CreateAnimationGroup()
-    
+
     local anim1 = ag:CreateAnimation("Alpha")
     anim1:SetChange(-0.8)
     anim1:SetDuration(0.8)
     anim1:SetOrder(1)
-    
+
     local anim2 = ag:CreateAnimation("Alpha")
     anim2:SetChange(0.8)
     anim2:SetDuration(0.8)
     anim2:SetOrder(2)
-    
+
     ag:SetLooping("REPEAT")
     button.newGlow.pulse = ag
 
@@ -921,6 +930,17 @@ function ItemButton:SetItem(button, itemInfo)
         button.pinIcon:Show()
     else
         button.pinIcon:Hide()
+    end
+
+    -- ʕ •ᴥ•ʔ✿ Bound item indicator (chain icon) ✿ ʕ •ᴥ•ʔ
+    if button.boundIcon then
+        local showBound = Omni.Features and Omni.Features.ShouldShowBoundIndicator
+            and Omni.Features:ShouldShowBoundIndicator(itemInfo) or false
+        if showBound then
+            button.boundIcon:Show()
+        else
+            button.boundIcon:Hide()
+        end
     end
 
     UpdateQuestStarterIcon(button, itemInfo)
@@ -1232,6 +1252,7 @@ function ItemButton:Reset(button)
 
     if button.dimOverlay then button.dimOverlay:Hide() end
     if button.pinIcon then button.pinIcon:Hide() end
+    if button.boundIcon then button.boundIcon:Hide() end
     if button.emptyDropHighlight then button.emptyDropHighlight:Hide() end
     HideItemCooldown(button)
     if button.icon then

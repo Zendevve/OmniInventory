@@ -16,6 +16,14 @@ _G.OmniInventory = Omni
 Omni.version = "2.0.0"
 Omni.author = "Zendevve"
 
+-- ʕ •ᴥ•ʔ✿ Convenience top-level Toggle so Bindings.xml can call
+-- OmniInventory:Toggle() without reaching into the Frame module. ✿ ʕ •ᴥ•ʔ
+function Omni:Toggle()
+    if self.Frame then
+        self.Frame:Toggle()
+    end
+end
+
 -- =============================================================================
 -- Event Handler
 -- =============================================================================
@@ -274,6 +282,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if Omni.BankFrame then Omni.BankFrame:Init() end
         if Omni.GuildBankFrame then Omni.GuildBankFrame:Init() end
         if Omni.Settings then Omni.Settings:Init() end
+        if Omni.Features then Omni.Features:Init() end
 
         OverrideBags()
 
@@ -283,6 +292,12 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- Safe in combat -- the Blizzard-frame suppression inside
         -- OverrideBags is itself combat-gated.
         OverrideBags()
+
+        -- ʕ •ᴥ•ʔ✿ Cache warmer + money tracker fire on zone-in. ✿ ʕ •ᴥ•ʔ
+        if Omni.Features then
+            if Omni.Features.WarmCache then Omni.Features:WarmCache() end
+            if Omni.Features.RecordMoney then Omni.Features:RecordMoney() end
+        end
 
 
     elseif event == "PLAYER_REGEN_ENABLED" then
@@ -589,7 +604,7 @@ _G.UseContainerItem = function(bagID, slotID)
             if protectionEnabled and IsValuableItem(bagID, slotID) then
                 local now = GetTime()
                 local itemLink = GetContainerItemLink(bagID, slotID)
-                
+
                 if lastClickedItem == itemLink and (now - lastClickTime) <= DOUBLE_CLICK_TIMEOUT then
                     lastClickedItem = nil
                     lastClickTime = 0
@@ -597,14 +612,14 @@ _G.UseContainerItem = function(bagID, slotID)
                 else
                     lastClickedItem = itemLink
                     lastClickTime = now
-                    
+
                     PlaySound("igQuestLogAbandonQuest")
                     print(string.format("|cFFFF4040OmniInventory|r: Double right-click to sell valuable item: %s", itemLink))
-                    
+
                     if UIErrorsFrame then
                         UIErrorsFrame:AddMessage("Double right-click to sell valuable item!", 1.0, 0.25, 0.25, 1.0, 5)
                     end
-                    
+
                     return
                 end
             end

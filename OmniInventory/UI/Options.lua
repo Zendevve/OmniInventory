@@ -797,7 +797,281 @@ function Settings:CreateControls(parent)
 
     yOffset = yOffset - SECTION_GAP
 
+    -- ʕ •ᴥ•ʔ✿ New Features section: auto-display, junk lists, cache warmer,
+    -- auto-loot, money tracker, bound indicator, bag type tags, theme,
+    -- auto-tidy, resort button, global lock. ✿ ʕ •ᴥ•ʔ
+    CreateSectionHeader(parent, "Auto-Display & Features", yOffset, { 0.85, 0.70, 1.00 })
+    yOffset = yOffset - HEADER_GAP
 
+    local autoDisplayBankCb = CreateFrame("CheckButton", "OmniAutoDisplayBank", parent, "UICheckButtonTemplate")
+    autoDisplayBankCb:SetSize(24, 24)
+    autoDisplayBankCb:SetPoint("TOPLEFT", 14, yOffset)
+    local autoDisplayBankLabel = autoDisplayBankCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    autoDisplayBankLabel:SetPoint("LEFT", autoDisplayBankCb, "RIGHT", 2, 1)
+    autoDisplayBankLabel:SetText("Auto-open at Bank")
+    autoDisplayBankCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            local ad = Omni.Data:Get("autoDisplay") or {}
+            ad.bank = self:GetChecked() and true or false
+            Omni.Data:Set("autoDisplay", ad)
+        end
+    end)
+    self.autoDisplayBankCb = autoDisplayBankCb
+
+    local autoDisplayVendorCb = CreateFrame("CheckButton", "OmniAutoDisplayVendor", parent, "UICheckButtonTemplate")
+    autoDisplayVendorCb:SetSize(24, 24)
+    autoDisplayVendorCb:SetPoint("TOPLEFT", 160, yOffset)
+    local autoDisplayVendorLabel = autoDisplayVendorCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    autoDisplayVendorLabel:SetPoint("LEFT", autoDisplayVendorCb, "RIGHT", 2, 1)
+    autoDisplayVendorLabel:SetText("Auto-open at Vendor")
+    autoDisplayVendorCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            local ad = Omni.Data:Get("autoDisplay") or {}
+            ad.vendor = self:GetChecked() and true or false
+            Omni.Data:Set("autoDisplay", ad)
+        end
+    end)
+    self.autoDisplayVendorCb = autoDisplayVendorCb
+
+    yOffset = yOffset - 22
+
+    local autoDisplayMailCb = CreateFrame("CheckButton", "OmniAutoDisplayMail", parent, "UICheckButtonTemplate")
+    autoDisplayMailCb:SetSize(24, 24)
+    autoDisplayMailCb:SetPoint("TOPLEFT", 14, yOffset)
+    local autoDisplayMailLabel = autoDisplayMailCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    autoDisplayMailLabel:SetPoint("LEFT", autoDisplayMailCb, "RIGHT", 2, 1)
+    autoDisplayMailLabel:SetText("Auto-open at Mail")
+    autoDisplayMailCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            local ad = Omni.Data:Get("autoDisplay") or {}
+            ad.mail = self:GetChecked() and true or false
+            Omni.Data:Set("autoDisplay", ad)
+        end
+    end)
+    self.autoDisplayMailCb = autoDisplayMailCb
+
+    local autoDisplayAhCb = CreateFrame("CheckButton", "OmniAutoDisplayAh", parent, "UICheckButtonTemplate")
+    autoDisplayAhCb:SetSize(24, 24)
+    autoDisplayAhCb:SetPoint("TOPLEFT", 160, yOffset)
+    local autoDisplayAhLabel = autoDisplayAhCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    autoDisplayAhLabel:SetPoint("LEFT", autoDisplayAhCb, "RIGHT", 2, 1)
+    autoDisplayAhLabel:SetText("Auto-open at AH")
+    autoDisplayAhCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            local ad = Omni.Data:Get("autoDisplay") or {}
+            ad.ah = self:GetChecked() and true or false
+            Omni.Data:Set("autoDisplay", ad)
+        end
+    end)
+    self.autoDisplayAhCb = autoDisplayAhCb
+
+    yOffset = yOffset - 22
+
+    local autoDisplayTradeCb = CreateFrame("CheckButton", "OmniAutoDisplayTrade", parent, "UICheckButtonTemplate")
+    autoDisplayTradeCb:SetSize(24, 24)
+    autoDisplayTradeCb:SetPoint("TOPLEFT", 14, yOffset)
+    local autoDisplayTradeLabel = autoDisplayTradeCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    autoDisplayTradeLabel:SetPoint("LEFT", autoDisplayTradeCb, "RIGHT", 2, 1)
+    autoDisplayTradeLabel:SetText("Auto-open at Trade")
+    autoDisplayTradeCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            local ad = Omni.Data:Get("autoDisplay") or {}
+            ad.trade = self:GetChecked() and true or false
+            Omni.Data:Set("autoDisplay", ad)
+        end
+    end)
+    self.autoDisplayTradeCb = autoDisplayTradeCb
+
+    local autoDisplayCraftCb = CreateFrame("CheckButton", "OmniAutoDisplayCraft", parent, "UICheckButtonTemplate")
+    autoDisplayCraftCb:SetSize(24, 24)
+    autoDisplayCraftCb:SetPoint("TOPLEFT", 160, yOffset)
+    local autoDisplayCraftLabel = autoDisplayCraftCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    autoDisplayCraftLabel:SetPoint("LEFT", autoDisplayCraftCb, "RIGHT", 2, 1)
+    autoDisplayCraftLabel:SetText("Auto-open at Craft")
+    autoDisplayCraftCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            local ad = Omni.Data:Get("autoDisplay") or {}
+            ad.craft = self:GetChecked() and true or false
+            Omni.Data:Set("autoDisplay", ad)
+        end
+    end)
+    self.autoDisplayCraftCb = autoDisplayCraftCb
+
+    yOffset = yOffset - 22
+
+    local cacheWarmerCb = CreateFrame("CheckButton", "OmniCacheWarmer", parent, "UICheckButtonTemplate")
+    cacheWarmerCb:SetSize(24, 24)
+    cacheWarmerCb:SetPoint("TOPLEFT", 14, yOffset)
+    local cacheWarmerLabel = cacheWarmerCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    cacheWarmerLabel:SetPoint("LEFT", cacheWarmerCb, "RIGHT", 2, 1)
+    cacheWarmerLabel:SetText("Cache warmer")
+    cacheWarmerCb:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Cache Warmer", 1, 0.82, 0)
+        GameTooltip:AddLine("Pre-loads GetItemInfo for known item IDs on login to avoid tooltip delays.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    cacheWarmerCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    cacheWarmerCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            Omni.Data:Set("cacheWarmer", self:GetChecked() and true or false)
+        end
+    end)
+    self.cacheWarmerCb = cacheWarmerCb
+
+    local autoLootCb = CreateFrame("CheckButton", "OmniAutoLoot", parent, "UICheckButtonTemplate")
+    autoLootCb:SetSize(24, 24)
+    autoLootCb:SetPoint("TOPLEFT", 160, yOffset)
+    local autoLootLabel = autoLootCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    autoLootLabel:SetPoint("LEFT", autoLootCb, "RIGHT", 2, 1)
+    autoLootLabel:SetText("Auto-loot")
+    autoLootCb:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Auto-Loot", 1, 0.82, 0)
+        GameTooltip:AddLine("Automatically loots all items when a loot frame opens.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    autoLootCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    autoLootCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            Omni.Data:Set("autoLoot", self:GetChecked() and true or false)
+            if Omni.Features and Omni.Features.InitAutoLoot then
+                Omni.Features:InitAutoLoot()
+            end
+        end
+    end)
+    self.autoLootCb = autoLootCb
+
+    yOffset = yOffset - 22
+
+    local moneyTrackerCb = CreateFrame("CheckButton", "OmniMoneyTracker", parent, "UICheckButtonTemplate")
+    moneyTrackerCb:SetSize(24, 24)
+    moneyTrackerCb:SetPoint("TOPLEFT", 14, yOffset)
+    local moneyTrackerLabel = moneyTrackerCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    moneyTrackerLabel:SetPoint("LEFT", moneyTrackerCb, "RIGHT", 2, 1)
+    moneyTrackerLabel:SetText("Money tracker")
+    moneyTrackerCb:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Money Tracker", 1, 0.82, 0)
+        GameTooltip:AddLine("Records gold history per character over time for trend display.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    moneyTrackerCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    moneyTrackerCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            Omni.Data:Set("moneyTracker", self:GetChecked() and true or false)
+        end
+    end)
+    self.moneyTrackerCb = moneyTrackerCb
+
+    local boundIndicatorCb = CreateFrame("CheckButton", "OmniBoundIndicator", parent, "UICheckButtonTemplate")
+    boundIndicatorCb:SetSize(24, 24)
+    boundIndicatorCb:SetPoint("TOPLEFT", 160, yOffset)
+    local boundIndicatorLabel = boundIndicatorCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    boundIndicatorLabel:SetPoint("LEFT", boundIndicatorCb, "RIGHT", 2, 1)
+    boundIndicatorLabel:SetText("Bound indicator")
+    boundIndicatorCb:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Bound Item Indicator", 1, 0.82, 0)
+        GameTooltip:AddLine("Shows a small chain icon on soulbound items in the bag.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    boundIndicatorCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    boundIndicatorCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            Omni.Data:Set("showBoundIndicator", self:GetChecked() and true or false)
+            RefreshAllInventory()
+        end
+    end)
+    self.boundIndicatorCb = boundIndicatorCb
+
+    yOffset = yOffset - 22
+
+    local bagTypeTagsCb = CreateFrame("CheckButton", "OmniBagTypeTags", parent, "UICheckButtonTemplate")
+    bagTypeTagsCb:SetSize(24, 24)
+    bagTypeTagsCb:SetPoint("TOPLEFT", 14, yOffset)
+    local bagTypeTagsLabel = bagTypeTagsCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    bagTypeTagsLabel:SetPoint("LEFT", bagTypeTagsCb, "RIGHT", 2, 1)
+    bagTypeTagsLabel:SetText("Bag type tags")
+    bagTypeTagsCb:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Bag Type Tags", 1, 0.82, 0)
+        GameTooltip:AddLine("Shows family tag text (Ammo, Herb, Mining, etc.) on specialty bag tooltips.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    bagTypeTagsCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    bagTypeTagsCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            Omni.Data:Set("showBagTypeTags", self:GetChecked() and true or false)
+        end
+    end)
+    self.bagTypeTagsCb = bagTypeTagsCb
+
+    local autoTidyCb = CreateFrame("CheckButton", "OmniAutoTidy", parent, "UICheckButtonTemplate")
+    autoTidyCb:SetSize(24, 24)
+    autoTidyCb:SetPoint("TOPLEFT", 160, yOffset)
+    local autoTidyLabel = autoTidyCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    autoTidyLabel:SetPoint("LEFT", autoTidyCb, "RIGHT", 2, 1)
+    autoTidyLabel:SetText("Auto-tidy on close")
+    autoTidyCb:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Auto-Tidy on Close", 1, 0.82, 0)
+        GameTooltip:AddLine("Compacts bag layout and sorts when the bag window is closed (AdiBags TidyBags).", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    autoTidyCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    autoTidyCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            Omni.Data:Set("autoTidyOnClose", self:GetChecked() and true or false)
+        end
+    end)
+    self.autoTidyCb = autoTidyCb
+
+    yOffset = yOffset - 22
+
+    local resortButtonCb = CreateFrame("CheckButton", "OmniResortButton", parent, "UICheckButtonTemplate")
+    resortButtonCb:SetSize(24, 24)
+    resortButtonCb:SetPoint("TOPLEFT", 14, yOffset)
+    local resortButtonLabel = resortButtonCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    resortButtonLabel:SetPoint("LEFT", resortButtonCb, "RIGHT", 2, 1)
+    resortButtonLabel:SetText("Resort button")
+    resortButtonCb:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Resort Button", 1, 0.82, 0)
+        GameTooltip:AddLine("Shows a resort button when a dry-run detects the layout could be reorganized.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    resortButtonCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    resortButtonCb:SetScript("OnClick", function(self)
+        if Omni.Data then
+            Omni.Data:Set("showResortButton", self:GetChecked() and true or false)
+        end
+    end)
+    self.resortButtonCb = resortButtonCb
+
+    -- Theme cycle button
+    local themeBtn = CreateFrame("Button", "OmniThemeBtn", parent, "UIPanelButtonTemplate")
+    themeBtn:SetSize(120, 22)
+    themeBtn:SetPoint("TOPLEFT", 160, yOffset)
+    themeBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Theme", 1, 0.82, 0)
+        GameTooltip:AddLine("Rounded: default WoW borders. Square: pfUI-compatible, cropped icons.", 0.75, 0.75, 0.75, true)
+        GameTooltip:Show()
+    end)
+    themeBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    themeBtn:SetScript("OnClick", function()
+        if Omni.Features and Omni.Features.GetTheme then
+            local cur = Omni.Features:GetTheme()
+            local nextTheme = cur == "square" and "rounded" or "square"
+            Omni.Features:SetTheme(nextTheme)
+            Settings:RefreshThemeLabel()
+            RefreshAllInventory()
+        end
+    end)
+    self.themeBtn = themeBtn
+
+    yOffset = yOffset - SPACING - SECTION_GAP
 
     -- ʕ •ᴥ•ʔ✿ yOffset grows negative as rows are added — flip and pad for the scroll child ✿ ʕ •ᴥ•ʔ
     self._contentHeight = math.abs(yOffset) + 40
@@ -893,6 +1167,36 @@ function Settings:UpdateValues()
     if self.collapseEmptySlotsCb and Omni.Data then
         self.collapseEmptySlotsCb:SetChecked(Omni.Data:Get("collapseEmptySlots") == true)
     end
+    -- ʕ •ᴥ•ʔ✿ New Features checkboxes ✿ ʕ •ᴥ•ʔ
+    local ad = Omni.Data and Omni.Data:Get("autoDisplay") or {}
+    if self.autoDisplayBankCb then self.autoDisplayBankCb:SetChecked(ad.bank == true) end
+    if self.autoDisplayVendorCb then self.autoDisplayVendorCb:SetChecked(ad.vendor == true) end
+    if self.autoDisplayMailCb then self.autoDisplayMailCb:SetChecked(ad.mail == true) end
+    if self.autoDisplayAhCb then self.autoDisplayAhCb:SetChecked(ad.ah == true) end
+    if self.autoDisplayTradeCb then self.autoDisplayTradeCb:SetChecked(ad.trade == true) end
+    if self.autoDisplayCraftCb then self.autoDisplayCraftCb:SetChecked(ad.craft == true) end
+    if self.cacheWarmerCb and Omni.Data then
+        self.cacheWarmerCb:SetChecked(Omni.Data:Get("cacheWarmer") ~= false)
+    end
+    if self.autoLootCb and Omni.Data then
+        self.autoLootCb:SetChecked(Omni.Data:Get("autoLoot") == true)
+    end
+    if self.moneyTrackerCb and Omni.Data then
+        self.moneyTrackerCb:SetChecked(Omni.Data:Get("moneyTracker") == true)
+    end
+    if self.boundIndicatorCb and Omni.Data then
+        self.boundIndicatorCb:SetChecked(Omni.Data:Get("showBoundIndicator") == true)
+    end
+    if self.bagTypeTagsCb and Omni.Data then
+        self.bagTypeTagsCb:SetChecked(Omni.Data:Get("showBagTypeTags") == true)
+    end
+    if self.autoTidyCb and Omni.Data then
+        self.autoTidyCb:SetChecked(Omni.Data:Get("autoTidyOnClose") == true)
+    end
+    if self.resortButtonCb and Omni.Data then
+        self.resortButtonCb:SetChecked(Omni.Data:Get("showResortButton") == true)
+    end
+    self:RefreshThemeLabel()
     self._syncingTooltipFixedSliders = true
     if Omni.Data and self.tooltipFixedXSlider and self.tooltipFixedYSlider then
         local fix = Omni.Data:Get("itemTooltipFixed") or {}
@@ -963,6 +1267,15 @@ function Settings:UpdateValues()
     end
 
     self._syncingScaleControls = false
+end
+
+function Settings:RefreshThemeLabel()
+    if not self.themeBtn then return end
+    local theme = "Rounded"
+    if Omni.Features and Omni.Features.GetTheme then
+        theme = Omni.Features:GetTheme() == "square" and "Square" or "Rounded"
+    end
+    self.themeBtn:SetText("Theme: " .. theme)
 end
 
 function Settings:Init()

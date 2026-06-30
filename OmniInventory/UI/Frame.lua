@@ -1214,6 +1214,13 @@ function Frame:CreateHeader()
         bagBtn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
             GameTooltip:AddLine(GetBagDisplayName(self.bagID), 1, 1, 1)
+            -- ʕ •ᴥ•ʔ✿ Bag type tag (AdiBags FAMILY_TAGS). ✿ ʕ •ᴥ•ʔ
+            if Omni.Features and Omni.Features.GetBagFamilyTag then
+                local tag = Omni.Features:GetBagFamilyTag(self.bagID)
+                if tag then
+                    GameTooltip:AddLine("Type: " .. tag, 0.7, 0.85, 1.0)
+                end
+            end
             GameTooltip:AddLine("Left-click: Preview this bag", 0.8, 0.8, 0.8)
             GameTooltip:AddLine("Right-click: Force-empty bag", 0.8, 0.8, 0.8)
             if self.bagID ~= 0 then
@@ -3608,6 +3615,12 @@ end
 
 function Frame:UpdateLayout(changedBags, opts)
     if not mainFrame then return end
+    -- ʕ •ᴥ•ʔ✿ Global lock: pause all layout updates while locked (e.g.
+    -- during sort/swap operations). Combat gating still applies below. ✿ ʕ •ᴥ•ʔ
+    if Omni.Features and Omni.Features.IsGlobalLocked and Omni.Features:IsGlobalLocked()
+            and not (opts and opts.forceFull) then
+        return
+    end
     if not (opts and opts.__coalesced) and not (opts and opts.immediate) then
         self:_QueueLayoutUpdate(changedBags, opts)
         return
@@ -5470,6 +5483,12 @@ function Frame:Hide()
             and OmniInventoryDB and OmniInventoryDB.global
             and OmniInventoryDB.global.autoSortOnClose then
         Frame:PhysicalSortBags()
+    end
+
+    -- ʕ •ᴥ•ʔ✿ Auto-tidy on close (AdiBags TidyBags). ✿ ʕ •ᴥ•ʔ
+    if not InCombat() and Omni.Features and Omni.Features.ShouldAutoTidyOnClose
+            and Omni.Features:ShouldAutoTidyOnClose() then
+        Omni.Features:RunTidy()
     end
 end
 
