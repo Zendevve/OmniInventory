@@ -2091,12 +2091,19 @@ local FOOTER_CUSTOM_BUTTONS = {
         key     = "hearthstone",
         icon    = "Interface\\Icons\\INV_Misc_Rune_01",
         title   = "Hearthstone",
-        sub     = "Left-click to cast Hearthstone. Right-click to pick up.",
+        sub     = "Left-click to pick up. Right-click to cast.",
+        secure  = true,
+        secureAttributes = {
+            ["type2"] = "item",
+            ["item2"] = "Hearthstone",
+        },
         onClick = function(self, button)
-            if button == "RightButton" then
+            if button == "LeftButton" then
                 local bagID, slotID = FindHearthstone()
                 if bagID and slotID then
                     PickupContainerItem(bagID, slotID)
+                else
+                    print("|cFF00FF00OmniInventory|r: Hearthstone not found in bags.")
                 end
             end
         end,
@@ -2128,7 +2135,23 @@ local FOOTER_CUSTOM_BUTTONS = {
         key     = "openables",
         icon    = "Interface\\Icons\\INV_Misc_Clam_01",
         title   = "Openable Opener",
-        sub     = "Uses the first openable container found (clams, lockboxes, crates).",
+        sub     = "Left-click to pick up. Right-click to open.",
+        secure  = true,
+        secureAttributes = {
+            ["type2"] = "item",
+        },
+        onClick = function(self, button)
+            if button == "LeftButton" then
+                local bagID, slotID = FindFirstOpenableContainer()
+                if bagID and slotID then
+                    PickupContainerItem(bagID, slotID)
+                end
+            elseif button == "RightButton" then
+                if not self:GetAttribute("item2") then
+                    print("|cFF00FF00OmniInventory|r: No openable containers found in bags.")
+                end
+            end
+        end,
         onEnter = function(self)
             self:SetBackdropBorderColor(0.9, 0.8, 0.2, 1)
             local bagID, slotID = FindFirstOpenableContainer()
@@ -2150,7 +2173,12 @@ local FOOTER_CUSTOM_BUTTONS = {
         key     = "disenchant",
         icon    = "Interface\\Icons\\Spell_Holy_RemoveCurse",
         title   = "Disenchant",
-        sub     = "Changes cursor to disenchant an item in your bags.",
+        sub     = "Right-click to disenchant an item in your bags.",
+        secure  = true,
+        secureAttributes = {
+            ["type2"] = "spell",
+            ["spell2"] = "Disenchant",
+        },
         isAvailable = function()
             return HasSpell("Disenchant")
         end,
@@ -2159,7 +2187,12 @@ local FOOTER_CUSTOM_BUTTONS = {
         key     = "picklock",
         icon    = "Interface\\Icons\\Spell_Nature_RogueProgress",
         title   = "Pick Lock",
-        sub     = "Changes cursor to pick a lockbox in your bags.",
+        sub     = "Right-click to pick a lockbox in your bags.",
+        secure  = true,
+        secureAttributes = {
+            ["type2"] = "spell",
+            ["spell2"] = "Pick Lock",
+        },
         isAvailable = function()
             return HasSpell("Pick Lock")
         end,
@@ -2249,33 +2282,17 @@ local function StyleFooterMiniButton(btn)
 end
 
 local function CreateFooterMiniButton(parent, def)
-    local btn = CreateFrame("Button", nil, parent, "SecureActionButtonTemplate")
+    local template = def.secure and "SecureActionButtonTemplate" or nil
+    local btn = CreateFrame("Button", nil, parent, template)
     btn:RegisterForClicks("AnyUp")
-    btn:SetSize(DIM.FOOTER_BTN_SIZE, DIM.FOOTER_BTN_SIZE)
 
-    if def.key == "hearthstone" then
-        btn:SetAttribute("type1", "item")
-        btn:SetAttribute("item1", "item:6948")
-    elseif def.key == "disenchant" then
-        btn:SetAttribute("type1", "spell")
-        btn:SetAttribute("spell1", "Disenchant")
-    elseif def.key == "picklock" then
-        btn:SetAttribute("type1", "spell")
-        btn:SetAttribute("spell1", "Pick Lock")
-    elseif def.key == "openables" then
-        btn:SetScript("PreClick", function(self)
-            if not InCombatLockdown() then
-                local bagID, slotID = FindFirstOpenableContainer()
-                if bagID and slotID then
-                    self:SetAttribute("type1", "item")
-                    self:SetAttribute("item1", bagID .. " " .. slotID)
-                else
-                    self:SetAttribute("type1", nil)
-                    self:SetAttribute("item1", nil)
-                end
-            end
-        end)
+    if def.secure then
+        for k, v in pairs(def.secureAttributes or {}) do
+            btn:SetAttribute(k, v)
+        end
     end
+
+    btn:SetSize(DIM.FOOTER_BTN_SIZE, DIM.FOOTER_BTN_SIZE)
 
     local trim = def.trimIcon ~= false
     btn:SetNormalTexture(def.icon)
@@ -2315,13 +2332,8 @@ local function CreateFooterMiniButton(parent, def)
     end)
 
     if type(def.onClick) == "function" then
-        btn:SetScript("OnClick", function(self, button, down)
-            if button == "LeftButton" and (def.key == "hearthstone" or def.key == "disenchant" or def.key == "picklock" or def.key == "openables") then
-                return
-            end
-            def.onClick(self, button, down)
-        end)
-    elseif type(def.fn) == "string" then
+        btn:SetScript("OnClick", def.onClick)
+    else
         btn.__openFn = def.fn
         btn.__closeFn = def.fn:gsub("^Open", "Close")
         btn.__toggleFrame = def.toggleFrame
@@ -2815,6 +2827,27 @@ function Frame:UpdateFooterCustomButtons()
     if not mainFrame or not mainFrame.footer then return end
     local footer = mainFrame.footer
     if not footer.customButtons or not footer.addonButtons then return end
+
+    if footer.customButtons.openables then
+        local btn = footer.customButtons.openables
+        if not InCombatLockdown() then
+            local bagID, slotID = FindFirstOpenableContainer()
+            if bagID and slotID then
+                local link = GetContainerItemLink(bagID, slotID)
+                local name = link and GetItemInfo(link)
+                if name then
+                    btn:SetAttribute("type2", "item")
+                    btn:SetAttribute("item2", name)
+                else
+                    btn:SetAttribute("type2", nil)
+                    btn:SetAttribute("item2", nil)
+                end
+            else
+                btn:SetAttribute("type2", nil)
+                btn:SetAttribute("item2", nil)
+            end
+        end
+    end
 
     local inlineAnchor = footer.slots
     local inlineAnchorGap = DIM.FOOTER_SEP_GAP + 2
