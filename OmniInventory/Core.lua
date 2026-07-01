@@ -20,7 +20,7 @@ Omni.author = "Zendevve"
 -- OmniInventory:Toggle() without reaching into the Frame module. ✿ ʕ •ᴥ•ʔ
 function Omni:Toggle()
     if self.Frame then
-        self.Frame:Toggle()
+        pcall(self.Frame.Toggle, self.Frame)
     end
 end
 

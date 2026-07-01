@@ -5506,12 +5506,16 @@ end
 
 function Frame:Show()
     if not mainFrame then
-        currentView = GetSavedViewMode()
-        selectedBagID = GetSavedBagFilter()
-        self:CreateMainFrame()
-        self:SetView(currentView)
-        self:LoadPosition()
+        pcall(function()
+            currentView = GetSavedViewMode()
+            selectedBagID = GetSavedBagFilter()
+            self:CreateMainFrame()
+            self:SetView(currentView)
+            self:LoadPosition()
+        end)
     end
+
+    if not mainFrame then return end
 
     -- ʕ •ᴥ•ʔ✿ ContainerFrameItemButtonTemplate keeps mainFrame insecure, so
     -- a plain Show() works in combat just like AdiBags. UpdateLayout is
@@ -5519,67 +5523,72 @@ function Frame:Show()
     -- position) and remain clickable through Blizzard's secure path. ✿ ʕ •ᴥ•ʔ
     pcall(mainFrame.Show, mainFrame)
 
-    local sig = ComputeShowSignature()
-    local viewAllowsFastShow = (currentView == "grid" or currentView == "bag")
-    local canFastShow = hasRenderedOnce
-        and not pendingCombatRender
-        and lastRenderedShowSignature ~= nil
-        and sig == lastRenderedShowSignature
-        and viewAllowsFastShow
+    pcall(function()
+        local sig = ComputeShowSignature()
+        local viewAllowsFastShow = (currentView == "grid" or currentView == "bag")
+        local canFastShow = hasRenderedOnce
+            and not pendingCombatRender
+            and lastRenderedShowSignature ~= nil
+            and sig == lastRenderedShowSignature
+            and viewAllowsFastShow
 
-    if canFastShow then
-        self:UpdateBagIconTextures()
-        self:UpdateBagIconVisuals()
-        self:UpdateSlotCount()
-        self:UpdateMoney()
-        self:RefreshCombatContent({ _trigger = true })
-        if searchText and searchText ~= "" then
-            self:ApplySearch(searchText)
+        if canFastShow then
+            self:UpdateBagIconTextures()
+            self:UpdateBagIconVisuals()
+            self:UpdateSlotCount()
+            self:UpdateMoney()
+            self:RefreshCombatContent({ _trigger = true })
+            if searchText and searchText ~= "" then
+                self:ApplySearch(searchText)
+            end
+        else
+            self:UpdateLayout(nil, { reason = "show_open" })
         end
-    else
-        self:UpdateLayout(nil, { reason = "show_open" })
-    end
+    end)
 end
 
 function Frame:Hide()
     if not mainFrame then return end
 
     pcall(mainFrame.Hide, mainFrame)
-    vendorFlowLayoutFreeze = nil
-    wasMerchantOpen = false
-    ClearMap(optimisticFlowRefreshWatches)
-    ClearArray(itemButtons)
 
-    if Omni.NewItems then
-        wipe(Omni.NewItems)
-    end
+    pcall(function()
+        vendorFlowLayoutFreeze = nil
+        wasMerchantOpen = false
+        ClearMap(optimisticFlowRefreshWatches)
+        ClearArray(itemButtons)
 
-    for _, byBag in pairs(slotButtons) do
-        for _, btn in pairs(byBag) do
-            if btn then
-                btn._cachedSearchName = nil
-                btn._cachedSearchNameLower = nil
-                if btn.newGlow then
-                    if btn.newGlow.pulse then
-                        btn.newGlow.pulse:Stop()
+        if Omni.NewItems then
+            wipe(Omni.NewItems)
+        end
+
+        for _, byBag in pairs(slotButtons) do
+            for _, btn in pairs(byBag) do
+                if btn then
+                    btn._cachedSearchName = nil
+                    btn._cachedSearchNameLower = nil
+                    if btn.newGlow then
+                        if btn.newGlow.pulse then
+                            btn.newGlow.pulse:Stop()
+                        end
+                        btn.newGlow:Hide()
                     end
-                    btn.newGlow:Hide()
                 end
             end
         end
-    end
 
-    if not InCombat()
-            and OmniInventoryDB and OmniInventoryDB.global
-            and OmniInventoryDB.global.autoSortOnClose then
-        Frame:PhysicalSortBags()
-    end
+        if not InCombat()
+                and OmniInventoryDB and OmniInventoryDB.global
+                and OmniInventoryDB.global.autoSortOnClose then
+            Frame:PhysicalSortBags()
+        end
 
-    -- ʕ •ᴥ•ʔ✿ Auto-tidy on close (AdiBags TidyBags). ✿ ʕ •ᴥ•ʔ
-    if not InCombat() and Omni.Features and Omni.Features.ShouldAutoTidyOnClose
-            and Omni.Features:ShouldAutoTidyOnClose() then
-        Omni.Features:RunTidy()
-    end
+        -- ʕ •ᴥ•ʔ✿ Auto-tidy on close (AdiBags TidyBags). ✿ ʕ •ᴥ•ʔ
+        if not InCombat() and Omni.Features and Omni.Features.ShouldAutoTidyOnClose
+                and Omni.Features:ShouldAutoTidyOnClose() then
+            Omni.Features:RunTidy()
+        end
+    end)
 end
 
 function Frame:Toggle()
