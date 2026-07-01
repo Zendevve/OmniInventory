@@ -238,6 +238,15 @@ local function OverrideBags()
     OpenBag        = OmniOpenBag
     CloseBag       = OmniCloseBag
 
+    pcall(function()
+        if GetBinding("B") == "TOGGLEBACKPACK" then
+            SetBinding("B", "OMNIINVENTORY_TOGGLE")
+        end
+        if GetBinding("SHIFT-B") == "OPENALLBAGS" then
+            SetBinding("SHIFT-B", "OMNIINVENTORY_TOGGLE")
+        end
+    end)
+
     SuppressBlizzardBagFrames()
     SuppressBlizzardGuildBank()
 end
