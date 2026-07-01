@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Data Persistence
 -- =============================================================================
 -- Manages SavedVariables and cross-character data
@@ -24,9 +24,9 @@ local defaults = {
         opacity = 0.95,
         highlightNewItems = true,
         showItemLevel = true,
-        -- ʕ •ᴥ•ʔ✿ right | left | fixed_br | fixed_bl | fixed_tl | fixed_tr (ItemButton) ✿ ʕ •ᴥ•ʔ
+        -- right | left | fixed_br | fixed_bl | fixed_tl | fixed_tr (ItemButton)
         itemTooltipPlacement = "right",
-        -- ʕ •ᴥ•ʔ✿ x = pixels inset from bottom-right; y = up from bottom ✿ ʕ •ᴥ•ʔ
+        -- x = pixels inset from bottom-right; y = up from bottom
         itemTooltipFixed = {
             x = 24,
             y = 140,
@@ -38,19 +38,19 @@ local defaults = {
         collapseEmptySlots = false,
         autoRepair = false,
         autoRepairGuild = false,
-        -- ʕ •ᴥ•ʔ✿ Footer: larger outlined gold + slot count; slots tint blue→red by fill ✿ ʕ •ᴥ•ʔ
+        -- Footer: larger outlined gold + slot count; slots tint blue→red by fill
         footerMoneyEmphasis = true,
-        -- ʕ •ᴥ•ʔ✿ Custom footer launcher buttons (mini-mode themed) ✿ ʕ •ᴥ•ʔ
+        -- Custom footer launcher buttons (mini-mode themed)
         footerButtons = {
             resetInstances = false,
         },
-        -- ʕ •ᴥ•ʔ✿ Third-party addon launchers (auto-hidden when the addon isn't loaded) ✿ ʕ •ᴥ•ʔ
+        -- Third-party addon launchers (auto-hidden when the addon isn't loaded)
         addonButtons = {
             atlasLoot   = true,
         },
-        -- ʕ •ᴥ•ʔ✿ Configurable auto-display: per-event open/close of the
+        -- Configurable auto-display: per-event open/close of the
         -- main inventory frame. Mirrors Bagnon's per-frame/per-event model
-        -- but scoped to the single Omni main bag window. ✿ ʕ •ᴥ•ʔ
+        -- but scoped to the single Omni main bag window.
         autoDisplay = {
             bank    = true,   -- BANKFRAME_OPENED
             vendor  = false,  -- MERCHANT_SHOW
@@ -61,33 +61,33 @@ local defaults = {
             craft   = false,  -- TRADE_SKILL_SHOW / CRAFT_SHOW
             player  = false,  -- PLAYER_FRAME_OPENED-ish (character frame)
         },
-        -- ʕ •ᴥ•ʔ✿ Junk filter include/exclude lists (AdiBags-style). ✿ ʕ •ᴥ•ʔ
+        -- Junk filter include/exclude lists (AdiBags-style).
         junkInclude = {},     -- itemIDs always treated as junk
         junkExclude = { [6948] = true }, -- itemIDs never treated as junk (Hearthstone default)
-        -- ʕ •ᴥ•ʔ✿ Global lock: when true, all layout updates are paused
-        -- (sort/swap/equipment changes). Mirrors AdiBags SetGlobalLock. ✿ ʕ •ᴥ•ʔ
+        -- Global lock: when true, all layout updates are paused
+        -- (sort/swap/equipment changes). Mirrors AdiBags SetGlobalLock.
         globalLock = false,
-        -- ʕ •ᴥ•ʔ✿ Theme: "rounded" (default WoW borders) or "square"
-        -- (pfUI-compatible, cropped icons, hidden rounded borders). ✿ ʕ •ᴥ•ʔ
+        -- Theme: "rounded" (default WoW borders) or "square"
+        -- (pfUI-compatible, cropped icons, hidden rounded borders).
         theme = "rounded",
-        -- ʕ •ᴥ•ʔ✿ Auto-tidy: compact layout on close (AdiBags TidyBags). ✿ ʕ •ᴥ•ʔ
+        -- Auto-tidy: compact layout on close (AdiBags TidyBags).
         autoTidyOnClose = false,
-        -- ʕ •ᴥ•ʔ✿ Auto-loot: automatically loot loot frames when opened. ✿ ʕ •ᴥ•ʔ
+        -- Auto-loot: automatically loot loot frames when opened.
         autoLoot = false,
-        -- ʕ •ᴥ•ʔ✿ Cache warmer: pre-load GetItemInfo for known item IDs
-        -- on PLAYER_ENTERING_WORLD to avoid tooltip delays. ✿ ʕ •ᴥ•ʔ
+        -- Cache warmer: pre-load GetItemInfo for known item IDs
+        -- on PLAYER_ENTERING_WORLD to avoid tooltip delays.
         cacheWarmer = true,
-        -- ʕ •ᴥ•ʔ✿ Money tracker: record gold history per character over
-        -- time for trend display. ✿ ʕ •ᴥ•ʔ
+        -- Money tracker: record gold history per character over
+        -- time for trend display.
         moneyTracker = false,
-        -- ʕ •ᴥ•ʔ✿ Bound item indicator: show a small chain icon on
-        -- soulbound items in the bag. ✿ ʕ •ᴥ•ʔ
+        -- Bound item indicator: show a small chain icon on
+        -- soulbound items in the bag.
         showBoundIndicator = false,
-        -- ʕ •ᴥ•ʔ✿ Bag type tags: show family tag text on specialty
-        -- bag slot icons in the header. ✿ ʕ •ᴥ•ʔ
+        -- Bag type tags: show family tag text on specialty
+        -- bag slot icons in the header.
         showBagTypeTags = false,
-        -- ʕ •ᴥ•ʔ✿ Resort button: show a button when a dry-run detects
-        -- the layout could be reorganized (Bagshui-style). ✿ ʕ •ᴥ•ʔ
+        -- Resort button: show a button when a dry-run detects
+        -- the layout could be reorganized (Bagshui-style).
         showResortButton = false,
     },
     char = {
@@ -338,7 +338,7 @@ end
 -- Cross-Character Data
 -- =============================================================================
 
--- ʕ •ᴥ•ʔ✿ Helper: native-first link fetch ✿ ʕ •ᴥ•ʔ
+-- Helper: native-first link fetch
 local function FetchLink(bagID, slot)
     local API = Omni.API
     if API then

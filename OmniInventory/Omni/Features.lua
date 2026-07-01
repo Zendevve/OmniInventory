@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Consolidated Small Features
 -- =============================================================================
 -- Implements the small-effort gap-analysis items in one module so the
@@ -307,8 +307,8 @@ function Features:GetFamilyTag(family)
         if bit and bit.band then
             matches = bit.band(family, bit_mask) > 0
         else
-            -- ʕ •ᴥ•ʔ✿ Fallback when bit library is unavailable: integer
-            -- modulo check (works for single-bit masks). ✿ ʕ •ᴥ•ʔ
+            -- Fallback when bit library is unavailable: integer
+            -- modulo check (works for single-bit masks).
             matches = (math.floor(family / bit_mask) % 2) == 1
         end
         if matches then

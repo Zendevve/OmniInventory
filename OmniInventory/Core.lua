@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Core Entry Point
 -- =============================================================================
 -- The definitive inventory management addon for WoW 3.3.5a
@@ -16,8 +16,8 @@ _G.OmniInventory = Omni
 Omni.version = "2.0.0"
 Omni.author = "Zendevve"
 
--- ʕ •ᴥ•ʔ✿ Convenience top-level Toggle so Bindings.xml can call
--- OmniInventory:Toggle() without reaching into the Frame module. ✿ ʕ •ᴥ•ʔ
+-- Convenience top-level Toggle so Bindings.xml can call
+-- OmniInventory:Toggle() without reaching into the Frame module.
 function Omni:Toggle()
     if self.Frame then
         pcall(self.Frame.Toggle, self.Frame)
@@ -34,8 +34,8 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
--- ʕ •ᴥ•ʔ✿ Track invocations of the bag toggle so /oi debug can confirm
--- that the keybind is actually reaching addon code in (and out of) combat. ✿ ʕ •ᴥ•ʔ
+-- Track invocations of the bag toggle so /oi debug can confirm
+-- that the keybind is actually reaching addon code in (and out of) combat.
 Omni._toggleStats = {
     total = 0,
     inCombat = 0,
@@ -53,8 +53,8 @@ Omni._toggleStats = {
     lastBlockedFunc = nil,
 }
 
--- ʕ •ᴥ•ʔ✿ Capture ADDON_ACTION_BLOCKED / ADDON_ACTION_FORBIDDEN so /oi debug
--- can tell us the exact protected function the engine refused. ✿ ʕ •ᴥ•ʔ
+-- Capture ADDON_ACTION_BLOCKED / ADDON_ACTION_FORBIDDEN so /oi debug
+-- can tell us the exact protected function the engine refused.
 local blockedSink = CreateFrame("Frame")
 blockedSink:RegisterEvent("ADDON_ACTION_BLOCKED")
 blockedSink:RegisterEvent("ADDON_ACTION_FORBIDDEN")
@@ -77,11 +77,11 @@ if Masque then
     Omni.MasqueGroup = Masque:Group("OmniInventory")
 end
 
--- ʕ •ᴥ•ʔ✿ Bag-function overrides hoisted to module scope so we can re-apply
+-- Bag-function overrides hoisted to module scope so we can re-apply
 -- on PLAYER_ENTERING_WORLD / after combat. Some addons (and the default UI
 -- after a UI reload) re-bind the global bag functions, which silently breaks
 -- our toggle path. Re-applying defensively guarantees our keybind reaches
--- Omni.Frame:Toggle. ✿ ʕ •ᴥ•ʔ
+-- Omni.Frame:Toggle.
 local function recordEntry(reason)
     Omni._toggleStats.total = Omni._toggleStats.total + 1
     Omni._toggleStats.lastEvent = reason or "toggle"
@@ -139,8 +139,8 @@ local function SafeHide(reason)
     recordExit()
 end
 
--- ʕ •ᴥ•ʔ✿ Stable identity for our overrides so /oi debug can detect when
--- another addon has stolen them. ✿ ʕ •ᴥ•ʔ
+-- Stable identity for our overrides so /oi debug can detect when
+-- another addon has stolen them.
 local OmniToggleAll   = function() SafeToggle("ToggleAllBags") end
 local OmniOpenAll     = function() SafeShow("OpenAllBags") end
 local OmniCloseAll    = function() SafeHide("CloseAllBags") end
@@ -153,14 +153,14 @@ local OmniCloseBag    = function(_) SafeHide("CloseBag") end
 
 Omni._overrideMarker = OmniToggleAll
 
--- ʕ •ᴥ•ʔ✿ Reassigning these globals is insecure and always allowed -- it's
+-- Reassigning these globals is insecure and always allowed -- it's
 -- the per-frame Hide / UnregisterAllEvents / SetScript on the protected
 -- Blizzard ContainerFrames + BankFrame that gets us into combat-lockdown
 -- trouble. We split the two so we can safely re-apply the global overrides
 -- from any event (including PLAYER_ENTERING_WORLD after an in-combat
 -- /reload) without firing "Interface action failed because of an AddOn."
 -- The Blizzard-frame suppression is performed only out of combat; the
--- OnShow/OnEvent hooks installed there persist across reloads anyway. ✿ ʕ •ᴥ•ʔ
+-- OnShow/OnEvent hooks installed there persist across reloads anyway.
 local blizzardSuppressionDone = false
 
 local function SuppressBlizzardBagFrames()
@@ -198,10 +198,10 @@ local function SuppressBlizzardBagFrames()
     blizzardSuppressionDone = true
 end
 
--- ʕ •ᴥ•ʔ✿ Blizzard_GuildBankUI is a load-on-demand addon, so it may not
+-- Blizzard_GuildBankUI is a load-on-demand addon, so it may not
 -- exist yet when the rest of the bag suppression runs. Force-load it and
 -- strip its OnShow/OnEvent once it's actually loaded, and again on the
--- ADDON_LOADED sink below in case something else triggers the load first. ✿ ʕ •ᴥ•ʔ
+-- ADDON_LOADED sink below in case something else triggers the load first.
 local guildBankSuppressionDone = false
 
 local function SuppressBlizzardGuildBank()
@@ -219,9 +219,9 @@ local function SuppressBlizzardGuildBank()
     local gb = _G.GuildBankFrame
     if not gb then return end
 
-    -- ʕ •ᴥ•ʔ✿ Keep GuildBankFrame logically shown (off-screen, alpha 0) so
+    -- Keep GuildBankFrame logically shown (off-screen, alpha 0) so
     -- UseContainerItem / bag right-click deposit and engine guild-bank state
-    -- still work. Hiding it entirely breaks deposit-from-bags. ✿ ʕ •ᴥ•ʔ
+    -- still work. Hiding it entirely breaks deposit-from-bags.
     pcall(gb.Hide, gb)
     pcall(gb.SetScript, gb, "OnShow", function(self)
         if InCombatLockdown and InCombatLockdown() then return end
@@ -299,7 +299,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- OverrideBags is itself combat-gated.
         OverrideBags()
 
-        -- ʕ •ᴥ•ʔ✿ Cache warmer + money tracker fire on zone-in. ✿ ʕ •ᴥ•ʔ
+        -- Cache warmer + money tracker fire on zone-in.
         if Omni.Features then
             if Omni.Features.WarmCache then Omni.Features:WarmCache() end
             if Omni.Features.RecordMoney then Omni.Features:RecordMoney() end
@@ -498,9 +498,9 @@ local function HandleSlashCommand(msg)
         end
 
     elseif msg == "forceshow" then
-        -- ʕ •ᴥ•ʔ✿ Bypass every Omni layer and call the bare frame method
+        -- Bypass every Omni layer and call the bare frame method
         -- directly. If THIS triggers the popup the issue is not in our
-        -- toggle plumbing -- it's lockdown on the frame itself. ✿ ʕ •ᴥ•ʔ
+        -- toggle plumbing -- it's lockdown on the frame itself.
         local mf = _G.OmniInventoryFrame
         if not mf then
             print("|cFFFF4040OmniInventory|r: OmniInventoryFrame not created yet.")

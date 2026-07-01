@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Rule Engine + User-Defined Categories
 -- =============================================================================
 -- Purpose: Bagshui-style rule engine with compiled expressions.
@@ -487,10 +487,10 @@ function Rules:Compile(ruleString)
         return cached.func, cached.err
     end
 
-    -- ʕ •ᴥ•ʔ✿ Lua 5.1 (WoW 3.3.5a) compilation: loadstring the rule body
+    -- Lua 5.1 (WoW 3.3.5a) compilation: loadstring the rule body
     -- as a function that receives (item, character), then setfenv its
     -- environment to our sandbox so rule functions (Quality, Name, etc.)
-    -- are globally accessible inside the rule expression. ✿ ʕ •ᴥ•ʔ
+    -- are globally accessible inside the rule expression.
     local chunk, err = loadstring(string.format([[
         return function(item, character)
             return %s

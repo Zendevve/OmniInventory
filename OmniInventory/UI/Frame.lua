@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Main Frame
 -- =============================================================================
 -- Purpose: Primary window container with header, search, content area,
@@ -7,7 +7,7 @@
 
 local Omni = select(2, ...)
 
--- ʕ •ᴥ•ʔ✿ Offline Character Wrapper Redirections ✿ ʕ •ᴥ•ʔ
+-- Offline Character Wrapper Redirections
 local GetContainerNumSlots = function(bagID)
     return OmniC_Container.GetContainerNumSlots(bagID)
 end
@@ -42,7 +42,7 @@ end
 Omni.Frame = {}
 local Frame = Omni.Frame
 
--- ʕ •ᴥ•ʔ✿ Single table: WoW Lua allows only 200 chunk locals ✿ ʕ •ᴥ•ʔ
+-- Single table: WoW Lua allows only 200 chunk locals
 local DIM = {
     FRAME_MIN_WIDTH = 350,
     FRAME_MIN_HEIGHT = 300,
@@ -124,12 +124,12 @@ DIM.TRACKED_TOOLTIP_CURRENCIES = {
 -- =============================================================================
 
 local mainFrame = nil
--- ʕ •ᴥ•ʔ✿ Persistent slot-button map: slotButtons[bagID][slotID] = button.
+-- Persistent slot-button map: slotButtons[bagID][slotID] = button.
 -- Each button is created, parented to its bag's ItemContainer, and SetID
 -- once out-of-combat. It is never reparented or renumbered again. During
 -- combat we only mutate insecure state (alpha, icon, count), which keeps
 -- every physical bag slot interactable even for items that appear while
--- PLAYER_REGEN_ENABLED is still pending. ✿ ʕ •ᴥ•ʔ
+-- PLAYER_REGEN_ENABLED is still pending.
 local function GetFreeSpaceCategoryName(bagID)
     if bagID == 0 or bagID == -1 then
         return "Free Space"
@@ -160,21 +160,19 @@ local isSearchActive = false
 local searchText = ""
 local selectedBagID = nil
 local IsValidBagID
--- ʕ •ᴥ•ʔ✿ Remembers the view mode the user was on before clicking a
+-- Remembers the view mode the user was on before clicking a
 -- bag icon forced bag view. ToggleBagPreview uses it to restore the
--- prior view (flow/grid/list) when the bag is unselected. ✿ ʕ •ᴥ•ʔ
+-- prior view (flow/grid/list) when the bag is unselected.
 local preBagViewMode = nil
 local forceEmptyFrame = nil
 local forceEmptyJob = nil
 
--- ʕ •ᴥ•ʔ✿ Combat-safety state ✿ ʕ •ᴥ•ʔ
---
+-- Combat-safety state
 -- ContainerFrameItemButtonTemplate (the AdiBags / Bagnon template) does
 -- NOT promote OmniInventoryFrame to "protected by association", so
 -- mainFrame:Show() and mainFrame:Hide() work normally in combat -- no
 -- alpha-toggle / EnableMouse trickery required, and the entire bag UI
 -- can disappear cleanly when closed.
---
 -- The protected-child operations that ARE still forbidden in combat
 -- are the structural ones on the ItemButtons themselves: SetParent,
 -- SetID, SetPoint, ClearAllPoints. UpdateLayout is therefore combat-
@@ -837,9 +835,9 @@ function Frame:CreateMainFrame()
     self:RefreshFooterMoneyStyle()
     self:CreateResizeHandle()
 
-    -- ʕ •ᴥ•ʔ✿ Combat hint: only surfaces on the rare "opened during combat
+    -- Combat hint: only surfaces on the rare "opened during combat
     -- with no prior render" path. Width-constrained + word-wrapped so the
-    -- message can never punch out of the frame like the old banner did. ✿ ʕ •ᴥ•ʔ
+    -- message can never punch out of the frame like the old banner did.
     mainFrame.combatHint = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     mainFrame.combatHint:ClearAllPoints()
     mainFrame.combatHint:SetPoint("BOTTOM", mainFrame, "BOTTOM", 0, DIM.FOOTER_HEIGHT + DIM.PADDING + 6)
@@ -852,7 +850,7 @@ function Frame:CreateMainFrame()
 
     self:RegisterEvents()
 
-    -- ʕ •ᴥ•ʔ✿ Make ESC close the bag, like every other inventory addon. ✿ ʕ •ᴥ•ʔ
+    -- Make ESC close the bag, like every other inventory addon.
     if UISpecialFrames then
         local already = false
         for _, n in ipairs(UISpecialFrames) do
@@ -932,7 +930,7 @@ local function CreateRibbonIconButton(parent, iconTexture, tooltipTitle, tooltip
     return btn
 end
 
--- ʕノ•ᴥ•ʔノ Drag-drop landing zone for bag-slot icons in the ribbon ノʕ•ᴥ•ʔ
+-- Drag-drop landing zone for bag-slot icons in the ribbon
 function Frame:EquipBagFromCursor(bagID)
     if not IsValidBagID(bagID) then return end
     if bagID == 0 then
@@ -1023,7 +1021,7 @@ function Frame:CreateHeader()
     header.closeBtn:SetPoint("RIGHT", -2, 0)
     header.closeBtn:SetScript("OnClick", function() Frame:Hide() end)
 
-    -- ʕ ● ᴥ ●ʔ Ribbon: rightmost wins, everything else chains leftward
+    -- Ribbon: rightmost wins, everything else chains leftward
     header.viewBtn = CreateRibbonTextButton(header, "Flow",
         "View Mode", "Click to cycle Grid / Flow / List / Bag",
         function() Frame:CycleView() end)
@@ -1114,7 +1112,7 @@ function Frame:CreateHeader()
 
         bagBtn:SetScript("OnClick", function(self, mouseButton)
             if mouseButton == "LeftButton" then
-                -- ᵔᴥᵔ Cursor holds a bag → swap; otherwise preview filter.
+                -- Cursor holds a bag → swap; otherwise preview filter.
                 if CursorHasItem and CursorHasItem() then
                     Frame:EquipBagFromCursor(self.bagID)
                     return
@@ -1132,7 +1130,7 @@ function Frame:CreateHeader()
         bagBtn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
             GameTooltip:AddLine(GetBagDisplayName(self.bagID), 1, 1, 1)
-            -- ʕ •ᴥ•ʔ✿ Bag type tag (AdiBags FAMILY_TAGS) — gated by showBagTypeTags setting. ✿ ʕ •ᴥ•ʔ
+            -- Bag type tag (AdiBags FAMILY_TAGS) — gated by showBagTypeTags setting.
             if Omni.Features and Omni.Features.GetBagFamilyTag then
                 local showTags = not Omni.Data
                     or (Omni.Data:Get("showBagTypeTags") == true)
@@ -1230,8 +1228,8 @@ function Frame:CreateKeyringPopup()
     local popup = CreateFrame("Frame", "OmniKeyringPopup", mainFrame)
     popup:SetFrameStrata("DIALOG")
     popup:SetFrameLevel(mainFrame:GetFrameLevel() + 10)
-    -- ʕ •ᴥ•ʔ✿ Anchor above the main frame so the popup is always on-screen
-    -- even when the bag is docked near the bottom of the display. ✿ ʕ •ᴥ•ʔ
+    -- Anchor above the main frame so the popup is always on-screen
+    -- even when the bag is docked near the bottom of the display.
     popup:SetPoint("BOTTOMLEFT", mainFrame, "TOPLEFT", 0, 4)
     popup:SetSize(
         DIM.KEYRING_PAD * 2 + DIM.KEYRING_COLS * (DIM.KEYRING_CELL + DIM.KEYRING_CELL_GAP) - DIM.KEYRING_CELL_GAP,
@@ -1262,9 +1260,9 @@ function Frame:CreateKeyringPopup()
     popup.closeBtn:SetPoint("TOPRIGHT", -2, -2)
     popup.closeBtn:SetScript("OnClick", function() popup:Hide() end)
 
-    -- ʕ •ᴥ•ʔ✿ Container carries SetID(-2) so the secure template resolves
+    -- Container carries SetID(-2) so the secure template resolves
     -- to the keyring bag when a key is clicked. An explicit size keeps the
-    -- child item buttons inside a non-zero hit region. ✿ ʕ •ᴥ•ʔ
+    -- child item buttons inside a non-zero hit region.
     popup.container = CreateFrame("Frame", nil, popup)
     popup.container:SetPoint("TOPLEFT", DIM.KEYRING_PAD, -(DIM.KEYRING_HEADER + 2))
     popup.container:SetPoint("BOTTOMRIGHT", -DIM.KEYRING_PAD, DIM.KEYRING_PAD)
@@ -1424,10 +1422,10 @@ local activeFilterMissingState = {
     clearEvents = 4,
 }
 
--- ʕ ◕ᴥ◕ ʔ✿ Static specials always rendered first. "All" clears the
+-- Static specials always rendered first. "All" clears the
 -- filter, "New" matches the session-acquired flag, and everything
 -- after them is generated dynamically from the categories currently
--- present in the inventory (see RebuildFilterTabs). ✿ ʕ ◕ᴥ◕ ʔ
+-- present in the inventory (see RebuildFilterTabs).
 local SPECIAL_FILTERS = {
     { name = "All", filter = nil, color = DIM.FILTER_NEUTRAL_COLOR },
 }
@@ -1491,10 +1489,10 @@ function Frame:CreateFilterBar()
     filterBar.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
     filterBar.bg:SetVertexColor(0.08, 0.08, 0.08, 1)
 
-    -- ʕ •ᴥ•ʔ✿ Button pool: buttons are created lazily as the inventory
+    -- Button pool: buttons are created lazily as the inventory
     -- grows into new categories, then reused across refreshes. Each
     -- refresh repositions, re-labels, and re-colors them based on the
-    -- categories currently in the bag. ✿ ʕ •ᴥ•ʔ
+    -- categories currently in the bag.
     filterBar.buttons = {}
 
     mainFrame.filterBar = filterBar
@@ -1504,10 +1502,10 @@ function Frame:RebuildFilterTabs(presentCategories)
     local filterBar = mainFrame and mainFrame.filterBar
     if not filterBar then return end
 
-    -- ʕ •ᴥ•ʔ✿ Assemble the ordered tab definition list: specials first,
+    -- Assemble the ordered tab definition list: specials first,
     -- then every category that currently holds an item (sorted by the
     -- Categorizer's priority so tabs read left-to-right in the same
-    -- order the sections render). ✿ ʕ •ᴥ•ʔ
+    -- order the sections render).
     local defs = {}
     for _, spec in ipairs(SPECIAL_FILTERS) do
         local color = spec.color or ResolveCategoryColor(spec.categoryColorFor)
@@ -1542,12 +1540,12 @@ function Frame:RebuildFilterTabs(presentCategories)
         })
     end
 
-    -- ʕ •ᴥ•ʔ✿ Single-row shrink-to-fit. We first try every tab at the
+    -- Single-row shrink-to-fit. We first try every tab at the
     -- default font and max padding. If the labels overflow the bar,
     -- we progressively compress: reduce padding, then step the font
     -- size down (10→9→8→7). We keep the existing wrap path as a last-
     -- resort fallback so oddly-wide labels on a tiny frame still land
-    -- somewhere visible. ✿ ʕ •ᴥ•ʔ
+    -- somewhere visible.
     local barWidth = filterBar:GetWidth()
     if not barWidth or barWidth <= 0 then
         barWidth = mainFrame:GetWidth() - 16
@@ -1639,10 +1637,10 @@ function Frame:RebuildFilterTabs(presentCategories)
         + DIM.FILTER_ROW_BOTTOM_PAD
     filterBar:SetHeight(math.max(barHeight, DIM.FILTER_HEIGHT))
 
-    -- ʕ •ᴥ•ʔ✿ If the active filter's category vanished from the bag
+    -- If the active filter's category vanished from the bag
     -- (e.g. vendored every Junk item), fall back to "All" so the user
     -- isn't stuck looking at an empty filtered view. Re-apply visuals
-    -- afterward so the previously-active tab no longer reads active. ✿ ʕ •ᴥ•ʔ
+    -- afterward so the previously-active tab no longer reads active.
     if activeFilter then
         local stillPresent = false
         for _, def in ipairs(defs) do
@@ -1679,9 +1677,9 @@ function Frame:RebuildFilterTabs(presentCategories)
 end
 
 function Frame:SetQuickFilter(filterName)
-    -- ʕ •ᴥ•ʔ✿ Toggle semantics: clicking the active tab a second time
+    -- Toggle semantics: clicking the active tab a second time
     -- clears the filter so the bag "sorts back" to its normal LPT
-    -- layout without needing a separate "All" click. ✿ ʕ •ᴥ•ʔ
+    -- layout without needing a separate "All" click.
     if activeFilter ~= nil and activeFilter == filterName then
         filterName = nil
     end
@@ -1743,14 +1741,14 @@ function Frame:CreateContentArea()
         if thumb then thumb:SetAlpha(0) end
     end
 
-    -- ʕ •ᴥ•ʔ✿ Per-bag ItemContainer frames. ContainerFrameItemButton_OnClick
+    -- Per-bag ItemContainer frames. ContainerFrameItemButton_OnClick
     -- reads the bag from self:GetParent():GetID(), so every item button
     -- must live under a parent whose SetID matches its bag. We create
     -- one zero-size insecure Frame per bag (and a -1 slot for stray
     -- buttons), pin them at scrollChild origin, and reparent buttons
     -- into them at acquire time. The bag IDs themselves are insecure so
     -- SetID here is allowed even in combat, but we only ever hand out
-    -- the table OOC so it doesn't matter. ✿ ʕ •ᴥ•ʔ
+    -- the table OOC so it doesn't matter.
     mainFrame.itemContainers = {}
     local function MakeItemContainer(bagID)
         local f = CreateFrame("Frame", nil, scrollChild)
@@ -1771,10 +1769,10 @@ function Frame:CreateContentArea()
     mainFrame.scrollChild = scrollChild
 end
 
--- ʕ •ᴥ•ʔ✿ Lazy-fetch (or create OOC) the per-bag ItemContainer for `bagID`.
+-- Lazy-fetch (or create OOC) the per-bag ItemContainer for `bagID`.
 -- Hot path called from RenderFlowView for every item, so cheap. Returns
 -- nil when called in combat for a bag we have not seen before -- callers
--- treat that as "no container, skip this button". ✿ ʕ •ᴥ•ʔ
+-- treat that as "no container, skip this button".
 local function GetItemContainer(bagID)
     if not mainFrame or not mainFrame.itemContainers then return nil end
     local container = mainFrame.itemContainers[bagID]
@@ -1790,9 +1788,7 @@ Frame._GetItemContainer = GetItemContainer
 -- =============================================================================
 -- Persistent Slot-Button Map
 -- =============================================================================
---
--- ʕ •ᴥ•ʔ✿ Why this exists ✿ ʕ •ᴥ•ʔ
---
+-- Why this exists
 -- ContainerFrameItemButtonTemplate is a protected frame. Structural ops
 -- (SetParent, SetPoint, ClearAllPoints, SetID, Show, Hide) are forbidden
 -- during combat. The ONLY way to guarantee a new item arriving mid-combat
@@ -1802,7 +1798,7 @@ Frame._GetItemContainer = GetItemContainer
 
 local OVERFLOW_ROW_GAP = 4
 local EMPTY_SLOT_ALPHA = 1
--- ʕ •ᴥ•ʔ✿ show_open: sync-paint first N flow cells; defer SetItem for the rest ✿ ʕ •ᴥ•ʔ
+-- show_open: sync-paint first N flow cells; defer SetItem for the rest
 local FLOW_SHOW_OPEN_DEFER_AFTER = 36
 
 local deferredFlowPaintQueue = {}
@@ -1872,7 +1868,7 @@ local function CreateSlotButton(bagID, slotID)
     return btn
 end
 
--- ʕ ◕ᴥ◕ ʔ Ensure every physical bag slot has a persistent button. Called
+-- Ensure every physical bag slot has a persistent button. Called
 -- OOC from RenderFlowView. Grows on bag upgrades and releases surplus
 -- buttons back to the pool when a bag is swapped for something smaller.
 local function EnsureSlotButtons()
@@ -1918,7 +1914,7 @@ local function IterateSlotButtons(callback)
 end
 Frame._IterateSlotButtons = IterateSlotButtons
 
--- ʕ •ᴥ•ʔ✿ Live slot query after AH embed / fast-show — layout often ran first ✿ ʕ •ᴥ•ʔ
+-- Live slot query after AH embed / fast-show — layout often ran first
 local function RefreshSlotButtonFromLiveContainer(bagID, slotID, btn)
     if not btn or not OmniC_Container or not bagID or not slotID then
         return
@@ -2032,7 +2028,7 @@ end
 -- Footer
 -- =============================================================================
 
--- ʕ •ᴥ•ʔ✿ Footer custom launcher buttons ✿ ʕ •ᴥ•ʔ
+-- Footer custom launcher buttons
 local function FindHearthstone()
     for bagID = 0, 4 do
         local slots = GetContainerNumSlots(bagID) or 0
@@ -2096,7 +2092,7 @@ local function HasSpell(spellName)
     return false
 end
 
--- ʕ •ᴥ•ʔ✿ Footer custom launcher buttons ✿ ʕ •ᴥ•ʔ
+-- Footer custom launcher buttons
 local FOOTER_CUSTOM_BUTTONS = {
     {
         key     = "resetInstances",
@@ -2224,8 +2220,8 @@ local FOOTER_CUSTOM_BUTTONS = {
     },
 }
 
--- ʕ •ᴥ•ʔ✿ Third-party addon launcher ribbon (each entry owns its click).
--- isAvailable gates visibility so we never show a broken tile. ✿ ʕ •ᴥ•ʔ
+-- Third-party addon launcher ribbon (each entry owns its click).
+-- isAvailable gates visibility so we never show a broken tile.
 local FOOTER_ADDON_BUTTONS = {
     {
         key         = "atlasLoot",
@@ -2240,8 +2236,8 @@ local FOOTER_ADDON_BUTTONS = {
             end
             return SlashCmdList ~= nil and type(SlashCmdList["ATLASLOOT"]) == "function"
         end,
-        -- ʕ •ᴥ•ʔ✿ Toggle pattern: hide the live frame if up, otherwise fall back
-        -- to the slash command so AtlasLoot lazy-loads its modules on first open. ✿ ʕ •ᴥ•ʔ
+        -- Toggle pattern: hide the live frame if up, otherwise fall back
+        -- to the slash command so AtlasLoot lazy-loads its modules on first open.
         onClick = function()
             local frame = _G.AtlasLootDefaultFrame
             if frame and frame:IsShown() then
@@ -2650,7 +2646,7 @@ function Frame:CreateFooter()
     footer.topBorder:SetPoint("TOPLEFT", 0, 0)
     footer.topBorder:SetPoint("TOPRIGHT", 0, 0)
 
-    -- ʕ •ᴥ•ʔ✿ FontString has no EnableMouse in 3.3.5a — use a button as hit box for the ! ✿ ʕ •ᴥ•ʔ
+    -- FontString has no EnableMouse in 3.3.5a — use a button as hit box for the !
     footer.bagFullAlert = CreateFrame("Button", nil, footer)
     footer.bagFullAlert:SetPoint("LEFT", 6, 0)
     footer.bagFullAlert:SetHeight(DIM.FOOTER_HEIGHT)
@@ -2729,8 +2725,8 @@ function Frame:CreateFooter()
     end)
     footer.moneyHitBox._moneyText = footer.money:GetText() or "0"
 
-    -- ʕ •ᴥ•ʔ✿ Overflow flyout: when ribbon + money can't fit, extra buttons
-    -- are re-parented here and revealed above the footer on demand ✿ ʕ •ᴥ•ʔ
+    -- Overflow flyout: when ribbon + money can't fit, extra buttons
+    -- are re-parented here and revealed above the footer on demand
     footer.overflowPopup = CreateFrame("Frame", nil, footer)
     footer.overflowPopup:SetFrameStrata("DIALOG")
     footer.overflowPopup:SetBackdrop({
@@ -2763,7 +2759,7 @@ function Frame:CreateFooter()
     end)
     footer.overflowBtn:Hide()
 
-    -- ʕ •ᴥ•ʔ✿ Live reflow when the window is resized; cheap enough per-frame ✿ ʕ •ᴥ•ʔ
+    -- Live reflow when the window is resized; cheap enough per-frame
     footer:SetScript("OnSizeChanged", function()
         if Frame.UpdateFooterCustomButtons then Frame:UpdateFooterCustomButtons() end
     end)
@@ -2771,7 +2767,7 @@ function Frame:CreateFooter()
     mainFrame.footer = footer
 end
 
--- ʕノ•ᴥ•ʔノ Lays out custom + addon launcher buttons between AH embed host and money.
+-- Lays out custom + addon launcher buttons between AH embed host and money.
 -- Buttons that don't fit are re-parented into an overflow flyout, toggled by a » tile.
 
 local function SyncBagFullAlertHitBox(footer)
@@ -3021,8 +3017,8 @@ function Frame:RegisterEvents()
     -- Note: Bank events and PLAYER_MONEY are handled by Omni.Events:Init()
     if Omni.Events then
         Omni.Events:RegisterBucketEvent("BAG_UPDATE", function(changedBags)
-            -- ʕ •ᴥ•ʔ✿ UpdateLayout self-defers in combat; PLAYER_REGEN_ENABLED
-            -- replays a full pass once lockdown clears. ✿ ʕ •ᴥ•ʔ
+            -- UpdateLayout self-defers in combat; PLAYER_REGEN_ENABLED
+            -- replays a full pass once lockdown clears.
             Frame:UpdateLayout(changedBags)
         end)
 
@@ -3198,9 +3194,9 @@ function Frame:SetView(mode)
     self._combatGridFallbackOriginalView = nil
     self:InvalidateRenderCaches({ clearLayout = true })
 
-    -- ʕ •ᴥ•ʔ✿ Any explicit view change away from "bag" invalidates the
+    -- Any explicit view change away from "bag" invalidates the
     -- remembered pre-bag view -- otherwise a later bag toggle could
-    -- restore to a view the user has since moved past. ✿ ʕ •ᴥ•ʔ
+    -- restore to a view the user has since moved past.
     if currentView ~= "bag" then
         preBagViewMode = nil
     end
@@ -3268,7 +3264,7 @@ function Frame:SetMode(mode)
     self:UpdateLayout()
 end
 
--- ʕ •ᴥ•ʔ✿ Backwards-compat stubs: bank now lives in its own frame ✿ ʕ •ᴥ•ʔ
+-- Backwards-compat stubs: bank now lives in its own frame
 function Frame:SetBankOpen(_) end
 function Frame:UpdateBankTabState() end
 
@@ -3276,7 +3272,7 @@ function Frame:UpdateBankTabState() end
 -- Combat-safe in-place content refresh
 -- =============================================================================
 
--- ʕ ◕ᴥ◕ ʔ Combat-safe refresh. Walks the persistent slotButtons map (one
+-- Combat-safe refresh. Walks the persistent slotButtons map (one
 -- entry per physical bag slot, pre-parented and SetID'd OOC) and mirrors
 -- the live container state onto each button using ONLY insecure calls
 -- (SetAlpha + ItemButton:SetItem). Items that pop in during combat become
@@ -3284,19 +3280,18 @@ function Frame:UpdateBankTabState() end
 -- their slot button (their sorted home, or the overflow strip for slots
 -- that were empty at last render). Items used during combat clear by
 -- fading to alpha 0.
---
 -- SetParent / SetPoint / SetID / Show / Hide are NEVER called here --
 -- those are protected on ContainerFrameItemButtonTemplate children.
 function Frame:RefreshCombatContent(changedBags)
     if not mainFrame or not OmniC_Container then return end
     changedBags = NarrowChangedBagsToSelectedScope(changedBags)
 
-    -- ʕ •ᴥ•ʔ✿ List view parks all slot buttons at alpha 0 and drives its
+    -- List view parks all slot buttons at alpha 0 and drives its
     -- own insecure row widgets -- which are OOC-only anyway (list row
     -- clicks call PickupContainerItem directly and are blocked in combat).
     -- Flipping slot-button alpha here would punch ghost icons through the
     -- list layout, so we short-circuit and let PLAYER_REGEN_ENABLED do a
-    -- clean full re-render once combat ends. ✿ ʕ •ᴥ•ʔ
+    -- clean full re-render once combat ends.
     if currentView == "list" then
         self:UpdateSlotCount()
         self:UpdateMoney()
@@ -3317,9 +3312,9 @@ function Frame:RefreshCombatContent(changedBags)
         end
     end
 
-    -- ʕ •ᴥ•ʔ✿ Rebuild the populated-button list so search / cooldown passes
+    -- Rebuild the populated-button list so search / cooldown passes
     -- that run during combat see every visible item, including ones that
-    -- arrived after the last OOC render. ✿ ʕ •ᴥ•ʔ
+    -- arrived after the last OOC render.
     local refreshed = {}
     local meta = {
         requiresFlowRelayout = false,
@@ -3416,8 +3411,8 @@ end
 function Frame:UpdateLayout(changedBags, opts)
     if not mainFrame then return end
     self:UpdateTitle()
-    -- ʕ •ᴥ•ʔ✿ Global lock: pause all layout updates while locked (e.g.
-    -- during sort/swap operations). Combat gating still applies below. ✿ ʕ •ᴥ•ʔ
+    -- Global lock: pause all layout updates while locked (e.g.
+    -- during sort/swap operations). Combat gating still applies below.
     if Omni.Features and Omni.Features.IsGlobalLocked and Omni.Features:IsGlobalLocked()
             and not (opts and opts.forceFull) then
         return
@@ -3474,11 +3469,11 @@ function Frame:UpdateLayout(changedBags, opts)
         return
     end
 
-    -- ʕ •ᴥ•ʔ✿ Combat policy ✿ ʕ •ᴥ•ʔ
-    -- ʕ •ᴥ•ʔ✿ Structural ops on ContainerFrameItemButton children are risky in
+    -- Combat policy
+    -- Structural ops on ContainerFrameItemButton children are risky in
     -- combat, so normal updates only refresh existing slot-button content.
     -- First-open lockdown is the exception: we try a physical grid
-    -- bootstrap, then restore the user's saved view after combat. ✿ ʕ •ᴥ•ʔ
+    -- bootstrap, then restore the user's saved view after combat.
     if InCombat() then
         pendingCombatRender = true
         if hasRenderedOnce then
@@ -3527,10 +3522,10 @@ function Frame:UpdateLayout(changedBags, opts)
         end
 
         if not forceFull then
-            -- ʕ •ᴥ•ʔ✿ Burst full relayouts are expensive and mainly needed
+            -- Burst full relayouts are expensive and mainly needed
             -- for flow-lane/category reconstruction. In bag/grid modes the
             -- incremental slot refresh is already sufficient, especially
-            -- during mass operations like disenchant/vendor spam. ✿ ʕ •ᴥ•ʔ
+            -- during mass operations like disenchant/vendor spam.
             local allowBurstFull = (currentView == "flow")
                 and (updateReason ~= "bag_update_chunk")
             local now = (GetTime and GetTime()) or 0
@@ -3586,10 +3581,10 @@ function Frame:UpdateLayout(changedBags, opts)
         items = filtered
     end
 
-    -- ʕ •ᴥ•ʔ✿ Collect the set of categories actually present so the
+    -- Collect the set of categories actually present so the
     -- dynamic tab bar below only shows filters that would return
     -- something. Do this AFTER the bag filter so tabs reflect the
-    -- currently-viewed scope. ✿ ʕ •ᴥ•ʔ
+    -- currently-viewed scope.
     local presentCategories = {}
     for _, item in ipairs(items) do
         if item.category then
@@ -3598,7 +3593,7 @@ function Frame:UpdateLayout(changedBags, opts)
     end
     self:RebuildFilterTabs(presentCategories)
 
-    -- ʕ •ᴥ•ʔ✿ Quick filter handling.
+    -- Quick filter handling.
     --
     -- Out of combat, a category tab doesn't dim non-matches anymore --
     -- it re-orders the layout so the selected category pins to the
@@ -3608,13 +3603,13 @@ function Frame:UpdateLayout(changedBags, opts)
     --
     -- In combat we can't restructure the layout safely, so we fall
     -- Exact equality matches stop "Attunable" from catching
-    -- "Account Attunable" via substring. ✿ ʕ •ᴥ•ʔ
-    -- ʕ •ᴥ•ʔ✿ When a filter tab is active, always dim the non-matching
+    -- "Account Attunable" via substring.
+    -- When a filter tab is active, always dim the non-matching
     -- items so the selection pops. In flow mode OOC we ALSO re-order
     -- (the selected category gets pinned top-left by RenderFlowView's
     -- LPT block), so the user sees the filter both promoted and the
     -- rest grayed out in place. If the category later empties out,
-    -- RebuildFilterTabs clears activeFilter and the dim goes with it. ✿ ʕ •ᴥ•ʔ
+    -- RebuildFilterTabs clears activeFilter and the dim goes with it.
     local quickFilter = self:GetActiveFilter()
     if quickFilter then
         local hasMatch = false
@@ -3703,11 +3698,11 @@ function Frame:RenderFlowView(items, layoutOpts)
 
     local scrollChild = mainFrame.scrollChild
 
-    -- ʕ •ᴥ•ʔ✿ Make sure every physical bag slot has a persistent button
+    -- Make sure every physical bag slot has a persistent button
     -- before we begin. This is the foundation of combat safety: any item
     -- that lands in any slot already has a pre-parented, pre-SetID button
     -- ready to accept content updates from RefreshCombatContent without
-    -- needing a protected structural call. ✿ ʕ •ᴥ•ʔ
+    -- needing a protected structural call.
     EnsureSlotButtons()
 
     ClearArray(itemButtons)
@@ -3771,8 +3766,8 @@ function Frame:RenderFlowView(items, layoutOpts)
     local bagPreviewScopeSet = nil
 
     if currentView == "grid" then
-        -- ʕ •ᴥ•ʔ✿ Bagnon-like grid: keep physical slot order and render empty
-        -- slots inline so players always see full bag capacity. ✿ ʕ •ᴥ•ʔ
+        -- Bagnon-like grid: keep physical slot order and render empty
+        -- slots inline so players always see full bag capacity.
         itemBySlot = {}
         categories["All"] = categories["All"] or {}
         seenCategoryThisPass["All"] = true
@@ -3970,8 +3965,8 @@ function Frame:RenderFlowView(items, layoutOpts)
             end)
         end
 
-        -- ʕ •ᴥ•ʔ✿ BoE & Free Space bubble: bubble the BoE category followed
-        -- by all Free Space categories to the absolute tail of the priority order. ✿ ʕ •ᴥ•ʔ
+        -- BoE & Free Space bubble: bubble the BoE category followed
+        -- by all Free Space categories to the absolute tail of the priority order.
         local reordered = {}
         for _, catName in ipairs(categoryOrder) do
             if catName ~= "BoE" and not string.match(catName, "^Free Space") then
@@ -4021,9 +4016,9 @@ function Frame:RenderFlowView(items, layoutOpts)
     end
 
     local headerIndex = 0
-    -- ʕ •ᴥ•ʔ✿ BoE tail anchor: captured when we render the BoE section
+    -- BoE tail anchor: captured when we render the BoE section
     -- so the overflow strip below can slot in under BoE's lane at
-    -- BoE's own half-width. ✿ ʕ •ᴥ•ʔ
+    -- BoE's own half-width.
     local boeAnchor = nil
     local flowMode = (currentView ~= "grid" and currentView ~= "bag")
     local merchantOpen = IsMerchantOpen()
@@ -4092,7 +4087,7 @@ function Frame:RenderFlowView(items, layoutOpts)
         end
     end
 
-    -- ʕ ◕ᴥ◕ ʔ✿ LPT (Longest Processing Time first) lane partitioning for
+    -- LPT (Longest Processing Time first) lane partitioning for
     -- flow mode. We predict each section's height, sort categories by
     -- height descending, and greedily assign each to the currently
     -- shorter lane. That places the tallest sections at the top of each
@@ -4104,7 +4099,7 @@ function Frame:RenderFlowView(items, layoutOpts)
     -- BoE is included in the LPT partition (so its own size balances
     -- correctly), then bubbled to the end of whichever lane it landed
     -- on so the overflow strip still anchors at the bottom of BoE's
-    -- lane for combat-safe slot appearance. ✿ ʕ ◕ᴥ◕ ʔ
+    -- lane for combat-safe slot appearance.
     local laneAssignment = nil
     if flowContentOnly then
         laneAssignment = flowLayoutCache.laneAssignment
@@ -4140,12 +4135,12 @@ function Frame:RenderFlowView(items, layoutOpts)
             return 99
         end
 
-        -- ʕ ◕ᴥ◕ ʔ✿ Active quick filter? Pin that category to the top of
+        -- Active quick filter? Pin that category to the top of
         -- the left lane and fold every other section around it using
         -- greedy shortest-lane assignment (no LPT rebalance, so the
         -- selected tab stays at top-left as the user requested). The
         -- caller already suppresses item dimming OOC, so this re-order
-        -- is the entire "push the filter to top-left" behavior. ✿ ʕ ◕ᴥ◕ ʔ
+        -- is the entire "push the filter to top-left" behavior.
         local pinnedCategory = nil
         if activeFilter and categories[activeFilter] then
             pinnedCategory = activeFilter
@@ -4181,9 +4176,9 @@ function Frame:RenderFlowView(items, layoutOpts)
                 end
             end
         elseif not canReuseLaneAssignment then
-            -- ʕ •ᴥ•ʔ✿ LPT: sort by predicted height descending, greedy
+            -- LPT: sort by predicted height descending, greedy
             -- into shorter lane for balance. Tallest sections land at
-            -- the top of each lane. ✿ ʕ •ᴥ•ʔ
+            -- the top of each lane.
             local byHeight = {}
             for _, name in ipairs(categoryOrder) do table.insert(byHeight, name) end
             table.sort(byHeight, function(a, b)
@@ -4204,9 +4199,9 @@ function Frame:RenderFlowView(items, layoutOpts)
             end
         end
 
-        -- ʕ •ᴥ•ʔ✿ Render order: left lane top-to-bottom, then right lane
+        -- Render order: left lane top-to-bottom, then right lane
         -- top-to-bottom. Each section's lane is fixed by laneAssignment
-        -- below so the render loop ignores live y-based greedy. ✿ ʕ •ᴥ•ʔ
+        -- below so the render loop ignores live y-based greedy.
         if canReuseLaneAssignment then
             local leftOrdered = {}
             local rightOrdered = {}
@@ -4217,10 +4212,10 @@ function Frame:RenderFlowView(items, layoutOpts)
                     table.insert(leftOrdered, name)
                 end
             end
-            -- ʕ •ᴥ•ʔ✿ Cache reuse keeps lane placement stable, but quick-filter
+            -- Cache reuse keeps lane placement stable, but quick-filter
             -- UX requires the active tab category to stay top-left across
             -- bag-update redraws. If the pinned category is in the left lane,
-            -- bubble it to the front before we flatten left→right render order. ✿ ʕ •ᴥ•ʔ
+            -- bubble it to the front before we flatten left→right render order.
             if activeFilter and laneAssignment[activeFilter] == "left" then
                 for i = 1, #leftOrdered do
                     if leftOrdered[i] == activeFilter then
@@ -4269,11 +4264,11 @@ function Frame:RenderFlowView(items, layoutOpts)
                 local edgePad = hInset * 0.5
                 local leftX = edgePad + itemGap
                 local rightX = edgePad + laneW + laneGap + itemGap
-                -- ʕ •ᴥ•ʔ✿ Prefer the pre-computed LPT lane assignment
+                -- Prefer the pre-computed LPT lane assignment
                 -- (flow mode). If we don't have one (bag mode), fall
                 -- back to a live greedy shortest-lane check: y values
                 -- grow more negative as content stacks, so the larger
-                -- (less negative) y has more room. Ties go left. ✿ ʕ •ᴥ•ʔ
+                -- (less negative) y has more room. Ties go left.
                 if laneAssignment and laneAssignment[catName] then
                     useRight = (laneAssignment[catName] == "right")
                 else
@@ -4396,11 +4391,11 @@ function Frame:RenderFlowView(items, layoutOpts)
             if not collapsed then
                 local layoutIndex = 0
                 for i, itemInfo in ipairs(catItems) do
-                    -- ʕ •ᴥ•ʔ✿ Look up the persistent slot button for this item's
+                    -- Look up the persistent slot button for this item's
                     -- (bag, slot). It was created, parented to the bag's
                     -- ItemContainer, and SetID'd by EnsureSlotButtons above, so
                     -- we only need to reposition and SetItem here -- all of
-                    -- which is still OOC because UpdateLayout is combat-gated. ✿ ʕ •ᴥ•ʔ
+                    -- which is still OOC because UpdateLayout is combat-gated.
                     local bagID = itemInfo.bagID
                     local slotID = itemInfo.slotID
                     local btn = (bagID and slotID) and GetSlotButton(bagID, slotID) or nil
@@ -4518,12 +4513,12 @@ function Frame:RenderFlowView(items, layoutOpts)
             end
 
             if isBoeAnchor then
-                -- ʕ •ᴥ•ʔ✿ Remember BoE's lane geometry. The overflow
+                -- Remember BoE's lane geometry. The overflow
                 -- strip anchors to BoE's x/columns (same half-width
                 -- column) but uses the lane's final bottom y (captured
                 -- after the loop), so BoE can sit at the top of its
                 -- lane per LPT without the overflow grid overlapping
-                -- the sections rendered below it. ✿ ʕ •ᴥ•ʔ
+                -- the sections rendered below it.
                 boeAnchor = {
                     x = laneX,
                     columns = columns,
@@ -4554,7 +4549,7 @@ function Frame:RenderFlowView(items, layoutOpts)
         mainBottomY = yOffset
     end
 
-    -- ʕ •ᴥ•ʔ✿ Overflow strip ✿ ʕ •ᴥ•ʔ
+    -- Overflow strip
     --
     -- Every slot button that did NOT receive an item from the sorted pass
     -- gets parked in a grid at alpha 0 immediately below the BoE section
@@ -4576,11 +4571,11 @@ function Frame:RenderFlowView(items, layoutOpts)
     if boeAnchor then
         overflowX = boeAnchor.x
         overflowColumns = boeAnchor.columns
-        -- ʕ •ᴥ•ʔ✿ Park overflow at the bottom of BoE's entire lane (not
+        -- Park overflow at the bottom of BoE's entire lane (not
         -- directly below BoE's item rows) so sections rendered under
         -- BoE in the same lane aren't overlapped by the pre-parked
         -- grid when combat pops a new item into a previously empty
-        -- slot. ✿ ʕ •ᴥ•ʔ
+        -- slot.
         local laneBottomY = (boeAnchor.lane == "right") and yRight or yLeft
         overflowTop = laneBottomY - OVERFLOW_ROW_GAP
     else
@@ -4721,10 +4716,10 @@ function Frame:RenderListView(items)
 
     local scrollChild = mainFrame.scrollChild
 
-    -- ʕ •ᴥ•ʔ✿ Park every persistent slot button at alpha 0 so flow buttons
+    -- Park every persistent slot button at alpha 0 so flow buttons
     -- don't peek through the list layout. We never Release them back to
     -- the pool -- they stay allocated so we can flip straight back to
-    -- flow/grid without re-parenting (which is protected during combat). ✿ ʕ •ᴥ•ʔ
+    -- flow/grid without re-parenting (which is protected during combat).
     IterateSlotButtons(function(_, _, btn)
         pcall(btn.SetAlpha, btn, 0)
     end)
@@ -4738,9 +4733,9 @@ function Frame:RenderListView(items)
         header:Hide()
     end
 
-    -- ʕ •ᴥ•ʔ✿ Rows are now plain Buttons (see CreateFrame above) so there
+    -- Rows are now plain Buttons (see CreateFrame above) so there
     -- is nothing secure to configure. Kept as a no-op to keep the call
-    -- sites below trivially correct. ✿ ʕ •ᴥ•ʔ
+    -- sites below trivially correct.
     local function ConfigureSecureRowUse(row)
         if row then row.secureUseConfigured = false end
     end
@@ -4755,13 +4750,13 @@ function Frame:RenderListView(items)
         -- Get or create row frame
         local row = listRows[i]
         if not row then
-            -- ʕ •ᴥ•ʔ✿ Plain Button (no secure template) so list rows do NOT
+            -- Plain Button (no secure template) so list rows do NOT
             -- promote OmniInventoryFrame to "protected by association".
             -- List view's row clicks are insecure-only by design (they
             -- call PickupContainerItem directly which is forbidden in
             -- combat anyway); secure use/swap during combat is handled
             -- by the flow/grid item buttons via ContainerFrameItemButton
-            -- Template. ✿ ʕ •ᴥ•ʔ
+            -- Template.
             row = CreateFrame("Button", nil, scrollChild)
             row:SetHeight(ROW_HEIGHT)
             row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -5386,7 +5381,7 @@ end
 -- Footer Updates
 -- =============================================================================
 
--- ʕ ◕ᴥ◕ ʔ Footer emphasis: money + slot count fonts; slot fill color is driven in UpdateSlotCount ✿ ʕ ◕ᴥ◕ ʔ
+-- Footer emphasis: money + slot count fonts; slot fill color is driven in UpdateSlotCount
 function Frame:RefreshFooterMoneyStyle()
     if not mainFrame or not mainFrame.footer then return end
     local footer = mainFrame.footer
@@ -5517,10 +5512,10 @@ function Frame:Show()
 
     if not mainFrame then return end
 
-    -- ʕ •ᴥ•ʔ✿ ContainerFrameItemButtonTemplate keeps mainFrame insecure, so
+    -- ContainerFrameItemButtonTemplate keeps mainFrame insecure, so
     -- a plain Show() works in combat just like AdiBags. UpdateLayout is
     -- still combat-gated; the buttons keep their last OOC (bag, slot,
-    -- position) and remain clickable through Blizzard's secure path. ✿ ʕ •ᴥ•ʔ
+    -- position) and remain clickable through Blizzard's secure path.
     pcall(mainFrame.Show, mainFrame)
 
     pcall(function()
@@ -5583,7 +5578,7 @@ function Frame:Hide()
             Frame:PhysicalSortBags()
         end
 
-        -- ʕ •ᴥ•ʔ✿ Auto-tidy on close (AdiBags TidyBags). ✿ ʕ •ᴥ•ʔ
+        -- Auto-tidy on close (AdiBags TidyBags).
         if not InCombat() and Omni.Features and Omni.Features.ShouldAutoTidyOnClose
                 and Omni.Features:ShouldAutoTidyOnClose() then
             Omni.Features:RunTidy()
@@ -5608,8 +5603,8 @@ end
 -- =============================================================================
 
 function Frame:PhysicalSortBags()
-    -- ʕ •ᴥ•ʔ✿ Use the multi-phase PhysicalSort engine (A14) when available;
-    -- fall back to Blizzard's native SortBags for compatibility. ✿ ʕ •ᴥ•ʔ
+    -- Use the multi-phase PhysicalSort engine (A14) when available;
+    -- fall back to Blizzard's native SortBags for compatibility.
     if Omni.PhysicalSort and Omni.PhysicalSort.Sort then
         Omni.PhysicalSort:Sort({ consolidateStacks = true, routeSpecialized = true })
     elseif SortBags then
@@ -5656,7 +5651,7 @@ function Frame:ToggleBagPreview(bagID)
     end
 end
 
--- ʕ •ᴥ•ʔ✿ Inner scope: Lua chunk limit is 200 locals ✿ ʕ •ᴥ•ʔ
+-- Inner scope: Lua chunk limit is 200 locals
 do
     local function canBagAcceptItem(bagID, itemFamily)
         local _, bagFamily = GetContainerNumFreeSlots(bagID)
@@ -6238,10 +6233,10 @@ function Frame:Init()
         Omni.Pool:Prewarm("ItemButton", 160)
     end
 
-    -- ʕ •ᴥ•ʔ✿ Park every prewarmed button on the limbo parent OOC so the
+    -- Park every prewarmed button on the limbo parent OOC so the
     -- first OOC render can freely SetParent them onto the right bag's
     -- ItemContainer. SetParent on a ContainerFrameItemButton is still
-    -- protected, so all of this MUST happen out of combat. ✿ ʕ •ᴥ•ʔ
+    -- protected, so all of this MUST happen out of combat.
     if not InCombat() then
         local pool = Omni.Pool and Omni.Pool:Get("ItemButton")
         local available = pool and pool.available
@@ -6253,10 +6248,10 @@ function Frame:Init()
         end
     end
 
-    -- ʕ •ᴥ•ʔ✿ Eagerly populate the hidden layout so a first open
+    -- Eagerly populate the hidden layout so a first open
     -- mid-combat already has bag-slot buttons parked and click-routable.
     -- If login itself is combat-locked, UpdateLayout will attempt the
-    -- lightweight grid bootstrap instead of the normal sorted flow pass. ✿ ʕ •ᴥ•ʔ
+    -- lightweight grid bootstrap instead of the normal sorted flow pass.
     self:_RefreshViewButtonLabel()
     self:UpdateResortButtonVisibility()
     self:ApplyTheme()

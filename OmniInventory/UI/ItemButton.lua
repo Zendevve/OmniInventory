@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Item Button Widget
 -- =============================================================================
 -- Purpose: Reusable item slot button with icon, count, quality border,
@@ -177,10 +177,10 @@ local QUALITY_COLORS = {
     [7] = { 0.00, 0.80, 1.00 },
 }
 
--- ʕ •ᴥ•ʔ✿ Hidden, ID-less limbo parent for buttons that are not currently
+-- Hidden, ID-less limbo parent for buttons that are not currently
 -- assigned to any (bag, slot). Buttons must always have a real parent so
 -- their secure OnClick path doesn't dereference nil; we only reparent
--- to the bag-keyed ItemContainer at acquire time. ✿ ʕ •ᴥ•ʔ
+-- to the bag-keyed ItemContainer at acquire time.
 local buttonLimbo
 local function GetButtonLimbo()
     if not buttonLimbo then
@@ -222,7 +222,7 @@ local function GetResolvedItemTooltipPlacement()
     return "right"
 end
 
--- ʕ •ᴥ•ʔ✿ Real container slots (bags, bank, bank bags, keyring); main bank is bagID -1. ✿ ʕ •ᴥ•ʔ
+-- Real container slots (bags, bank, bank bags, keyring); main bank is bagID -1.
 local function IsLiveContainerFrameSlot(bagID, slotID)
     if bagID == nil or slotID == nil then
         return false
@@ -272,7 +272,7 @@ local function BagSlotTooltipMentionsStartsQuest(bagID, slotID)
     return false
 end
 
--- ʕ •ᴥ•ʔ✿ nil = hide; "available" / "daily" after ITEMS_STARTS_QUEST line + quest id ✿ ʕ •ᴥ•ʔ
+-- nil = hide; "available" / "daily" after ITEMS_STARTS_QUEST line + quest id
 local function GetQuestStarterOverlayKind(bagID, slotID)
     if not BagSlotTooltipMentionsStartsQuest(bagID, slotID) then
         return nil
@@ -398,7 +398,7 @@ function ItemButton.FinalizeOmniItemTooltipLayout()
         return
     end
     local fix = Omni.Data and Omni.Data.Get and Omni.Data:Get("itemTooltipFixed")
-    -- ʕ •ᴥ•ʔ✿ X/Y = inset toward screen center from the anchored corner (caps match options sliders) ✿ ʕ •ᴥ•ʔ
+    -- X/Y = inset toward screen center from the anchored corner (caps match options sliders)
     local FIXED_X_MAX, FIXED_Y_MAX = 400, 400
     local hInset = 24
     local vInset = 140
@@ -489,7 +489,7 @@ function ItemButton:Create(parent)
     buttonCount = buttonCount + 1
     local name = "OmniItemButton" .. buttonCount
 
-    -- ʕ •ᴥ•ʔ✿ ContainerFrameItemButtonTemplate is THE template AdiBags / Bagnon
+    -- ContainerFrameItemButtonTemplate is THE template AdiBags / Bagnon
     -- use. It carries Blizzard's own secure OnClick (ContainerFrameItemButton_
     -- OnClick) which reads bag from self:GetParent():GetID() and slot from
     -- self:GetID(), and is whitelisted to call PickupContainerItem and
@@ -497,15 +497,15 @@ function ItemButton:Create(parent)
     -- its parent to "protected by association" the way SecureActionButton
     -- Template does, so OmniInventoryFrame stays a plain Frame and Show /
     -- Hide work in combat. We park the button on the limbo parent here and
-    -- let acquire-time logic reparent it to the bag-keyed ItemContainer. ✿ ʕ •ᴥ•ʔ
+    -- let acquire-time logic reparent it to the bag-keyed ItemContainer.
     local button = CreateFrame("Button", name, parent or GetButtonLimbo(), "ContainerFrameItemButtonTemplate")
     button:SetSize(BUTTON_SIZE, BUTTON_SIZE)
     button:RegisterForDrag("LeftButton")
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
-    -- ʕ •ᴥ•ʔ✿ Strip the Blizzard normal/pushed/highlight skin -- our quality
+    -- Strip the Blizzard normal/pushed/highlight skin -- our quality
     -- border owns the look. The icon, count, and cooldown frames provided
-    -- by the template are wired up below. ✿ ʕ •ᴥ•ʔ
+    -- by the template are wired up below.
     pcall(button.SetNormalTexture, button, nil)
     pcall(button.SetPushedTexture, button, nil)
     pcall(button.SetHighlightTexture, button, nil)
@@ -610,9 +610,9 @@ function ItemButton:Create(parent)
     button.pinIcon:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
     button.pinIcon:Hide()
 
-    -- ʕ •ᴥ•ʔ✿ Bound item indicator (lock icon, bottom-left) ✿ ʕ •ᴥ•ʔ
+    -- Bound item indicator (lock icon, bottom-left)
     -- Uses a full icon texture instead of a cropped UI-ActionButton-Border,
-    -- which rendered as an opaque black square due to bad texcoords. ✿ ʕ •ᴥ•ʔ
+    -- which rendered as an opaque black square due to bad texcoords.
     button.boundIcon = button:CreateTexture(nil, "OVERLAY", nil, 4)
     button.boundIcon:SetTexture("Interface\\Icons\\INV_Misc_Key_03")
     button.boundIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -653,7 +653,7 @@ function ItemButton:Create(parent)
 
 
 
-    -- ʕ •ᴥ•ʔ✿ Template Count sits under our OVERLAY adornments; own string last ✿ ʕ •ᴥ•ʔ
+    -- Template Count sits under our OVERLAY adornments; own string last
     local templateCount = _G[name .. "Count"]
     if templateCount then
         templateCount:SetText("")
@@ -674,8 +674,8 @@ function ItemButton:Create(parent)
 
     button.itemInfo = nil
 
-    -- ʕ •ᴥ•ʔ✿ HookScript after template: OnClick adds shift+rclick pin; OnEnter
-    -- rebuilds GameTooltip (SetBagItem / hyperlink) so placement matches Omni settings. ✿ ʕ •ᴥ•ʔ
+    -- HookScript after template: OnClick adds shift+rclick pin; OnEnter
+    -- rebuilds GameTooltip (SetBagItem / hyperlink) so placement matches Omni settings.
     button:HookScript("OnMouseDown", function(self)
         ItemButton:OnMouseDown(self)
     end)
@@ -714,11 +714,11 @@ function ItemButton:Create(parent)
         ItemButton:OnReceiveDrag(self)
     end)
 
-    -- ʕ •ᴥ•ʔ✿ GameTooltip_OnUpdate calls owner:UpdateTooltip (~TOOLTIP_UPDATE_TIME).
+    -- GameTooltip_OnUpdate calls owner:UpdateTooltip (~TOOLTIP_UPDATE_TIME).
     -- Default ContainerFrameItemButton_OnEnter uses GetParent():GetID() for the
     -- bag; BANK_CONTAINER (-1) can round-trip wrong from Frame:GetID on some
     -- builds, so the refresh clears the tip while hover continues. Rebuild from
-    -- itemInfo like our OnEnter hook. ✿ ʕ •ᴥ•ʔ
+    -- itemInfo like our OnEnter hook.
     button.UpdateTooltip = function(self)
         if self.itemInfo then
             ItemButton:OnEnter(self)
@@ -933,18 +933,18 @@ function ItemButton:SetItem(button, itemInfo)
         end
     end
 
-    -- ʕ •ᴥ•ʔ✿ ContainerFrameItemButton_OnClick reads bag from
+    -- ContainerFrameItemButton_OnClick reads bag from
     -- self:GetParent():GetID() and slot from self:GetID(); the parenting
     -- to the bag-keyed ItemContainer (which carries SetID(bagID)) and the
     -- SetID below are what wire this button to the secure use / pickup
     -- pipeline. Both calls are protected on this client and therefore are
     -- only safe to issue out of combat -- the render path is combat-gated
-    -- in UI/Frame.lua so we never reach SetItem during lockdown. ✿ ʕ •ᴥ•ʔ
+    -- in UI/Frame.lua so we never reach SetItem during lockdown.
     local prevBagID = button.bagID
     local prevSlotID = button.slotID
     button.bagID = itemInfo.bagID
     button.slotID = itemInfo.slotID
-    -- ʕ •ᴥ•ʔ✿ SetID must track bag moves (same slot index, different bag). pcall in combat. ✿ ʕ •ᴥ•ʔ
+    -- SetID must track bag moves (same slot index, different bag). pcall in combat.
     if itemInfo.slotID and button.SetID
             and (prevBagID ~= itemInfo.bagID or prevSlotID ~= itemInfo.slotID) then
         pcall(button.SetID, button, itemInfo.slotID)
@@ -991,7 +991,7 @@ function ItemButton:SetItem(button, itemInfo)
         button.pinIcon:Hide()
     end
 
-    -- ʕ •ᴥ•ʔ✿ Bound item indicator (chain icon) ✿ ʕ •ᴥ•ʔ
+    -- Bound item indicator (chain icon)
     if button.boundIcon then
         local showBound = Omni.Features and Omni.Features.ShouldShowBoundIndicator
             and Omni.Features:ShouldShowBoundIndicator(itemInfo) or false
@@ -1089,9 +1089,9 @@ end
 -- Event Handlers
 -- =============================================================================
 
--- ʕ •ᴥ•ʔ✿ Kept as a no-op so any leftover callers (eg. saved-variables
+-- Kept as a no-op so any leftover callers (eg. saved-variables
 -- migration paths, the bank renderer) don't blow up. The template's
--- built-in OnClick is the secure path now. ✿ ʕ •ᴥ•ʔ
+-- built-in OnClick is the secure path now.
 ConfigureSecureItemUse = function(button)
     if not button then return end
     button.secureUseConfigured = true
@@ -1217,13 +1217,13 @@ function ItemButton:OnPostClick(button, mouseButton)
     end
 end
 
--- ʕ •ᴥ•ʔ✿ ContainerFrameItemButtonTemplate's XML OnClick already invokes
+-- ContainerFrameItemButtonTemplate's XML OnClick already invokes
 -- ContainerFrameItemButton_OnClick which handles use / pickup / equip /
 -- shift-link / ctrl-dressup / split / right-click-use, all on Blizzard's
 -- whitelisted secure path that works in combat. This hook only adds the
 -- OmniInventory-specific extras: shift+rclick to toggle pin and the
 -- isNew bookkeeping. We never PickupContainerItem ourselves so we don't
--- double-handle and don't trigger combat lockdown from insecure code. ✿ ʕ •ᴥ•ʔ
+-- double-handle and don't trigger combat lockdown from insecure code.
 function ItemButton:OnClick(button, mouseButton)
     if not button then return end
 
@@ -1362,10 +1362,10 @@ function ItemButton:RefreshCompareTooltips()
     UpdateTooltipCompareState()
 end
 
--- ʕ •ᴥ•ʔ✿ ContainerFrameItemButtonTemplate already handles OnDragStart and
+-- ContainerFrameItemButtonTemplate already handles OnDragStart and
 -- OnReceiveDrag through its built-in scripts (PickupContainerItem on the
 -- template's own bag/slot resolution). Our hooks would double-pickup and
--- swap the item with whatever the cursor still carries -- so they no-op. ✿ ʕ •ᴥ•ʔ
+-- swap the item with whatever the cursor still carries -- so they no-op.
 function ItemButton:OnDragStart(button)
     QueueOptimisticFlowRefresh(button, true)
 end
@@ -1412,8 +1412,8 @@ function ItemButton:Reset(button)
     pcall(button.Hide, button)
 end
 
--- ʕ •ᴥ•ʔ✿ Blizzard refreshes bag/guild/hyperlink tooltips on a timer and re-anchors;
--- post-hook re-applies fixed screen-corner UIParent offset without a per-frame loop. ✿ ʕ •ᴥ•ʔ
+-- Blizzard refreshes bag/guild/hyperlink tooltips on a timer and re-anchors;
+-- post-hook re-applies fixed screen-corner UIParent offset without a per-frame loop.
 -- =============================================================================
 -- Theme System (A46)
 -- =============================================================================

@@ -1,12 +1,12 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Guild Bank Frame
 -- =============================================================================
--- ʕ •ᴥ•ʔ✿ Complete override of Blizzard's guild bank UI. Opens on
+-- Complete override of Blizzard's guild bank UI. Opens on
 -- GUILDBANKFRAME_OPENED, closes on GUILDBANKFRAME_CLOSED. Renders tabs
 -- as a column of icon buttons on the left and a 7x14 slot grid on the
 -- right. Supports rename on right-click, tab purchase if guild master,
 -- money deposit/withdraw, search dim, and one-click smart deposit of
--- BoE / account-attunable gear sorted by weapon/armor/jewelry. ✿ ʕ •ᴥ•ʔ
+-- BoE / account-attunable gear sorted by weapon/armor/jewelry.
 -- =============================================================================
 
 local addonName, Omni = ...
@@ -25,7 +25,7 @@ local ROWS_PER_TAB = 7
 
 local SLOT_SIZE = 37
 local SLOT_SPACING = 4
--- ʕ •ᴥ•ʔ✿ Tab strip matches main-bag footer mini-button size ✿ ʕ •ᴥ•ʔ
+-- Tab strip matches main-bag footer mini-button size
 local FOOTER_TAB_BTN = 28
 local TAB_TAB_GAP = 4
 local TAB_COLUMN_WIDTH = FOOTER_TAB_BTN + 8
@@ -202,7 +202,7 @@ local function GetTabMappings()
     return GetDB().tabMappings
 end
 
--- ʕ •ᴥ•ʔ✿ set table: [categoryKey] = true; multiple keys per tab ✿ ʕ •ᴥ•ʔ
+-- set table: [categoryKey] = true; multiple keys per tab
 local function GetTabSet(tab)
     local m = GetTabMappings()
     if not m then return nil end
@@ -418,7 +418,7 @@ end
 
 local function ResolveItemLink(itemLink)
     if not itemLink then return nil end
-    -- ʕ •ᴥ•ʔ✿ 3.3.5 order: type=6, subType=7, stack=8, equipLoc=9 ✿ ʕ •ᴥ•ʔ
+    -- 3.3.5 order: type=6, subType=7, stack=8, equipLoc=9
     local _, _, quality, _, _, itemType, subType, _, equipSlot = GetItemInfo(itemLink)
     return itemType, equipSlot, quality, subType
 end
@@ -706,8 +706,8 @@ end
 
 
 
--- ʕ •ᴥ•ʔ✿ RegisterForClicks("RightButtonUp") passes "RightButtonUp" — must match
--- ItemButton.lua (NormalizeMouseButton) or the RightButton branch never runs. ✿ ʕ •ᴥ•ʔ
+-- RegisterForClicks("RightButtonUp") passes "RightButtonUp" — must match
+-- ItemButton.lua (NormalizeMouseButton) or the RightButton branch never runs.
 local function NormalizeGuildBankMouseButton(mouseButton)
     if mouseButton == "LeftButtonUp" or mouseButton == "LeftButtonDown" or mouseButton == "LeftButton" then
         return "LeftButton"
@@ -718,8 +718,8 @@ local function NormalizeGuildBankMouseButton(mouseButton)
     return mouseButton
 end
 
--- ʕ •ᴥ•ʔ✿ Guild item buttons: same order as Blizzard_GuildBankUI (GuildBankItemButtonTemplate
--- OnClick). Right = AutoStoreGuildBankItem (withdraw to bags / deposit from cursor). ✿ ʕ •ᴥ•ʔ
+-- Guild item buttons: same order as Blizzard_GuildBankUI (GuildBankItemButtonTemplate
+-- OnClick). Right = AutoStoreGuildBankItem (withdraw to bags / deposit from cursor).
 local function GuildBankSlot_ResolveTarget(self)
     local bankTab = (GetCurrentGuildBankTab and GetCurrentGuildBankTab()) or (self.gbTab or currentTab)
     local bankSlot
@@ -1696,9 +1696,9 @@ function GuildBankFrame:UpdateSlots()
     end
 end
 
--- ʕ •ᴥ•ʔ✿ GetCoinTextureString takes a 32-bit int internally, so feeding it a
+-- GetCoinTextureString takes a 32-bit int internally, so feeding it a
 -- corrected (un-overflowed) value above 2^31-1 just overflows it again.
--- Format large amounts ourselves instead. ✿ ʕ •ᴥ•ʔ
+-- Format large amounts ourselves instead.
 local function FormatGuildBankMoney(copper)
     if copper <= 2147483647 then
         return GetCoinTextureString(copper)
@@ -2214,7 +2214,7 @@ local function ParseGuildBankMoneyInputToCopper(raw)
     return nil
 end
 
--- ʕ •ᴥ•ʔ✿ "all" = full carry gold (deposit) or min(vault, daily cap) (withdraw). ✿ ʕ •ᴥ•ʔ
+-- "all" = full carry gold (deposit) or min(vault, daily cap) (withdraw).
 local function ResolveGuildBankMoneyInput(raw, intent)
     if not raw then return nil end
     local s = string.lower(string.gsub(string.gsub(tostring(raw), "^%s+", ""), "%s+$", ""))

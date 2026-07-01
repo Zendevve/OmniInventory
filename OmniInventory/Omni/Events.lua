@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Event Bucketing System
 -- =============================================================================
 -- Purpose: Coalesce rapid BAG_UPDATE events into single UI refresh
@@ -281,7 +281,7 @@ function Events:Init()
         end
     end)
 
-    -- ʕ •ᴥ•ʔ✿ Bank events drive the standalone BankFrame to the left ✿ ʕ •ᴥ•ʔ
+    -- Bank events drive the standalone BankFrame to the left
     self:RegisterEvent("BANKFRAME_OPENED", function()
         if Omni.Features and Omni.Features.SetInteractingWindow then
             Omni.Features:SetInteractingWindow("bank")
@@ -327,7 +327,7 @@ function Events:Init()
         end
     end)
 
-    -- ʕ •ᴥ•ʔ✿ Guild bank events drive the Omni.GuildBankFrame override ✿ ʕ •ᴥ•ʔ
+    -- Guild bank events drive the Omni.GuildBankFrame override
     self:RegisterEvent("GUILDBANKFRAME_OPENED", function()
         if Omni.Features and Omni.Features.SetInteractingWindow then
             Omni.Features:SetInteractingWindow("guildbank")
@@ -398,7 +398,7 @@ function Events:Init()
         if Omni.Frame then
             Omni.Frame:UpdateMoney()
         end
-        -- ʕ •ᴥ•ʔ✿ Money tracker records gold history when enabled. ✿ ʕ •ᴥ•ʔ
+        -- Money tracker records gold history when enabled.
         if Omni.Features and Omni.Features.RecordMoney then
             Omni.Features:RecordMoney()
         end
@@ -432,8 +432,8 @@ function Events:Init()
                         if link then
                             local _, _, quality, _, _, _, _, _, _, _, price = GetItemInfo(link)
                             local itemID = tonumber(string.match(link, "item:(%d+)"))
-                            -- ʕ •ᴥ•ʔ✿ Use Features.IsJunkItem for include/exclude lists,
-                            -- fall back to plain quality==0 check. ✿ ʕ •ᴥ•ʔ
+                            -- Use Features.IsJunkItem for include/exclude lists,
+                            -- fall back to plain quality==0 check.
                             local isJunk = false
                             if Omni.Features and Omni.Features.IsJunkItem then
                                 isJunk = Omni.Features:IsJunkItem({
@@ -505,7 +505,7 @@ function Events:Init()
         end
     end)
 
-    -- ʕ •ᴥ•ʔ✿ Interacting window tracking + auto-display for mail/AH/trade/craft ✿ ʕ •ᴥ•ʔ
+    -- Interacting window tracking + auto-display for mail/AH/trade/craft
     self:RegisterEvent("MAIL_SHOW", function()
         if Omni.Features and Omni.Features.SetInteractingWindow then
             Omni.Features:SetInteractingWindow("mail")
@@ -592,9 +592,9 @@ function Events:Init()
     end)
 
     self:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-        -- ʕ •ᴥ•ʔ✿ Always re-render so secure attributes / positions / new
+        -- Always re-render so secure attributes / positions / new
         -- items missed during combat are restored. UpdateLayout no longer
-        -- requires IsShown(), so this is safe even when bags are hidden. ✿ ʕ •ᴥ•ʔ
+        -- requires IsShown(), so this is safe even when bags are hidden.
         if Omni.Frame and Omni.Frame.UpdateLayout then
             pcall(Omni.Frame.UpdateLayout, Omni.Frame, nil, { reason = "player_regen" })
         end
@@ -626,7 +626,7 @@ function Events:Init()
         end
     end)
 
-    -- ʕ •ᴥ•ʔ✿ Equipment + bank slot count saving for offline inventory (A11). ✿ ʕ •ᴥ•ʔ
+    -- Equipment + bank slot count saving for offline inventory (A11).
     self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function()
         if Omni.Data and Omni.Data.SaveEquipment then
             Omni.Data:SaveEquipment()

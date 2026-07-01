@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Object Pool
 -- =============================================================================
 -- Purpose: Recycle frame objects to minimize GC churn
@@ -154,10 +154,10 @@ function Pool:Release(name, obj)
     end
 end
 
--- ʕ •ᴥ•ʔ✿ Acquire `count` distinct objects up front, then release them all
+-- Acquire `count` distinct objects up front, then release them all
 -- back to the pool. The previous implementation acquired-then-released in a
 -- tight loop, so the same single object was reused on every iteration and
--- only one button was ever actually created. ✿ ʕ •ᴥ•ʔ
+-- only one button was ever actually created.
 function Pool:Prewarm(name, count)
     count = tonumber(count) or 0
     if count < 1 then return end
@@ -191,7 +191,7 @@ end
 
 --- Initialize common pools
 function Pool:Init()
-    -- ʕ •ᴥ•ʔ✿ ItemButton pool ✿ ʕ •ᴥ•ʔ
+    -- ItemButton pool
     -- Buttons are ContainerFrameItemButtonTemplate children. Their
     -- SetParent / SetID / SetPoint are protected, so all reparenting
     -- happens at acquire time inside RenderFlowView (which is gated

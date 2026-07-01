@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Configuration Panel
 -- =============================================================================
 -- Purpose: Simple standalone options frame called via /oi config
@@ -50,7 +50,7 @@ local function IsFixedTooltipPlacementMode(mode)
         or mode == "fixed"
 end
 
--- ʕ •ᴥ•ʔ✿ Keep in sync with ItemButton.FinalizeOmniItemTooltipLayout clamp ✿ ʕ •ᴥ•ʔ
+-- Keep in sync with ItemButton.FinalizeOmniItemTooltipLayout clamp
 local TOOLTIP_FIXED_X_MAX = 400
 local TOOLTIP_FIXED_Y_MAX = 400
 local TOOLTIP_PLACEMENT_TO_FIXED_SLIDER_GAP = 72
@@ -102,7 +102,7 @@ end
 
 
 
--- ʕ •ᴥ•ʔ✿ Section header palette — distinct tints so categories read at a glance ✿ ʕ •ᴥ•ʔ
+-- Section header palette — distinct tints so categories read at a glance
 local SECTION_COLORS = {
     view   = { 0.85, 0.90, 1.00 },
     sort   = { 0.85, 0.90, 1.00 },
@@ -203,7 +203,7 @@ function Settings:CreateOptionsFrame()
         optionsFrame:Hide()
     end)
 
-    -- ʕ •ᴥ•ʔ✿ Scrollable content viewport so we never outgrow the frame ✿ ʕ •ᴥ•ʔ
+    -- Scrollable content viewport so we never outgrow the frame
     local scrollFrame = CreateFrame("ScrollFrame", "OmniOptionsScroll", optionsFrame, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", 16, -40)
     scrollFrame:SetPoint("BOTTOMRIGHT", -34, 16)
@@ -245,13 +245,13 @@ end
 function Settings:CreateControls(parent)
     local yOffset = -15
     local SPACING = 40
-    -- ʕ •ᴥ•ʔ✿ Vertical rhythm — SECTION_GAP lives above every category header, HEADER_GAP under it ✿ ʕ •ᴥ•ʔ
+    -- Vertical rhythm — SECTION_GAP lives above every category header, HEADER_GAP under it
     local SECTION_GAP = 18
     local HEADER_GAP = 22
     self.colorSwatches = {}
     self._syncingScaleControls = false
 
-    -- ʕ •ᴥ•ʔ✿ Frame Selector Tabs ✿ ʕ •ᴥ•ʔ
+    -- Frame Selector Tabs
     local bagTab = CreateFrame("Button", "OmniConfigTabBag", parent, "UIPanelButtonTemplate")
     bagTab:SetSize(110, 22)
     bagTab:SetPoint("TOPLEFT", 25, yOffset)
@@ -428,7 +428,7 @@ function Settings:CreateControls(parent)
 
     yOffset = yOffset - SPACING - 20
 
-    -- ʕ ● ᴥ ●ʔ Category Editor intentionally hidden — custom-rule engine is disabled pending rewrite
+    -- Category Editor intentionally hidden — custom-rule engine is disabled pending rewrite
 
     yOffset = yOffset - SECTION_GAP
     CreateSectionHeader(parent, "Misc Options", yOffset, SECTION_COLORS.misc)
@@ -858,9 +858,9 @@ function Settings:CreateControls(parent)
 
     yOffset = yOffset - SECTION_GAP
 
-    -- ʕ •ᴥ•ʔ✿ New Features section: auto-display, junk lists, cache warmer,
+    -- New Features section: auto-display, junk lists, cache warmer,
     -- auto-loot, money tracker, bound indicator, bag type tags, theme,
-    -- auto-tidy, resort button, global lock. ✿ ʕ •ᴥ•ʔ
+    -- auto-tidy, resort button, global lock.
     CreateSectionHeader(parent, "Auto-Display & Features", yOffset, { 0.85, 0.70, 1.00 })
     yOffset = yOffset - HEADER_GAP
 
@@ -1143,7 +1143,7 @@ function Settings:CreateControls(parent)
 
     yOffset = yOffset - SPACING - SECTION_GAP
 
-    -- ʕ •ᴥ•ʔ✿ yOffset grows negative as rows are added — flip and pad for the scroll child ✿ ʕ •ᴥ•ʔ
+    -- yOffset grows negative as rows are added — flip and pad for the scroll child
     self._contentHeight = math.abs(yOffset) + 40
 end
 
@@ -1237,7 +1237,7 @@ function Settings:UpdateValues()
     if self.collapseEmptySlotsCb and Omni.Data then
         self.collapseEmptySlotsCb:SetChecked(Omni.Data:Get("collapseEmptySlots") == true)
     end
-    -- ʕ •ᴥ•ʔ✿ New Features checkboxes ✿ ʕ •ᴥ•ʔ
+    -- New Features checkboxes
     local ad = Omni.Data and Omni.Data:Get("autoDisplay") or {}
     if self.autoDisplayBankCb then self.autoDisplayBankCb:SetChecked(ad.bank == true) end
     if self.autoDisplayVendorCb then self.autoDisplayVendorCb:SetChecked(ad.vendor == true) end

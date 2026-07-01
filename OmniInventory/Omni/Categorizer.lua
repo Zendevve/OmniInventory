@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Smart Categorization Engine
 -- =============================================================================
 -- Purpose: Automatically assign items to logical categories using a
@@ -147,7 +147,7 @@ end
 -- =============================================================================
 -- Perishable Items Registry
 -- =============================================================================
--- ʕ •ᴥ•ʔ✿ Time-limited items that must be turned in before they expire ✿ ʕ •ᴥ•ʔ
+-- Time-limited items that must be turned in before they expire
 
 local PERISHABLE_ITEMS = {
     [50289] = true,  -- Blacktip Shark (1 hour turn-in)
@@ -192,7 +192,7 @@ local function IsQuestItem(itemInfo)
     return isQuestItem or false
 end
 
--- ʕ •ᴥ•ʔ✿ Native-first equipment manager membership check ✿ ʕ •ᴥ•ʔ
+-- Native-first equipment manager membership check
 local function IsEquipmentSetItem(itemInfo)
     if not itemInfo then return false end
 
@@ -412,9 +412,9 @@ function Categorizer:GetCategory(itemInfo)
         end
     end
 
-    -- ʕ •ᴥ•ʔ✿ User-defined categories (A18): evaluate in sequence order
+    -- User-defined categories (A18): evaluate in sequence order
     -- before the hardcoded pipeline. Each category has an optional item
-    -- list and/or a compiled rule expression. ✿ ʕ •ᴥ•ʔ
+    -- list and/or a compiled rule expression.
     if Omni.Categories then
         local userCats = Omni.Categories:GetAll()
         for _, cat in ipairs(userCats or {}) do

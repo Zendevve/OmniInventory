@@ -1,13 +1,13 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory Bank Frame
 -- =============================================================================
--- ʕ •ᴥ•ʔ✿ Standalone bank window that docks to the left of the main bag frame
--- whenever BANKFRAME_OPENED fires. Closes on BANKFRAME_CLOSED. ✿ ʕ •ᴥ•ʔ
+-- Standalone bank window that docks to the left of the main bag frame
+-- whenever BANKFRAME_OPENED fires. Closes on BANKFRAME_CLOSED.
 -- =============================================================================
 
 local addonName, Omni = ...
 
--- ʕ •ᴥ•ʔ✿ Offline Character Wrapper Redirections ✿ ʕ •ᴥ•ʔ
+-- Offline Character Wrapper Redirections
 local GetContainerNumSlots = function(bagID)
     return OmniC_Container.GetContainerNumSlots(bagID)
 end
@@ -337,7 +337,7 @@ local function LoadPosition()
     end
 end
 
--- ʕ •ᴥ•ʔ✿ Anchor to the left of the main bag frame if available ✿ ʕ •ᴥ•ʔ
+-- Anchor to the left of the main bag frame if available
 local function AnchorToMainFrame()
     if not bankFrame then return end
     if bankFrame.userMoved then return end
@@ -586,10 +586,10 @@ local function CreateContentArea(parent)
         scrollBar:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 20, 16)
     end
 
-    -- ʕ •ᴥ•ʔ✿ Per-bag ItemContainer frames for the bank, mirroring the
+    -- Per-bag ItemContainer frames for the bank, mirroring the
     -- main bag's setup. ContainerFrameItemButton_OnClick reads bag from
     -- self:GetParent():GetID(), so each button must live under a parent
-    -- whose SetID matches its bag (-1 main bank, 5..11 bank bags). ✿ ʕ •ᴥ•ʔ
+    -- whose SetID matches its bag (-1 main bank, 5..11 bank bags).
     parent.itemContainers = {}
     local function MakeItemContainer(bagID)
         local f = CreateFrame("Frame", nil, scrollChild)

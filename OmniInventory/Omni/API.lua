@@ -1,10 +1,9 @@
--- =============================================================================
+﻿-- =============================================================================
 -- OmniInventory API Abstraction Layer (The Shim)
 -- =============================================================================
 -- Purpose: Bridge legacy 3.3.5a APIs to modern Retail-style table returns.
 -- This allows the entire codebase to use modern syntax while remaining
 -- compatible with WotLK 3.3.5a client.
---
 -- This module mimics the Retail `C_Container` namespace.
 -- =============================================================================
 
@@ -22,7 +21,7 @@ API.isWotLK = clientVersion < 40000
 API.isRetail = clientVersion >= 100000
 
 -- =============================================================================
--- ᵔᴥᵔ Polyfill: Tooltip Scanner ᵔᴥᵔ
+-- Polyfill: Tooltip Scanner
 -- =============================================================================
 
 local scanningTooltip = CreateFrame("GameTooltip", "OmniScanningTooltip", nil, "GameTooltipTemplate")
@@ -125,8 +124,7 @@ function API:GetBindingFromHyperlink(itemLink)
 end
 
 -- =============================================================================
--- ＼ʕ •ᴥ•ʔ／ API Wrappers ＼ʕ •ᴥ•ʔ／
--- =============================================================================
+-- API Wrappers -- =============================================================================
 
 --- Check whether the item in (bagID, slotID) is Soulbound.
 ---@param bagID number
