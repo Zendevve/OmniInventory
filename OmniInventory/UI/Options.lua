@@ -314,7 +314,7 @@ function Settings:CreateControls(parent)
             return
         end
         scaleValueText:SetText("Current: " .. FormatScalePercent(value))
-        
+
         local target = Settings.activeConfigTarget or "bag"
         if target == "bank" and Omni.BankFrame then
             Omni.BankFrame:SetScale(value)
@@ -350,7 +350,7 @@ function Settings:CreateControls(parent)
             return
         end
         itemScaleValueText:SetText("Current: " .. FormatScalePercent(value))
-        
+
         local target = Settings.activeConfigTarget or "bag"
         if target == "bank" and Omni.BankFrame then
             Omni.BankFrame:SetItemScale(value)
@@ -385,7 +385,7 @@ function Settings:CreateControls(parent)
             return
         end
         itemGapValueText:SetText("Current: " .. FormatGapPixels(value))
-        
+
         local target = Settings.activeConfigTarget or "bag"
         if target == "bank" and Omni.BankFrame then
             Omni.BankFrame:SetItemGap(value)
@@ -976,6 +976,9 @@ function Settings:CreateControls(parent)
     cacheWarmerCb:SetScript("OnClick", function(self)
         if Omni.Data then
             Omni.Data:Set("cacheWarmer", self:GetChecked() and true or false)
+            if self:GetChecked() and Omni.Features and Omni.Features.WarmCache then
+                Omni.Features:WarmCache()
+            end
         end
     end)
     self.cacheWarmerCb = cacheWarmerCb
@@ -1106,6 +1109,9 @@ function Settings:CreateControls(parent)
     resortButtonCb:SetScript("OnClick", function(self)
         if Omni.Data then
             Omni.Data:Set("showResortButton", self:GetChecked() and true or false)
+            if Omni.Frame and Omni.Frame.UpdateResortButtonVisibility then
+                Omni.Frame:UpdateResortButtonVisibility()
+            end
         end
     end)
     self.resortButtonCb = resortButtonCb
@@ -1127,6 +1133,9 @@ function Settings:CreateControls(parent)
             local nextTheme = cur == "square" and "rounded" or "square"
             Omni.Features:SetTheme(nextTheme)
             Settings:RefreshThemeLabel()
+            if Omni.Frame and Omni.Frame.ApplyTheme then
+                Omni.Frame:ApplyTheme()
+            end
             RefreshAllInventory()
         end
     end)

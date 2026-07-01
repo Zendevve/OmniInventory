@@ -610,10 +610,12 @@ function ItemButton:Create(parent)
     button.pinIcon:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
     button.pinIcon:Hide()
 
-    -- ʕ •ᴥ•ʔ✿ Bound item indicator (chain icon, bottom-left) ✿ ʕ •ᴥ•ʔ
+    -- ʕ •ᴥ•ʔ✿ Bound item indicator (lock icon, bottom-left) ✿ ʕ •ᴥ•ʔ
+    -- Uses a full icon texture instead of a cropped UI-ActionButton-Border,
+    -- which rendered as an opaque black square due to bad texcoords. ✿ ʕ •ᴥ•ʔ
     button.boundIcon = button:CreateTexture(nil, "OVERLAY", nil, 4)
-    button.boundIcon:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-    button.boundIcon:SetTexCoord(0.5, 0.75, 0.0, 0.25)
+    button.boundIcon:SetTexture("Interface\\Icons\\INV_Misc_Key_03")
+    button.boundIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     button.boundIcon:SetSize(14, 14)
     button.boundIcon:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 1, 1)
     button.boundIcon:SetVertexColor(0.6, 0.6, 0.9, 0.9)
@@ -1412,6 +1414,48 @@ end
 
 -- ʕ •ᴥ•ʔ✿ Blizzard refreshes bag/guild/hyperlink tooltips on a timer and re-anchors;
 -- post-hook re-applies fixed screen-corner UIParent offset without a per-frame loop. ✿ ʕ •ᴥ•ʔ
+-- =============================================================================
+-- Theme System (A46)
+-- =============================================================================
+-- "rounded" = inset icons (0.08-0.92 texCoord), "square" = full-crop (0-1)
+
+function ItemButton.ApplyThemeToButton(button)
+    if not button or not button.icon then return end
+    local isSquare = Omni.Features and Omni.Features.IsSquareTheme
+        and Omni.Features:IsSquareTheme() or false
+    if isSquare then
+        button.icon:SetTexCoord(0, 1, 0, 1)
+        if button.icon.SetPoint then
+            button.icon:ClearAllPoints()
+            button.icon:SetPoint("TOPLEFT", 0, 0)
+            button.icon:SetPoint("BOTTOMRIGHT", 0, 0)
+        end
+    else
+        button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        if button.icon.SetPoint then
+            button.icon:ClearAllPoints()
+            button.icon:SetPoint("TOPLEFT", 2, -2)
+            button.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+        end
+    end
+end
+
+function ItemButton:ApplyThemeToAllButtons()
+    if Omni.Frame and Omni.Frame._IterateSlotButtons then
+        Omni.Frame._IterateSlotButtons(function(_, _, btn)
+            ItemButton.ApplyThemeToButton(btn)
+        end)
+    end
+    if Omni.Pool and Omni.Pool.Get then
+        local pool = Omni.Pool:Get("ItemButton")
+        if pool and pool.available then
+            for _, btn in ipairs(pool.available) do
+                ItemButton.ApplyThemeToButton(btn)
+            end
+        end
+    end
+end
+
 local function RegisterOmniFixedTooltipReanchorHooks()
     if Omni._omniFixedTooltipReanchorHooks then
         return

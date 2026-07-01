@@ -688,6 +688,8 @@ function Frame:_ActivateCombatGridFallback()
     end
     currentView = "grid"
     self:_RefreshViewButtonLabel()
+    self:UpdateResortButtonVisibility()
+    self:ApplyTheme()
 end
 
 function Frame:_RestoreCombatGridFallback()
@@ -994,7 +996,7 @@ function Frame:CreateHeader()
     local titleBtn = CreateFrame("Button", nil, header)
     titleBtn:SetHeight(16)
     titleBtn:SetPoint("LEFT", 6, 0)
-    
+
     local titleText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     titleText:SetPoint("LEFT", 0, 0)
     titleText:SetText("|cFF00FF00Omni|rInventory")
@@ -1037,6 +1039,13 @@ function Frame:CreateHeader()
         self._tooltipSub = "Current: " .. mode
     end)
 
+    -- Resort button: visible when showResortButton setting is enabled
+    header.resortBtn = CreateRibbonTextButton(header, "Resort",
+        "Resort", "Re-sort the bag layout now",
+        function() Frame:UpdateLayout(nil, { forceFull = true, reason = "resort_button" }) end)
+    header.resortBtn:SetPoint("RIGHT", header.sortBtn, "LEFT", -DIM.RIBBON_GAP, 0)
+    header.resortBtn:Hide()
+
     header.optBtn = CreateRibbonIconButton(header, DIM.SETTINGS_ICON,
         "Settings", "Open the OmniInventory settings panel",
         function()
@@ -1046,7 +1055,7 @@ function Frame:CreateHeader()
                 print("|cFF00FF00OmniInventory|r: Settings not loaded")
             end
         end)
-    header.optBtn:SetPoint("RIGHT", header.sortBtn, "LEFT", -DIM.RIBBON_GAP, 0)
+    header.optBtn:SetPoint("RIGHT", header.resortBtn, "LEFT", -DIM.RIBBON_GAP, 0)
 
     header.keyBtn = CreateRibbonIconButton(header, DIM.KEYRING_ICON,
         "Keyring", "Open keyring popup",
@@ -1123,11 +1132,15 @@ function Frame:CreateHeader()
         bagBtn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
             GameTooltip:AddLine(GetBagDisplayName(self.bagID), 1, 1, 1)
-            -- ʕ •ᴥ•ʔ✿ Bag type tag (AdiBags FAMILY_TAGS). ✿ ʕ •ᴥ•ʔ
+            -- ʕ •ᴥ•ʔ✿ Bag type tag (AdiBags FAMILY_TAGS) — gated by showBagTypeTags setting. ✿ ʕ •ᴥ•ʔ
             if Omni.Features and Omni.Features.GetBagFamilyTag then
-                local tag = Omni.Features:GetBagFamilyTag(self.bagID)
-                if tag then
-                    GameTooltip:AddLine("Type: " .. tag, 0.7, 0.85, 1.0)
+                local showTags = not Omni.Data
+                    or (Omni.Data:Get("showBagTypeTags") == true)
+                if showTags then
+                    local tag = Omni.Features:GetBagFamilyTag(self.bagID)
+                    if tag then
+                        GameTooltip:AddLine("Type: " .. tag, 0.7, 0.85, 1.0)
+                    end
                 end
             end
             GameTooltip:AddLine("Left-click: Preview this bag", 0.8, 0.8, 0.8)
@@ -1165,6 +1178,18 @@ function Frame:UpdateBagIconTextures()
         if bagBtn and bagBtn.icon then
             bagBtn.icon:SetTexture(GetBagIconTexture(bagID))
         end
+    end
+end
+
+function Frame:UpdateResortButtonVisibility()
+    if not mainFrame or not mainFrame.header then return end
+    local resortBtn = mainFrame.header.resortBtn
+    if not resortBtn then return end
+    local showResort = Omni.Data and Omni.Data:Get("showResortButton") == true or false
+    if showResort then
+        resortBtn:Show()
+    else
+        resortBtn:Hide()
     end
 end
 
@@ -3124,6 +3149,43 @@ function Frame:ResetPosition()
     mainFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     self:SavePosition()
     self:SetScale(1.0)
+end
+
+-- =============================================================================
+-- Theme System (A46)
+-- =============================================================================
+-- "rounded" = default WoW tooltip-style borders, inset icons
+-- "square"  = pfUI-compatible: no rounded edge, full-crop icons, thin border
+
+function Frame:ApplyTheme()
+    if not mainFrame then return end
+    local isSquare = Omni.Features and Omni.Features.IsSquareTheme
+        and Omni.Features:IsSquareTheme() or false
+
+    if isSquare then
+        mainFrame:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Buttons\\WHITE8X8",
+            edgeSize = 1,
+            insets = { left = 0, right = 0, top = 0, bottom = 0 },
+        })
+        mainFrame:SetBackdropColor(0.08, 0.08, 0.08, 0.95)
+        mainFrame:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+    else
+        mainFrame:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 14,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        })
+        mainFrame:SetBackdropColor(0.08, 0.08, 0.08, 0.95)
+        mainFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    end
+
+    -- Update item button icon texCoords live
+    if Omni.ItemButton and Omni.ItemButton.ApplyThemeToAllButtons then
+        Omni.ItemButton:ApplyThemeToAllButtons()
+    end
 end
 
 -- =============================================================================
@@ -5219,7 +5281,7 @@ local function OpenCharacterSelectMenu(anchorFrame)
                 else
                     Omni.Data.currentViewedChar = char.name
                 end
-                
+
                 if Omni.Frame then
                     Omni.Frame:UpdateTitle()
                     Omni.Frame:UpdateLayout(nil, { forceFull = true, immediate = true })
@@ -6187,6 +6249,8 @@ function Frame:Init()
     -- If login itself is combat-locked, UpdateLayout will attempt the
     -- lightweight grid bootstrap instead of the normal sorted flow pass. ✿ ʕ •ᴥ•ʔ
     self:_RefreshViewButtonLabel()
+    self:UpdateResortButtonVisibility()
+    self:ApplyTheme()
     pcall(function()
         Frame:UpdateLayout(nil, { forceFull = true, reason = "init_prewarm", immediate = true })
     end)
