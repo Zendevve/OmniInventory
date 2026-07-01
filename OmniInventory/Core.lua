@@ -237,6 +237,28 @@ local function SuppressBlizzardGuildBank()
     guildBankSuppressionDone = true
 end
 
+-- Remap B / Shift-B to the addon binding so the keypress reaches
+-- OmniInventory:Toggle() directly through the secure binding system,
+-- bypassing the Blizzard ContainerFrame show/hide which is blocked in
+-- combat.  SetBinding is protected and can only run out of combat.
+-- We only remap keys that are still on a default Blizzard bag binding
+-- so we never clobber a user's custom keybind.
+local function RemapBagKeybindings()
+    if InCombatLockdown and InCombatLockdown() then return end
+
+    local bBinding = GetBindingAction and GetBindingAction("B")
+    if bBinding and (bBinding == "TOGGLEBACKPACK" or bBinding == "TOGGLEBAGS") then
+        SetBinding("B", "OMNIINVENTORY_TOGGLE")
+    end
+
+    local shiftBBinding = GetBindingAction and GetBindingAction("SHIFT-B")
+    if shiftBBinding and (shiftBBinding == "TOGGLEBACKPACK"
+        or shiftBBinding == "TOGGLEBAGS"
+        or shiftBBinding == "OPENALLBAGS") then
+        SetBinding("SHIFT-B", "OMNIINVENTORY_TOGGLE")
+    end
+end
+
 local function OverrideBags()
     ToggleAllBags  = OmniToggleAll
     OpenAllBags    = OmniOpenAll
@@ -250,6 +272,7 @@ local function OverrideBags()
 
     SuppressBlizzardBagFrames()
     SuppressBlizzardGuildBank()
+    RemapBagKeybindings()
 end
 
 Omni._OverrideBags = OverrideBags
@@ -322,7 +345,8 @@ SLASH_OMNIINVENTORY1 = "/omniinventory"
 SLASH_OMNIINVENTORY2 = "/omni"
 SLASH_OMNIINVENTORY3 = "/oi"
 
-
+SLASH_ZENBAGS1 = "/zb"
+SLASH_ZENBAGS2 = "/zenbags"
 
 local clamOpenerFrame = CreateFrame("Frame")
 local CLAM_IDS = {
@@ -632,3 +656,4 @@ local function HandleSlashCommand(msg)
 end
 
 SlashCmdList["OMNIINVENTORY"] = HandleSlashCommand
+SlashCmdList["ZENBAGS"] = HandleSlashCommand
