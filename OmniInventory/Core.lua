@@ -174,6 +174,18 @@ local function SuppressBlizzardBagFrames()
             pcall(containerFrame.UnregisterAllEvents, containerFrame)
             pcall(containerFrame.SetScript, containerFrame, "OnShow",
                 function(self) if not InCombatLockdown() then pcall(self.Hide, self) end end)
+            pcall(containerFrame.HookScript, containerFrame, "OnShow",
+                function()
+                    if InCombatLockdown() and Omni.Frame and Omni.Frame.Show then
+                        Omni.Frame:Show()
+                    end
+                end)
+            pcall(containerFrame.HookScript, containerFrame, "OnHide",
+                function()
+                    if InCombatLockdown() and Omni.Frame and Omni.Frame.Hide then
+                        Omni.Frame:Hide()
+                    end
+                end)
         end
     end
 
@@ -237,15 +249,6 @@ local function OverrideBags()
     ToggleBag      = OmniToggleBag
     OpenBag        = OmniOpenBag
     CloseBag       = OmniCloseBag
-
-    pcall(function()
-        if GetBinding("B") == "TOGGLEBACKPACK" then
-            SetBinding("B", "OMNIINVENTORY_TOGGLE")
-        end
-        if GetBinding("SHIFT-B") == "OPENALLBAGS" then
-            SetBinding("SHIFT-B", "OMNIINVENTORY_TOGGLE")
-        end
-    end)
 
     SuppressBlizzardBagFrames()
     SuppressBlizzardGuildBank()
