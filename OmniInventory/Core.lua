@@ -16,13 +16,10 @@ _G.OmniInventory = Omni
 Omni.version = "2.0.0"
 Omni.author = "Zendevve"
 
--- Convenience top-level Toggle so Bindings.xml can call
--- OmniInventory:Toggle() without reaching into the Frame module.
--- The body is pcall-wrapped end-to-end so any error thrown from the
--- toggle chain (Show/Hide / UpdateLayout / OnShow/OnHide hooks) during
--- combat lockdown -- when restricted calls get converted to silent
--- engine errors -- never kills the binding handler. Without this, the
--- user's keypress appears to do nothing in combat.
+-- Convenience top-level Toggle. Body is pcall-wrapped so any error
+-- thrown from the toggle chain during combat lockdown does not kill
+-- the calling handler. Toggle is reachable from /oi (slash command)
+-- and from any user-added macro via OmniInventory:Toggle().
 function Omni:Toggle()
     if not self or not self.Frame then return end
     local ok, err = pcall(self.Frame.Toggle, self.Frame)
@@ -346,7 +343,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if Omni.Features then Omni.Features:Init() end
 
         OverrideBags()
-        InstallCombatToggleDriver()
 
 
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -354,7 +350,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- Safe in combat -- the Blizzard-frame suppression inside
         -- OverrideBags is itself combat-gated.
         OverrideBags()
-        InstallCombatToggleDriver()
 
         -- Cache warmer + money tracker fire on zone-in.
         if Omni.Features then
