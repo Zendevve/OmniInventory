@@ -1,0 +1,11 @@
+<Bindings>
+	<Binding name="OMNIINVENTORY_TOGGLE" description="Toggle OmniInventory Bags" header="OMNIINVENTORY">
+		OmniInventory_ToggleBags()
+	</Binding>
+	<Binding name="OMNIINVENTORY_OPEN" description="Open OmniInventory Bags">
+		OmniInventory_OpenBags()
+	</Binding>
+	<Binding name="OMNIINVENTORY_CLOSE" description="Close OmniInventory Bags">
+		OmniInventory_CloseBags()
+	</Binding>
+</Bindings>

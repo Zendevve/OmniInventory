@@ -39,6 +39,7 @@ eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 -- Track invocations of the bag toggle so /oi debug can confirm
 -- that the keybind is actually reaching addon code in (and out of) combat.
@@ -288,20 +289,85 @@ local function InstallCombatToggleDriver()
     combatToggleDriver:Hide()
     combatToggleDriver:SetAttribute("omni_req", nil)
 
-    -- The driver simply bounces the SetAttribute to our existing Lua
-    -- toggle wrapper. This handler runs OUTSIDE the binding handler so
-    -- taint propagation from the binding chain does not reach the Show
-    -- /Hide calls inside Omni:Toggle (they execute on the next
-    -- event/attribute tick in the driver's own execution context).
-    combatToggleDriver:SetScript("OnAttributeChanged", function(self, name, _value)
+    -- The driver bounces the SetAttribute to our Show/Hide/Toggle
+    -- wrappers. This handler runs OUTSIDE the binding handler so taint
+    -- propagation from the binding chain does not reach the Show/Hide
+    -- calls (they execute on the next event/attribute tick in the
+    -- driver's own execution context).
+    combatToggleDriver:SetScript("OnAttributeChanged", function(self, name, value)
         if name ~= "omni_req" then return end
         local Omni = _G.OmniInventory
         if not Omni then return end
-        if Omni.Toggle then pcall(Omni.Toggle, Omni) end
+        -- Dispatch based on the encoded action. The handler runs in the
+        -- driver's own execution context (not the binding handler's), so
+        -- taint from the binding chain does not propagate to Show/Hide.
+        local action = value or "toggle"
+        if action == "show" then
+            if Omni.Frame and Omni.Frame.Show then
+                pcall(Omni.Frame.Show, Omni.Frame)
+            end
+        elseif action == "hide" then
+            if Omni.Frame and Omni.Frame.Hide then
+                pcall(Omni.Frame.Hide, Omni.Frame)
+            end
+        else
+            if Omni.Toggle then pcall(Omni.Toggle, Omni) end
+        end
     end)
 
     -- Expose for Bindings.xml to drive.
     Omni._combatToggleDriver = combatToggleDriver
+end
+
+-- =============================================================================
+-- Combat-Safe Binding Entry Points (Bindings.xml)
+-- =============================================================================
+-- These globals are called by the key binding body. In combat, calling
+-- Omni.Frame:Show()/Hide() directly from a tainted binding handler can
+-- trigger "Interface action failed because of an AddOn." So we route
+-- through the combatToggleDriver: SetAttribute is always allowed (even
+-- in combat, even from tainted code), and the OnAttributeChanged handler
+-- fires on the next engine tick in a clean execution context where
+-- Show/Hide proceed without inheriting binding taint.
+--
+-- Out of combat we call the Safe* wrappers directly for zero-latency
+-- response -- the driver round-trip is only needed under lockdown.
+
+local function DriveViaAttribute(action)
+    local driver = Omni._combatToggleDriver
+    if not driver then
+        -- Driver not installed yet (very early); fall back to direct call.
+        return false
+    end
+    -- Encode the desired action in the attribute value so the
+    -- OnAttributeChanged handler can dispatch to Show/Hide/Toggle.
+    -- SetAttribute is always allowed, even in combat lockdown.
+    pcall(driver.SetAttribute, driver, "omni_req", action or "toggle")
+    return true
+end
+
+-- Toggle bags (key binding). Combat-safe via attribute driver.
+function OmniInventory_ToggleBags()
+    if InCombatLockdown and InCombatLockdown() then
+        if DriveViaAttribute("toggle") then return end
+    end
+    SafeToggle("binding_toggle")
+end
+
+-- Open bags (key binding). Combat-safe via attribute driver.
+function OmniInventory_OpenBags()
+    if InCombatLockdown and InCombatLockdown() then
+        if DriveViaAttribute("show") then return end
+    end
+    SafeShow("binding_show")
+end
+
+-- Close bags (key binding). Combat-safe via attribute driver.
+function OmniInventory_CloseBags()
+    if InCombatLockdown and InCombatLockdown() then
+        if DriveViaAttribute("hide") then return end
+    end
+    SafeHide("binding_hide")
 end
 
 Omni._OverrideBags = OverrideBags
@@ -342,6 +408,10 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if Omni.Settings then Omni.Settings:Init() end
         if Omni.Features then Omni.Features:Init() end
 
+        -- Install the combat-safe attribute driver so key bindings
+        -- can toggle bags even under combat lockdown with tainted
+        -- binding execution contexts.
+        InstallCombatToggleDriver()
         OverrideBags()
 
 
@@ -349,6 +419,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- Re-apply: late-loading addons may have replaced our globals.
         -- Safe in combat -- the Blizzard-frame suppression inside
         -- OverrideBags is itself combat-gated.
+        InstallCombatToggleDriver()
         OverrideBags()
 
         -- Cache warmer + money tracker fire on zone-in.
@@ -363,6 +434,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- gives SuppressBlizzardBagFrames a chance to run if an
         -- in-combat /reload deferred it.
         OverrideBags()
+
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        -- Combat started. Install the combat toggle driver if it
+        -- hasn't been already (covers in-combat /reload). The driver
+        -- must exist before any key binding fires so the attribute
+        -- bounce path is available.
+        InstallCombatToggleDriver()
     end
 end)
 
