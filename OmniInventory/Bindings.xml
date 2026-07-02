@@ -1,10 +1,19 @@
 <Bindings>
     <Binding name="OMNIINVENTORY_TOGGLE">
-        OmniInventory:Toggle()
-    </Binding>
+        -- Drive through the protected driver if available; SetAttribute
+        -- is allowed in combat for SecureFrameTemplate. Otherwise fall
+        -- back to the direct Lua path (works in OOC and on clean
+        -- binding sources, fails gracefully through the pcall in Omni:
+        -- Toggle when the binding is tainted).
+        if OmniInventory._combatToggleDriver then
+            OmniInventory._combatToggleDriver:SetAttribute("omni_req", 1)
+        else
+            OmniInventory:Toggle()
+        end
+   </Binding>
     <Binding name="OMNIINVENTORY_TOGGLE_BANK">
         if OmniInventory.BankFrame then OmniInventory.BankFrame:Toggle() end
-    </Binding>
+   </Binding>
     <Binding name="OMNIINVENTORY_TOGGLE_KEYRING">
         if OmniInventory.Frame then OmniInventory.Frame:ToggleKeyring() end
     </Binding>

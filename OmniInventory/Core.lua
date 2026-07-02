@@ -18,12 +18,18 @@ Omni.author = "Zendevve"
 
 -- Convenience top-level Toggle so Bindings.xml can call
 -- OmniInventory:Toggle() without reaching into the Frame module.
+-- The body is pcall-wrapped end-to-end so any error thrown from the
+-- toggle chain (Show/Hide / UpdateLayout / OnShow/OnHide hooks) during
+-- combat lockdown -- when restricted calls get converted to silent
+-- engine errors -- never kills the binding handler. Without this, the
+-- user's keypress appears to do nothing in combat.
 function Omni:Toggle()
-    if self.Frame then
-        -- Direct call (no pcall) – critical for combat toggle.
-        -- pcall in a tainted binding context breaks the secure execution
-        -- environment, causing mainFrame:Show() to fail silently.
-        self.Frame:Toggle()
+    if not self or not self.Frame then return end
+    local ok, err = pcall(self.Frame.Toggle, self.Frame)
+    if not ok and type(err) == "string" then
+        if _G.OmniInventory and _G.OmniInventory._toggleStats then
+            _G.OmniInventory._toggleStats.lastToggleErr = err
+        end
     end
 end
 
@@ -52,6 +58,7 @@ Omni._toggleStats = {
     hideOK = 0,
     lastShowErr = nil,
     lastHideErr = nil,
+    lastToggleErr = nil,
     lastBlocked = nil,
     lastBlockedFunc = nil,
 }
@@ -177,22 +184,24 @@ local function SuppressBlizzardBagFrames()
     -- The hook hides the Blizzard frame and shows our frame instead.
     -- The hook function receives `self` as the ContainerFrame, so
     -- calling self:Hide() runs in the frame's own secure context.
+    --
+    -- Combat safety: the hook fires from Blizzard's secure OnShow handler
+    -- even in combat. The body is wrapped in pcall because Blizzard
+    -- frames are protected and any failed Hide/Show from this non-native
+    -- callback would surface as a silent engine error. We also short-
+    -- circuit our own Show() in combat; combat display is handled by
+    -- the dedicated OMNIINVENTORY_TOGGLE binding path, not via Blizzard's
+    -- frame show chain.
     for i = 1, 13 do
         local containerFrame = _G["ContainerFrame" .. i]
         if containerFrame then
             pcall(containerFrame.HookScript, containerFrame, "OnShow",
                 function(self)
-                    -- Hide the Blizzard frame from its own secure context
-                    -- (self:Hide() is a protected call on a protected frame,
-                    -- but we are inside the frame's own OnShow secure handler)
                     pcall(self.Hide, self)
-                    -- Show our frame — guarded: calling Frame:Show() from an
-                    -- insecure hook context is blocked during combat lockdown.
-                    -- The main toggle path via OMNIINVENTORY_TOGGLE binding
-                    -- already handles combat correctly; this is only needed
-                    -- to redirect Blizzard frame shows to ours out of combat.
-                    if Omni.Frame and Omni.Frame.Show and not (InCombatLockdown and InCombatLockdown()) then
-                        Omni.Frame:Show()
+                    if not (InCombatLockdown and InCombatLockdown()) then
+                        if Omni.Frame and Omni.Frame.Show then
+                            pcall(Omni.Frame.Show, Omni.Frame)
+                        end
                     end
                 end)
         end
@@ -201,7 +210,7 @@ local function SuppressBlizzardBagFrames()
     if _G.BankFrame then
         pcall(_G.BankFrame.HookScript, _G.BankFrame, "OnShow",
             function(self)
-                if not InCombatLockdown() then
+                if not (InCombatLockdown and InCombatLockdown()) then
                     pcall(self.Hide, self)
                 end
             end)
@@ -264,6 +273,40 @@ local function OverrideBags()
     SuppressBlizzardGuildBank()
 end
 
+-- Hidden driver that makes the bag toggle combat-safe even when the
+-- binding source is tainted. The binding body calls SetAttribute on
+-- this frame (always allowed), which fires OnAttributeChanged on the
+-- next tick in a non-binding execution context where bag Show/Hide can
+-- proceed without inheriting the binding handler's taint state. The
+-- frame itself does not need to be protected -- SetAttribute is a
+-- basic API that is always available regardless of protection --
+-- but we still hide it because no UI is needed.
+local combatToggleDriver
+local function InstallCombatToggleDriver()
+    if combatToggleDriver then return end
+    if not CreateFrame then return end
+
+    combatToggleDriver = CreateFrame("Frame", "OmniBagToggleDriver", UIParent)
+    if not combatToggleDriver then return end
+    combatToggleDriver:Hide()
+    combatToggleDriver:SetAttribute("omni_req", nil)
+
+    -- The driver simply bounces the SetAttribute to our existing Lua
+    -- toggle wrapper. This handler runs OUTSIDE the binding handler so
+    -- taint propagation from the binding chain does not reach the Show
+    -- /Hide calls inside Omni:Toggle (they execute on the next
+    -- event/attribute tick in the driver's own execution context).
+    combatToggleDriver:SetScript("OnAttributeChanged", function(self, name, _value)
+        if name ~= "omni_req" then return end
+        local Omni = _G.OmniInventory
+        if not Omni then return end
+        if Omni.Toggle then pcall(Omni.Toggle, Omni) end
+    end)
+
+    -- Expose for Bindings.xml to drive.
+    Omni._combatToggleDriver = combatToggleDriver
+end
+
 Omni._OverrideBags = OverrideBags
 
 eventFrame:SetScript("OnEvent", function(self, event, arg1)
@@ -303,6 +346,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if Omni.Features then Omni.Features:Init() end
 
         OverrideBags()
+        InstallCombatToggleDriver()
 
 
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -310,6 +354,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- Safe in combat -- the Blizzard-frame suppression inside
         -- OverrideBags is itself combat-gated.
         OverrideBags()
+        InstallCombatToggleDriver()
 
         -- Cache warmer + money tracker fire on zone-in.
         if Omni.Features then
@@ -455,10 +500,13 @@ local function HandleSlashCommand(msg)
         print(string.format("  Show calls: %d (ok: %d), Hide calls: %d (ok: %d)",
             stats.showCalls or 0, stats.showOK or 0, stats.hideCalls or 0, stats.hideOK or 0))
         if stats.lastShowErr then
-            print("  Last Show err: " .. stats.lastShowErr)
+            print("  Last Show err: " .. tostring(stats.lastShowErr))
         end
         if stats.lastHideErr then
-            print("  Last Hide err: " .. stats.lastHideErr)
+            print("  Last Hide err: " .. tostring(stats.lastHideErr))
+        end
+        if stats.lastToggleErr then
+            print("  Last Toggle err: " .. tostring(stats.lastToggleErr))
         end
         if stats.lastBlocked then
             print(string.format("  Last engine block: %s on %s",

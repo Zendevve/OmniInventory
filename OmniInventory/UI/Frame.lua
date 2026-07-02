@@ -5521,18 +5521,35 @@ end
 
 function Frame:Show()
     if not mainFrame then
-        pcall(function()
+        local _, err = pcall(function()
             currentView = GetSavedViewMode()
             selectedBagID = GetSavedBagFilter()
             self:CreateMainFrame()
             self:SetView(currentView)
             self:LoadPosition()
         end)
+        if Omni and Omni._toggleStats then
+            Omni._toggleStats.lastShowErr = err
+        end
     end
 
     if not mainFrame then return end
 
-    mainFrame:Show()
+    -- pcall the actual Show so combat taint / engine block ("Interface
+    -- action failed because of an AddOn") never tears down the binding
+    -- handler. The .pcall returns ok=true on success so we record it
+    -- for /oi debug. The frame being shown is non-protected, so this
+    -- should always succeed -- if it doesn't, we want to know.
+    local okShow, errShow = pcall(mainFrame.Show, mainFrame)
+    if Omni and Omni._toggleStats then
+        Omni._toggleStats.showCalls = (Omni._toggleStats.showCalls or 0) + 1
+        if okShow then
+            Omni._toggleStats.showOK = (Omni._toggleStats.showOK or 0) + 1
+        end
+        if errShow then
+            Omni._toggleStats.lastShowErr = tostring(errShow)
+        end
+    end
 
     pcall(function()
         local sig = ComputeShowSignature()
@@ -5561,7 +5578,16 @@ end
 function Frame:Hide()
     if not mainFrame then return end
 
-    mainFrame:Hide()
+    local okHide, errHide = pcall(mainFrame.Hide, mainFrame)
+    if Omni and Omni._toggleStats then
+        Omni._toggleStats.hideCalls = (Omni._toggleStats.hideCalls or 0) + 1
+        if okHide then
+            Omni._toggleStats.hideOK = (Omni._toggleStats.hideOK or 0) + 1
+        end
+        if errHide then
+            Omni._toggleStats.lastHideErr = tostring(errHide)
+        end
+    end
 
     pcall(function()
         vendorFlowLayoutFreeze = nil
