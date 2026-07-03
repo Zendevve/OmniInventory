@@ -12,3 +12,5 @@ refs/
 
 # Kilo plans
 .kilo/plans/
+
+.git-rewrite/
