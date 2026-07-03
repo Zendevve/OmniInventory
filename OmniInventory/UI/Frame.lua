@@ -171,10 +171,10 @@ local forceEmptyJob = nil
 -- ContainerFrameItemButtonTemplate children may make OmniInventoryFrame
 -- protected in 3.3.5a (IsProtected returns true). Show/Hide on a
 -- protected frame are blocked from insecure/tainted code during combat.
--- If the player's key binding is CLEAN (set via Key Binding UI or via
--- our SecureHandler binding fix), the binding's execution context is
--- clean and Show/Hide work even in combat. If the binding is TAINTED
--- (from old SetBinding from addon code), Show/Hide are blocked in combat.
+-- If the player's key binding is CLEAN (set via Key Binding UI), the
+-- binding's execution context is clean and Show/Hide work even in combat.
+-- If the binding is TAINTED (from old SetBinding from addon code),
+-- Show/Hide are blocked in combat.
 -- The protected-child operations that ARE still forbidden in combat
 -- are the structural ones on the ItemButtons themselves: SetParent,
 -- SetID, SetPoint, ClearAllPoints. UpdateLayout is therefore combat-
@@ -815,6 +815,44 @@ function Frame:CreateMainFrame()
     mainFrame:SetClampedToScreen(true)
     mainFrame:SetMinResize(DIM.FRAME_MIN_WIDTH, DIM.FRAME_MIN_HEIGHT)
 
+    -- CRITICAL: secure-template anchor for combat-safe bag frame.
+    --
+    -- The four SecureActionButtonTemplate footer buttons (hearthstone,
+    -- openables, disenchant, picklock) MUST NOT be descendants of
+    -- OmniInventoryFrame.  In WoW 3.3.5a, a SecureActionButtonTemplate
+    -- descendant promotes its parent chain to "protected by association",
+    -- which blocks Show/Hide/SetPoint on OmniInventoryFrame from addon
+    -- code during combat lockdown.  This is the same isolation pattern
+    -- GudaBags uses for its Guda_HearthstoneAnchor (parented to UIParent,
+    -- not to Guda_BagFrame) -- see refs/GudaBags/UI/BagFrame.lua
+    -- lines 1962-1979 for the original rationale.
+    --
+    -- We parent the four secure buttons to this plain Frame on UIParent
+    -- instead of to mainFrame.footer.  The buttons are still positioned
+    -- visually over the footer via SetPoint -- SetPoint works across any
+    -- parent/child boundary.  An OnShow / move / resize watcher keeps the
+    -- anchor's screen coordinates aligned with mainFrame so the buttons
+    -- track when the player drags the bag.
+    --
+    -- NOTE: ContainerFrameItemButtonTemplate (item-button) descendants do
+    -- NOT promote their parent in 3.3.5a (per UI/ItemButton.lua comment
+    -- at the CreateFrame call), so those are safe under mainFrame.  Only
+    -- SecureActionButtonTemplate needs this isolation.
+    local secureAnchor = CreateFrame("Frame", "OmniInventorySecureAnchor", UIParent)
+    secureAnchor:SetSize(1, 1)
+    -- Park it at a placeholder; node repositions to match the footer
+    -- via the watcher installed at the end of CreateMainFrame.
+    secureAnchor:SetPoint("CENTER", UIParent, "CENTER", -12000, -12000)
+    secureAnchor:SetAlpha(0)
+    if secureAnchor.EnableMouse then secureAnchor:EnableMouse(false) end
+    secureAnchor:Hide()
+    mainFrame.secureAnchor = secureAnchor
+    -- Frames layered ABOVE the bag so the secure buttons visually sit on
+    -- top of the footer (HIGH strata + high frame level covers this
+    -- without inheriting any registered-for-input events).
+    secureAnchor:SetFrameStrata("HIGH")
+    secureAnchor:SetFrameLevel(200)
+
     -- Backdrop
     mainFrame:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -863,6 +901,82 @@ function Frame:CreateMainFrame()
             tinsert(UISpecialFrames, "OmniInventoryFrame")
         end
     end
+
+    -- Secure-anchor watcher: keep OmniInventorySecureAnchor offset
+    -- synchronized with the footer's screen-space position so the
+    -- secure footer buttons always render over the footer even after
+    -- the player drags the bag. Layout chains down through hooks so
+    -- any move/resize/show path keeps them aligned.
+    local anchorRepositionFrame = CreateFrame("Frame")
+    anchorRepositionFrame.elapsed = 0
+    anchorRepositionFrame.waiting = false
+    anchorRepositionFrame.debounce = 0.05
+    local function RepositionSecureAnchor()
+        if not (mainFrame and mainFrame.secureAnchor and mainFrame.footer) then return end
+        if InCombatLockdown and InCombatLockdown() then return end
+        local footer = mainFrame.footer
+        -- Cheap relocation: anchor a corner of the secure anchor to the
+        -- footer's BOTTOMLEFT in screen coordinates. The buttons themselves
+        -- are SetPoint'd into the secure anchor with their own offsets, so
+        -- a single shared baseline is sufficient.
+        local scale = (footer:GetEffectiveScale() or 1) / (UIParent:GetEffectiveScale() or 1)
+        if not scale or scale == 0 then return end
+        local x = (footer:GetLeft() or 0) * scale
+        local y = (footer:GetBottom() or 0) * scale
+        mainFrame.secureAnchor:ClearAllPoints()
+        mainFrame.secureAnchor:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x, y)
+    end
+    anchorRepositionFrame:SetScript("OnUpdate", function(self, elapsed)
+        if not self.waiting then return end
+        self.elapsed = self.elapsed + elapsed
+        if self.elapsed < self.debounce then return end
+        self.elapsed = 0
+        self.waiting = false
+        RepositionSecureAnchor()
+    end)
+    local function requestSecureAnchorReposition()
+        anchorRepositionFrame.elapsed = 0
+        anchorRepositionFrame.waiting = true
+    end
+    -- Hook OnShow / drag-end events so the secure anchor follows.
+    mainFrame:HookScript("OnShow", function()
+        if mainFrame.secureAnchor then
+            mainFrame.secureAnchor:Show()
+        end
+        requestSecureAnchorReposition()
+    end)
+    mainFrame:HookScript("OnHide", function()
+        if mainFrame.secureAnchor then
+            -- Use SetAlpha(0) where allowed: Show/Hide on a frame with
+            -- secure descendants is a protected op in combat, but SetAlpha
+            -- is not. We are in OnHide which is itself called from a
+            -- HandleShow/Hide call -- defensive SetAlpha(0) + clear-points
+            -- prevents any flashed-on secure buttons when the bag closes
+            -- mid-combat.  We still call Hide() out of combat to fully
+            -- tear down layout.
+            if InCombatLockdown and InCombatLockdown() then
+                mainFrame.secureAnchor:SetAlpha(0)
+            else
+                mainFrame.secureAnchor:Hide()
+            end
+        end
+    end)
+    mainFrame:HookScript("OnSizeChanged", requestSecureAnchorReposition)
+    if mainFrame.SetResizeBounds then
+        -- SetResizeBounds doesn't always fire OnSizeChanged in 3.3.5a; add
+        -- a passive monitor so screen-snap / clipped resize stays aligned.
+        mainFrame.secureAnchorResizeFrame = CreateFrame("Frame")
+        mainFrame.secureAnchorResizeFrame.elapsed = 0
+        mainFrame.secureAnchorResizeFrame:Hide()
+        mainFrame.secureAnchorResizeFrame:SetScript("OnUpdate", function(self, elapsed)
+            self.elapsed = self.elapsed + elapsed
+            if self.elapsed < 0.2 then return end
+            self.elapsed = 0
+            requestSecureAnchorReposition()
+        end)
+        mainFrame.secureAnchorResizeFrame:Show()
+    end
+    mainFrame._requestSecureAnchorReposition = requestSecureAnchorReposition
 
     mainFrame:Hide()
 
@@ -2306,8 +2420,27 @@ local function StyleFooterMiniButton(btn)
 end
 
 local function CreateFooterMiniButton(parent, def)
+    -- SecureActionButtonTemplate buttons MUST be parented outside the
+    -- mainFrame chain (see OmniInventorySecureAnchor in CreateMainFrame).
+    -- 3.3.5a's combat lockdown propagates protected status from a
+    -- SecureActionButtonTemplate descendant up through its parent chain,
+    -- which would make Show/Hide on OmniInventoryFrame forbidden in
+    -- combat.  We arrange for those buttons to live under
+    -- mainFrame.secureAnchor (a plain Frame on UIParent) and let
+    -- SetPoint place them visually over the footer.
+    local actualParent = parent
+    if def.secure then
+        if mainFrame and mainFrame.secureAnchor then
+            actualParent = mainFrame.secureAnchor
+        else
+            -- mainFrame not yet built (in standalone test contexts) --
+            -- fall back to the regular parent so the button still works.
+            actualParent = parent
+        end
+    end
+
     local template = def.secure and "SecureActionButtonTemplate" or nil
-    local btn = CreateFrame("Button", nil, parent, template)
+    local btn = CreateFrame("Button", nil, actualParent, template)
     btn:RegisterForClicks("AnyUp")
 
     if def.secure then
@@ -2692,6 +2825,7 @@ function Frame:CreateFooter()
     for _, def in ipairs(FOOTER_CUSTOM_BUTTONS) do
         local btn = CreateFooterMiniButton(footer, def)
         btn:Hide()
+        btn.__def = def
         footer.customButtons[def.key] = btn
     end
     footer.customButtonOrder = FOOTER_CUSTOM_BUTTONS
@@ -2815,6 +2949,7 @@ end
 
 local function CollectRibbonItems(footer)
     local items = {}
+    local secureAnchor = mainFrame and mainFrame.secureAnchor
 
     local function appendGroup(orderList, buttonsMap, isEnabledFn, sep)
         local groupHasMember = false
@@ -2831,7 +2966,15 @@ local function CollectRibbonItems(footer)
                     table.insert(items, { kind = "btn", obj = btn, def = def })
                 else
                     btn:ClearAllPoints()
-                    btn:SetParent(footer)
+                    -- Secure buttons stay under secureAnchor so mainFrame
+                    -- never picks up SecureActionButtonTemplate descendants
+                    -- (which would propagate protection up the chain and
+                    -- break combat Show/Hide on the bag frame).
+                    if def.secure and secureAnchor then
+                        btn:SetParent(secureAnchor)
+                    else
+                        btn:SetParent(footer)
+                    end
                     btn:Hide()
                 end
             end
@@ -2893,6 +3036,8 @@ function Frame:UpdateFooterCustomButtons()
     local inlineAnchor = footer.slots
     local inlineAnchorGap = DIM.FOOTER_SEP_GAP + 2
 
+    local secureAnchor = mainFrame.secureAnchor
+
     local items = CollectRibbonItems(footer)
     local totalNeededWidth = 0
     for _, item in ipairs(items) do
@@ -2912,9 +3057,22 @@ function Frame:UpdateFooterCustomButtons()
     local overflowButtons   = {}
     local lastInlineSep     = nil
 
+    -- Choose the right non-secure parent for each item. Secure buttons
+    -- (hearthstone / openables / disenchant / picklock) MUST live under
+    -- mainFrame.secureAnchor to keep OmniInventoryFrame free of
+    -- SecureActionButtonTemplate descendants (see CreateMainFrame /
+    -- CreateFooterMiniButton).  We detect by looking at the button's
+    -- current parent (CreateFooterMiniButton parents secure buttons
+    -- directly to secureAnchor at creation time).
+    local function parentFor(obj)
+        if secureAnchor and obj.GetParent and obj:GetParent() == secureAnchor then
+            return secureAnchor
+        end
+        return footer
+    end
     local function placeInline(obj, kind)
         obj:ClearAllPoints()
-        obj:SetParent(footer)
+        obj:SetParent(parentFor(obj))
         if kind == "sep" then
             if inlinePrev then
                 obj:SetPoint("LEFT", inlinePrev, "RIGHT", DIM.FOOTER_SEP_GAP, 0)
@@ -2949,9 +3107,22 @@ function Frame:UpdateFooterCustomButtons()
             end
         end
 
-        if not mustOverflow or not wouldOverflow then
+        -- Secure buttons are forced inline -- the overflow popup is a
+        -- descendant of footer (mainFrame) and would re-expose
+        -- SecureActionButtonTemplate protection up through mainFrame.
+        -- In practice up to 4 secure buttons is a tight cluster; they
+        -- usually fit. If a future custom button adds to the secure set
+        -- we may need a parallel overflow popup on secureAnchor -- for
+        -- now, force-inline and hope for the best.
+        local forceInline = item.kind == "btn" and item.obj and item.obj.__def and item.obj.__def.secure
+
+        if (not mustOverflow or not wouldOverflow) or forceInline then
             placeInline(item.obj, item.kind)
-            runningWidth = runningWidth + cost
+            if forceInline then
+                runningWidth = runningWidth + cost
+            else
+                runningWidth = runningWidth + cost
+            end
         else
             if item.kind == "sep" then
                 item.obj:ClearAllPoints()
@@ -2980,6 +3151,7 @@ function Frame:UpdateFooterCustomButtons()
         local prevPopupBtn
         for _, btn in ipairs(overflowButtons) do
             btn:ClearAllPoints()
+            -- Non-secure only -- secure ones are forced inline above.
             btn:SetParent(popup)
             if prevPopupBtn then
                 btn:SetPoint("LEFT", prevPopupBtn, "RIGHT", DIM.FOOTER_BTN_GAP, 0)
@@ -2993,6 +3165,14 @@ function Frame:UpdateFooterCustomButtons()
         footer.overflowBtn:ClearAllPoints()
         footer.overflowBtn:Hide()
         footer.overflowPopup:Hide()
+    end
+
+    -- The secure anchor must mirror the footer's screen position so
+    -- SetPoint math (which coordinates target footer frames inside
+    -- mainFrame) still lands the secure buttons visibly on top of the
+    -- footer, even though they live outside mainFrame's parent chain.
+    if mainFrame._requestSecureAnchorReposition then
+        mainFrame._requestSecureAnchorReposition()
     end
 end
 
