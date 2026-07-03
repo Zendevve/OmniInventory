@@ -1,0 +1,6 @@
+tree ad8350723af6a2c9316ecb48119760098de2988a
+parent 21369f4911ad6e56b1fb4c00b5d06b64b2059139
+author Zendevve <nathanielguinto6@gmail.com> 1763790139 +0800
+committer Zendevve <nathanielguinto6@gmail.com> 1763790139 +0800
+
+UX Improvements - Search highlighting (dims non-matches) - Item hover glow effect - Section header backgrounds
