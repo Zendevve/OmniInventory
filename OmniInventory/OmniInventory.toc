@@ -35,6 +35,7 @@ UI\ListView.lua
 UI\Frame.lua
 UI\BankFrame.lua
 UI\GuildBankFrame.lua
+UI\OpsTheme.lua
 UI\Options.lua
 UI\Tooltip.lua
 

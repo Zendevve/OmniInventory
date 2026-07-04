@@ -1,8 +1,8 @@
 ﻿-- =============================================================================
 -- OmniInventory Configuration Panel
 -- =============================================================================
--- Purpose: Simple standalone options frame called via /oi config
--- Features: Scale slider, Sort mode, View mode, Reset position
+-- Purpose: Standalone options frame called via /oi config
+-- Style: Flat dark motif matching bag interface (via OpsTheme)
 -- =============================================================================
 
 local addonName, Omni = ...
@@ -10,6 +10,7 @@ local addonName, Omni = ...
 Omni.Settings = {}
 local Settings = Omni.Settings
 local optionsFrame = nil
+local OpsTheme = Omni.OpsTheme
 
 local function RefreshAllInventory()
     if Omni.Frame then
@@ -50,7 +51,6 @@ local function IsFixedTooltipPlacementMode(mode)
         or mode == "fixed"
 end
 
--- Keep in sync with ItemButton.FinalizeOmniItemTooltipLayout clamp
 local TOOLTIP_FIXED_X_MAX = 400
 local TOOLTIP_FIXED_Y_MAX = 400
 local TOOLTIP_PLACEMENT_TO_FIXED_SLIDER_GAP = 72
@@ -100,9 +100,6 @@ local function RegisterColorPickerCloseRefresh()
     end)
 end
 
-
-
--- Section header palette — distinct tints so categories read at a glance
 local SECTION_COLORS = {
     view   = { 0.85, 0.90, 1.00 },
     sort   = { 0.85, 0.90, 1.00 },
@@ -110,9 +107,8 @@ local SECTION_COLORS = {
     colors = { 1.00, 0.60, 0.20 },
     footer = { 0.40, 1.00, 0.55 },
     addon  = { 0.45, 0.80, 1.00 },
+    feat   = { 0.85, 0.70, 1.00 },
 }
-
-
 
 local FOOTER_BUTTON_OPTIONS = {
     { key = "resetInstances", label = "Reset Instances" },
@@ -174,52 +170,59 @@ function Settings:CreateOptionsFrame()
         end
     end)
 
-    -- Backdrop
-    optionsFrame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, edgeSize = 32,
-        insets = { left = 11, right = 12, top = 12, bottom = 11 }
-    })
+    -- Backdrop: flat dark motif matching bag interface
+    OpsTheme:ApplyFrameBackdrop(optionsFrame)
 
-    -- Draggable header
-    optionsFrame:RegisterForDrag("LeftButton")
-    optionsFrame:SetScript("OnDragStart", optionsFrame.StartMoving)
-    optionsFrame:SetScript("OnDragStop", optionsFrame.StopMovingOrSizing)
+    -- Draggable header area (top 24px strip)
+    local dragStrip = CreateFrame("Frame", nil, optionsFrame)
+    dragStrip:SetHeight(24)
+    dragStrip:SetPoint("TOPLEFT", OpsTheme.PAL.PADDING, -OpsTheme.PAL.PADDING)
+    dragStrip:SetPoint("TOPRIGHT", -OpsTheme.PAL.PADDING, -OpsTheme.PAL.PADDING)
+    dragStrip.bg = dragStrip:CreateTexture(nil, "BACKGROUND")
+    dragStrip.bg:SetAllPoints()
+    dragStrip.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    dragStrip.bg:SetVertexColor(unpack(OpsTheme.PAL.BG_HEADER))
 
-    -- Title
-    local title = optionsFrame:CreateTexture(nil, "ARTWORK")
-    title:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Header")
-    title:SetSize(320, 64)
-    title:SetPoint("TOP", 0, 12)
+    optionsFrame:EnableKeyboard(true)
 
+    -- Title text
     local titleText = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    titleText:SetPoint("TOP", title, "TOP", 0, -14)
-    titleText:SetText("OmniInventory Settings")
+    titleText:SetPoint("TOPLEFT", dragStrip, "TOPLEFT", 8, -5)
+    titleText:SetText("|cFF00FF00Omni|rInventory Settings")
 
-    local closeBtn = CreateFrame("Button", nil, optionsFrame, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", -5, -5)
-    closeBtn:SetScript("OnClick", function()
+    -- Register for ESC-close like the main bag frame
+    if UISpecialFrames then
+        local already = false
+        for _, n in ipairs(UISpecialFrames) do
+            if n == "OmniOptionsFrame" then already = true break end
+        end
+        if not already then
+            tinsert(UISpecialFrames, "OmniOptionsFrame")
+        end
+    end
+
+    -- Close button (flat style matching bag header)
+    local closeBtn = OpsTheme.CreateButton(optionsFrame, "X", 20, function()
         optionsFrame:Hide()
     end)
+    closeBtn:SetHeight(20)
+    closeBtn:SetPoint("TOPRIGHT", -OpsTheme.PAL.PADDING, -OpsTheme.PAL.PADDING)
 
-    -- Scrollable content viewport so we never outgrow the frame
-    local scrollFrame = CreateFrame("ScrollFrame", "OmniOptionsScroll", optionsFrame, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 16, -40)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -34, 16)
+    -- Drag
+    dragStrip:EnableMouse(true)
+    dragStrip:RegisterForDrag("LeftButton")
+    dragStrip:SetScript("OnDragStart", function() optionsFrame:StartMoving() end)
+    dragStrip:SetScript("OnDragStop", function() optionsFrame:StopMovingOrSizing() end)
 
-    -- Frame is 320 wide minus 16 (left inset) + 34 (right inset for scrollbar) = 270
-    local SCROLL_CHILD_WIDTH = 270
+    -- Scrollable content
+    local scrollChildW = 280
+    local scrollFrame = OpsTheme.CreateScrollFrame(optionsFrame, 290, 0)
+    scrollFrame:SetPoint("TOPLEFT", optionsFrame, "TOPLEFT", 10, -32)
+    scrollFrame:SetPoint("BOTTOMRIGHT", optionsFrame, "BOTTOMRIGHT", -18, 10)
+
     local scrollChild = CreateFrame("Frame", nil, scrollFrame)
-    scrollChild:SetSize(SCROLL_CHILD_WIDTH, 1)
+    scrollChild:SetSize(scrollChildW, 1)
     scrollFrame:SetScrollChild(scrollChild)
-    scrollFrame:EnableMouseWheel(true)
-    scrollFrame:SetScript("OnMouseWheel", function(self, delta)
-        local bar = _G[self:GetName() .. "ScrollBar"]
-        if not bar then return end
-        local step = 28
-        bar:SetValue(bar:GetValue() - (delta * step))
-    end)
 
     self.scrollFrame = scrollFrame
     self.content = scrollChild
@@ -228,93 +231,54 @@ function Settings:CreateOptionsFrame()
     local requiredHeight = self._contentHeight or 700
     scrollChild:SetHeight(requiredHeight)
 
+    -- Keyboard: ESC closes, Tab cycles focus
+    optionsFrame:SetScript("OnKeyDown", function(self, key)
+        if key == "ESCAPE" then
+            self:Hide()
+        end
+    end)
+
     optionsFrame:Hide()
     return optionsFrame
 end
 
-local function CreateSectionHeader(parent, text, y, color)
-    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    label:SetPoint("TOP", 0, y)
-    label:SetText(text)
-    if color then
-        label:SetTextColor(color[1], color[2], color[3], color[4] or 1)
-    end
-    return label
-end
-
 function Settings:CreateControls(parent)
     local yOffset = -15
-    local SPACING = 40
-    -- Vertical rhythm — SECTION_GAP lives above every category header, HEADER_GAP under it
+    local SPACING = 54
     local SECTION_GAP = 18
     local HEADER_GAP = 22
     self.colorSwatches = {}
     self._syncingScaleControls = false
 
     -- Frame Selector Tabs
-    local bagTab = CreateFrame("Button", "OmniConfigTabBag", parent, "UIPanelButtonTemplate")
-    bagTab:SetSize(110, 22)
-    bagTab:SetPoint("TOPLEFT", 25, yOffset)
-    bagTab:SetText("Bag Frame")
+    local activeTarget = Settings.activeConfigTarget or "bag"
 
-    local bankTab = CreateFrame("Button", "OmniConfigTabBank", parent, "UIPanelButtonTemplate")
-    bankTab:SetSize(110, 22)
-    bankTab:SetPoint("TOPRIGHT", -25, yOffset)
-    bankTab:SetText("Bank Frame")
-
-    local function UpdateTabHighlight()
-        local active = Settings.activeConfigTarget or "bag"
-        if active == "bag" then
-            bagTab:Disable()
-            bankTab:Enable()
-        else
-            bagTab:Enable()
-            bankTab:Disable()
-        end
-    end
-
-    bagTab:SetScript("OnClick", function()
+    local bagTab = OpsTheme.CreateTabButton(parent, "Bag Frame", activeTarget == "bag", function()
         Settings.activeConfigTarget = "bag"
-        UpdateTabHighlight()
+        self:RefreshTabs()
         Settings:UpdateValues()
     end)
+    bagTab:SetPoint("TOPLEFT", 25, yOffset)
 
-    bankTab:SetScript("OnClick", function()
+    local bankTab = OpsTheme.CreateTabButton(parent, "Bank Frame", activeTarget == "bank", function()
         Settings.activeConfigTarget = "bank"
-        UpdateTabHighlight()
+        self:RefreshTabs()
         Settings:UpdateValues()
     end)
+    bankTab:SetPoint("TOPRIGHT", -25, yOffset)
 
     self.configTabBag = bagTab
     self.configTabBank = bankTab
-    UpdateTabHighlight()
 
     yOffset = yOffset - 35
 
     -- 1. Frame Scale Slider
-    local scaleSlider = CreateFrame("Slider", "OmniScaleSlider", parent, "OptionsSliderTemplate")
-    scaleSlider:SetPoint("TOP", 0, yOffset)
-    scaleSlider:SetMinMaxValues(0.5, 2.0)
-    scaleSlider:SetValueStep(0.1)
-    scaleSlider:SetWidth(200)
-
-    _G[scaleSlider:GetName() .. "Low"]:SetText("50%")
-    _G[scaleSlider:GetName() .. "High"]:SetText("200%")
-    _G[scaleSlider:GetName() .. "Text"]:SetText("Frame Scale")
-    local scaleValueText = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    scaleValueText:SetPoint("TOP", scaleSlider, "BOTTOM", 0, 2)
-    scaleValueText:SetText("Current: 100%")
-
-    scaleSlider:SetScript("OnValueChanged", function(self, value)
-        if Settings._syncingScaleControls then return end
-        value = math.floor(value * 10 + 0.5) / 10
+    local scaleSlider = OpsTheme.CreateSlider(parent, "Frame Scale", 0.5, 2.0, 0.1, FormatScalePercent, function(value)
         if IsSettingEditLocked() then
             Settings:UpdateValues()
             print("|cFFFF4040OmniInventory|r: Scale settings can only be changed out of combat.")
             return
         end
-        scaleValueText:SetText("Current: " .. FormatScalePercent(value))
-
         local target = Settings.activeConfigTarget or "bag"
         if target == "bank" and Omni.BankFrame then
             Omni.BankFrame:SetScale(value)
@@ -322,35 +286,18 @@ function Settings:CreateControls(parent)
             Omni.Frame:SetScale(value)
         end
     end)
+    scaleSlider:SetPoint("TOP", 0, yOffset)
     self.scaleSlider = scaleSlider
-    self.scaleValueText = scaleValueText
 
     yOffset = yOffset - SPACING
 
     -- 2. Item Scale Slider
-    local itemScaleSlider = CreateFrame("Slider", "OmniItemScaleSlider", parent, "OptionsSliderTemplate")
-    itemScaleSlider:SetPoint("TOP", 0, yOffset)
-    itemScaleSlider:SetMinMaxValues(0.5, 2.0)
-    itemScaleSlider:SetValueStep(0.1)
-    itemScaleSlider:SetWidth(200)
-
-    _G[itemScaleSlider:GetName() .. "Low"]:SetText("50%")
-    _G[itemScaleSlider:GetName() .. "High"]:SetText("200%")
-    _G[itemScaleSlider:GetName() .. "Text"]:SetText("Item Scale")
-    local itemScaleValueText = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    itemScaleValueText:SetPoint("TOP", itemScaleSlider, "BOTTOM", 0, 2)
-    itemScaleValueText:SetText("Current: 100%")
-
-    itemScaleSlider:SetScript("OnValueChanged", function(self, value)
-        if Settings._syncingScaleControls then return end
-        value = math.floor(value * 10 + 0.5) / 10
+    local itemScaleSlider = OpsTheme.CreateSlider(parent, "Item Scale", 0.5, 2.0, 0.1, FormatScalePercent, function(value)
         if IsSettingEditLocked() then
             Settings:UpdateValues()
             print("|cFFFF4040OmniInventory|r: Scale settings can only be changed out of combat.")
             return
         end
-        itemScaleValueText:SetText("Current: " .. FormatScalePercent(value))
-
         local target = Settings.activeConfigTarget or "bag"
         if target == "bank" and Omni.BankFrame then
             Omni.BankFrame:SetItemScale(value)
@@ -358,34 +305,18 @@ function Settings:CreateControls(parent)
             Omni.Frame:SetItemScale(value)
         end
     end)
+    itemScaleSlider:SetPoint("TOP", 0, yOffset)
     self.itemScaleSlider = itemScaleSlider
-    self.itemScaleValueText = itemScaleValueText
 
     yOffset = yOffset - SPACING
 
-    local itemGapSlider = CreateFrame("Slider", "OmniItemGapSlider", parent, "OptionsSliderTemplate")
-    itemGapSlider:SetPoint("TOP", 0, yOffset)
-    itemGapSlider:SetMinMaxValues(0, 20)
-    itemGapSlider:SetValueStep(1)
-    itemGapSlider:SetWidth(200)
-
-    _G[itemGapSlider:GetName() .. "Low"]:SetText("0px")
-    _G[itemGapSlider:GetName() .. "High"]:SetText("20px")
-    _G[itemGapSlider:GetName() .. "Text"]:SetText("Item Gap")
-    local itemGapValueText = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    itemGapValueText:SetPoint("TOP", itemGapSlider, "BOTTOM", 0, 2)
-    itemGapValueText:SetText("Current: 4 px")
-
-    itemGapSlider:SetScript("OnValueChanged", function(self, value)
-        if Settings._syncingScaleControls then return end
-        value = math.floor(value + 0.5)
+    -- 3. Item Gap Slider
+    local itemGapSlider = OpsTheme.CreateSlider(parent, "Item Gap", 0, 20, 1, FormatGapPixels, function(value)
         if IsSettingEditLocked() then
             Settings:UpdateValues()
             print("|cFFFF4040OmniInventory|r: Scale settings can only be changed out of combat.")
             return
         end
-        itemGapValueText:SetText("Current: " .. FormatGapPixels(value))
-
         local target = Settings.activeConfigTarget or "bag"
         if target == "bank" and Omni.BankFrame then
             Omni.BankFrame:SetItemGap(value)
@@ -393,333 +324,221 @@ function Settings:CreateControls(parent)
             Omni.Frame:SetItemGap(value)
         end
     end)
+    itemGapSlider:SetPoint("TOP", 0, yOffset)
     self.itemGapSlider = itemGapSlider
-    self.itemGapValueText = itemGapValueText
 
     yOffset = yOffset - SPACING - 20
 
-    -- 3. View Mode (Grid, Flow, List)
-    CreateSectionHeader(parent, "View Mode", yOffset, SECTION_COLORS.view)
+    -- 4. View Mode
+    local viewHeader = OpsTheme.CreateSectionHeader(parent, "View Mode", SECTION_COLORS.view)
+    viewHeader:SetPoint("TOP", 0, yOffset)
     yOffset = yOffset - 20
 
-    local viewBtn = CreateFrame("Button", "OmniViewToggle", parent, "UIPanelButtonTemplate")
-    viewBtn:SetSize(140, 24)
-    viewBtn:SetPoint("TOP", 0, yOffset)
-    viewBtn:SetText("Cycle View")
-    viewBtn:SetScript("OnClick", function()
+    local viewBtn = OpsTheme.CreateButton(parent, "Cycle View", 140, function()
         if Omni.Frame then Omni.Frame:CycleView() end
     end)
+    viewBtn:SetPoint("TOP", 0, yOffset)
     self.viewBtn = viewBtn
 
     yOffset = yOffset - SPACING
 
-    -- 4. Sort Mode
-    CreateSectionHeader(parent, "Sort Mode (Default)", yOffset, SECTION_COLORS.sort)
+    -- 5. Sort Mode
+    local sortHeader = OpsTheme.CreateSectionHeader(parent, "Sort Mode (Default)", SECTION_COLORS.sort)
+    sortHeader:SetPoint("TOP", 0, yOffset)
     yOffset = yOffset - 20
 
-    local sortBtn = CreateFrame("Button", "OmniSortToggle", parent, "UIPanelButtonTemplate")
-    sortBtn:SetSize(140, 24)
-    sortBtn:SetPoint("TOP", 0, yOffset)
-    sortBtn:SetText("Cycle Sort")
-    sortBtn:SetScript("OnClick", function()
+    local sortBtn = OpsTheme.CreateButton(parent, "Cycle Sort", 140, function()
         if Omni.Frame then Omni.Frame:CycleSort() end
     end)
+    sortBtn:SetPoint("TOP", 0, yOffset)
     self.sortBtn = sortBtn
 
     yOffset = yOffset - SPACING - 20
 
-    -- Category Editor intentionally hidden — custom-rule engine is disabled pending rewrite
-
     yOffset = yOffset - SECTION_GAP
-    CreateSectionHeader(parent, "Misc Options", yOffset, SECTION_COLORS.misc)
+    local miscHeader = OpsTheme.CreateSectionHeader(parent, "Misc Options", SECTION_COLORS.misc)
+    miscHeader:SetPoint("TOP", 0, yOffset)
     yOffset = yOffset - HEADER_GAP
 
-    local highlightCb = CreateFrame("CheckButton", "OmniHighlightNewItems", parent, "UICheckButtonTemplate")
-    highlightCb:SetSize(24, 24)
-    highlightCb:SetPoint("TOPLEFT", 14, yOffset)
-    local highlightLabel = highlightCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    highlightLabel:SetPoint("LEFT", highlightCb, "RIGHT", 2, 1)
-    highlightLabel:SetText("New items")
-    highlightCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Highlight new items", 1, 0.82, 0)
-        GameTooltip:AddLine("Visually emphasize items that count as new in your bags.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    highlightCb:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-    highlightCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("highlightNewItems", self:GetChecked() and true or false)
+    -- Checkboxes: 2 columns, each row 22px apart
+    local COL_LEFT = 14
+    local COL_RIGHT = 160
+    local ROW_H = 22
+
+    local function MakeCb(col, row, label, tipTitle, tipSub, defaultChecked, onClick)
+        local cb = OpsTheme.CreateCheckButton(parent, label, tipTitle, tipSub, defaultChecked, onClick)
+        local xOff = (col == 0) and COL_LEFT or COL_RIGHT
+        cb:SetPoint("TOPLEFT", xOff, yOffset - (row * ROW_H))
+        return cb
+    end
+
+    -- Row 0
+    local row = 0
+    self.highlightNewItemsCb = MakeCb(0, row, "New items",
+        "Highlight new items",
+        "Visually emphasize items that count as new in your bags.",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("highlightNewItems", checked)
+                RefreshAllInventory()
+            end
+        end)
+
+    self.footerMoneyEmphasisCb = MakeCb(1, row, "Bold footer",
+        "Bold footer",
+        "Larger outlined gold and bag count. Slot text shifts from light blue to red as bags fill.",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("footerMoneyEmphasis", checked)
+            end
+            if Omni.Frame and Omni.Frame.RefreshFooterMoneyStyle then
+                Omni.Frame:RefreshFooterMoneyStyle()
+            end
             RefreshAllInventory()
-        end
-    end)
-    self.highlightNewItemsCb = highlightCb
+        end)
 
-    local footerMoneyCb = CreateFrame("CheckButton", "OmniFooterMoneyEmphasis", parent, "UICheckButtonTemplate")
-    footerMoneyCb:SetSize(24, 24)
-    footerMoneyCb:SetPoint("TOPLEFT", 160, yOffset)
-    local footerMoneyLabel = footerMoneyCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    footerMoneyLabel:SetPoint("LEFT", footerMoneyCb, "RIGHT", 2, 1)
-    footerMoneyLabel:SetText("Bold footer")
-    footerMoneyCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Bold footer", 1, 0.82, 0)
-        GameTooltip:AddLine("Larger outlined gold and bag count. Slot text shifts from light blue to red as bags fill.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    footerMoneyCb:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-    footerMoneyCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("footerMoneyEmphasis", self:GetChecked() and true or false)
-        end
-        if Omni.Frame and Omni.Frame.RefreshFooterMoneyStyle then
-            Omni.Frame:RefreshFooterMoneyStyle()
-        end
-        RefreshAllInventory()
-    end)
-    self.footerMoneyEmphasisCb = footerMoneyCb
+    -- Row 1
+    row = 1
+    self.enableBoundCategoriesCb = MakeCb(0, row, "Bound lanes",
+        "Categorize bound items",
+        "Separate Soulbound (BoP) equipment and Account Bound (BoA/Heirlooms) into their own lanes.",
+        true,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("enableBoundCategories", checked)
+                RefreshAllInventory()
+            end
+        end)
 
-    yOffset = yOffset - 22
+    self.enableUnusableOverlayCb = MakeCb(1, row, "Red overlays",
+        "Unusable red overlay",
+        "Tints unusable gear (level/class locks) and unlearned recipes red.",
+        true,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("enableUnusableOverlay", checked)
+                RefreshAllInventory()
+            end
+        end)
 
-    local boundCatsCb = CreateFrame("CheckButton", "OmniEnableBoundCategories", parent, "UICheckButtonTemplate")
-    boundCatsCb:SetSize(24, 24)
-    boundCatsCb:SetPoint("TOPLEFT", 14, yOffset)
-    local boundCatsLabel = boundCatsCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    boundCatsLabel:SetPoint("LEFT", boundCatsCb, "RIGHT", 2, 1)
-    boundCatsLabel:SetText("Bound lanes")
-    boundCatsCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Categorize bound items", 1, 0.82, 0)
-        GameTooltip:AddLine("Separate Soulbound (BoP) equipment and Account Bound (BoA/Heirlooms) into their own lanes.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    boundCatsCb:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-    boundCatsCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("enableBoundCategories", self:GetChecked() and true or false)
-            RefreshAllInventory()
-        end
-    end)
-    self.enableBoundCategoriesCb = boundCatsCb
+    -- Row 2
+    row = 2
+    self.autoSellJunkCb = MakeCb(0, row, "Auto-sell junk",
+        "Auto-sell junk",
+        "Automatically sells all grey quality items in your bags when visiting a merchant NPC.",
+        true,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("autoSellJunk", checked)
+            end
+        end)
 
-    local unusableCb = CreateFrame("CheckButton", "OmniEnableUnusableOverlay", parent, "UICheckButtonTemplate")
-    unusableCb:SetSize(24, 24)
-    unusableCb:SetPoint("TOPLEFT", 160, yOffset)
-    local unusableLabel = unusableCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    unusableLabel:SetPoint("LEFT", unusableCb, "RIGHT", 2, 1)
-    unusableLabel:SetText("Red overlays")
-    unusableCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Unusable red overlay", 1, 0.82, 0)
-        GameTooltip:AddLine("Tints unusable gear (level/class locks) and unlearned recipes red.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    unusableCb:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-    unusableCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("enableUnusableOverlay", self:GetChecked() and true or false)
-            RefreshAllInventory()
-        end
-    end)
-    self.enableUnusableOverlayCb = unusableCb
-
-    yOffset = yOffset - 22
-
-    local autoSellCb = CreateFrame("CheckButton", "OmniAutoSellJunk", parent, "UICheckButtonTemplate")
-    autoSellCb:SetSize(24, 24)
-    autoSellCb:SetPoint("TOPLEFT", 14, yOffset)
-    local autoSellLabel = autoSellCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    autoSellLabel:SetPoint("LEFT", autoSellCb, "RIGHT", 2, 1)
-    autoSellLabel:SetText("Auto-sell junk")
-    autoSellCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Auto-sell junk", 1, 0.82, 0)
-        GameTooltip:AddLine("Automatically sells all grey quality items in your bags when visiting a merchant NPC.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    autoSellCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    autoSellCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("autoSellJunk", self:GetChecked() and true or false)
-        end
-    end)
-    self.autoSellJunkCb = autoSellCb
-
-    local autoRepairCb = CreateFrame("CheckButton", "OmniAutoRepair", parent, "UICheckButtonTemplate")
-    autoRepairCb:SetSize(24, 24)
-    autoRepairCb:SetPoint("TOPLEFT", 160, yOffset)
-    local autoRepairLabel = autoRepairCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    autoRepairLabel:SetPoint("LEFT", autoRepairCb, "RIGHT", 2, 1)
-    autoRepairLabel:SetText("Auto-repair")
-    autoRepairCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Auto-repair gear", 1, 0.82, 0)
-        GameTooltip:AddLine("Automatically repairs all equipped and inventory gear when visiting a repair merchant.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    autoRepairCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    autoRepairCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            local checked = self:GetChecked() and true or false
-            Omni.Data:Set("autoRepair", checked)
-            if self.guildFundsCb then
-                if checked then
-                    self.guildFundsCb:Enable()
-                    self.guildFundsCb:SetAlpha(1.0)
-                else
-                    self.guildFundsCb:Disable()
-                    self.guildFundsCb:SetAlpha(0.5)
+    self.autoRepairCb = MakeCb(1, row, "Auto-repair",
+        "Auto-repair gear",
+        "Automatically repairs all equipped and inventory gear when visiting a repair merchant.",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("autoRepair", checked)
+                if self._guildFundsCb then
+                    if checked then
+                        self._guildFundsCb:SetEnabled(true)
+                    else
+                        self._guildFundsCb:SetEnabled(false)
+                    end
                 end
             end
-        end
-    end)
-    self.autoRepairCb = autoRepairCb
+        end)
 
-    yOffset = yOffset - 22
+    -- Row 3
+    row = 3
+    self.autoRepairGuildCb = MakeCb(1, row, "Use Guild funds",
+        "Use Guild Funds",
+        "Attempts to use guild bank funds for auto-repairs before using your own gold.",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("autoRepairGuild", checked)
+            end
+        end)
 
-    local guildFundsCb = CreateFrame("CheckButton", "OmniAutoRepairGuild", parent, "UICheckButtonTemplate")
-    guildFundsCb:SetSize(24, 24)
-    guildFundsCb:SetPoint("TOPLEFT", 160, yOffset)
-    local guildFundsLabel = guildFundsCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    guildFundsLabel:SetPoint("LEFT", guildFundsCb, "RIGHT", 2, 1)
-    guildFundsLabel:SetText("Use Guild funds")
-    guildFundsCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Use Guild Funds", 1, 0.82, 0)
-        GameTooltip:AddLine("Attempts to use guild bank funds for auto-repairs before using your own gold.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    guildFundsCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    guildFundsCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("autoRepairGuild", self:GetChecked() and true or false)
-        end
-    end)
-    self.autoRepairGuildCb = guildFundsCb
+    self.showItemLevelCb = MakeCb(0, row, "Item levels",
+        "Show Item Levels",
+        "Displays the item level (iLevel) directly on weapons and armor in your bags and bank.",
+        true,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("showItemLevel", checked)
+                RefreshAllInventory()
+            end
+        end)
 
-    -- Link them
-    autoRepairCb.guildFundsCb = guildFundsCb
+    -- Link auto-repair → guild funds
+    if self.autoRepairCb and self.autoRepairGuildCb then
+        self.autoRepairCb._guildFundsCb = self.autoRepairGuildCb
+    end
 
-    local showItemLevelCb = CreateFrame("CheckButton", "OmniShowItemLevel", parent, "UICheckButtonTemplate")
-    showItemLevelCb:SetSize(24, 24)
-    showItemLevelCb:SetPoint("TOPLEFT", 14, yOffset)
-    local showItemLevelLabel = showItemLevelCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    showItemLevelLabel:SetPoint("LEFT", showItemLevelCb, "RIGHT", 2, 1)
-    showItemLevelLabel:SetText("Item levels")
-    showItemLevelCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Show Item Levels", 1, 0.82, 0)
-        GameTooltip:AddLine("Displays the item level (iLevel) directly on weapons and armor in your bags and bank.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    showItemLevelCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    showItemLevelCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("showItemLevel", self:GetChecked() and true or false)
-            RefreshAllInventory()
-        end
-    end)
-    self.showItemLevelCb = showItemLevelCb
+    -- Row 4
+    row = 4
+    self.vendorDoubleRightClickCb = MakeCb(0, row, "Double-click sell protection",
+        "Vendor Sell Protection",
+        "Requires a double-right-click to sell valuable items (Soulbound gear, active quest items, rare/epic loot) at vendors.",
+        true,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("vendorDoubleRightClick", checked)
+            end
+        end)
 
-    yOffset = yOffset - 22
+    -- Row 5
+    row = 5
+    self.collapseEmptySlotsCb = MakeCb(0, row, "Collapse empty slots",
+        "Collapse Empty Slots",
+        "Collapses all empty slots in Grid and Flow views into a single slot button per bag type, displaying a count of the total empty spaces.",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("collapseEmptySlots", checked)
+                RefreshAllInventory()
+            end
+        end)
 
-    local sellProtectionCb = CreateFrame("CheckButton", "OmniVendorDoubleRightClick", parent, "UICheckButtonTemplate")
-    sellProtectionCb:SetSize(24, 24)
-    sellProtectionCb:SetPoint("TOPLEFT", 14, yOffset)
-    local sellProtectionLabel = sellProtectionCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    sellProtectionLabel:SetPoint("LEFT", sellProtectionCb, "RIGHT", 2, 1)
-    sellProtectionLabel:SetText("Double-click sell protection")
-    sellProtectionCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Vendor Sell Protection", 1, 0.82, 0)
-        GameTooltip:AddLine("Requires a double-right-click to sell valuable items (Soulbound gear, active quest items, rare/epic loot) at vendors.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    sellProtectionCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    sellProtectionCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("vendorDoubleRightClick", self:GetChecked() and true or false)
-        end
-    end)
-    self.vendorDoubleRightClickCb = sellProtectionCb
+    yOffset = yOffset - (ROW_H * 6) - SPACING - 4
 
-    yOffset = yOffset - 22
-
-    local collapseEmptyCb = CreateFrame("CheckButton", "OmniCollapseEmptySlots", parent, "UICheckButtonTemplate")
-    collapseEmptyCb:SetSize(24, 24)
-    collapseEmptyCb:SetPoint("TOPLEFT", 14, yOffset)
-    local collapseEmptyLabel = collapseEmptyCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    collapseEmptyLabel:SetPoint("LEFT", collapseEmptyCb, "RIGHT", 2, 1)
-    collapseEmptyLabel:SetText("Collapse empty slots")
-    collapseEmptyCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Collapse Empty Slots", 1, 0.82, 0)
-        GameTooltip:AddLine("Collapses all empty slots in Grid and Flow views into a single slot button per bag type, displaying a count of the total empty spaces.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    collapseEmptyCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    collapseEmptyCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("collapseEmptySlots", self:GetChecked() and true or false)
-            RefreshAllInventory()
-        end
-    end)
-    self.collapseEmptySlotsCb = collapseEmptyCb
-
-    yOffset = yOffset - SPACING - 4
-
+    -- Tooltip placement
     local tipPlacementHeader = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     tipPlacementHeader:SetPoint("TOP", parent, "TOP", 0, yOffset)
     tipPlacementHeader:SetWidth(260)
     tipPlacementHeader:SetJustifyH("CENTER")
     tipPlacementHeader:SetText("Item tooltips (bags, bank, guild bank, offline)")
 
-    local tipPlacementBtn = CreateFrame("Button", "OmniTooltipPlacementBtn", parent, "UIPanelButtonTemplate")
-    tipPlacementBtn:SetSize(260, 22)
+    local tipPlacementBtn = OpsTheme.CreateButton(parent, "Right of slot", 260, function()
+        CycleTooltipPlacementSetting()
+        Settings:RefreshTooltipPlacementControls()
+    end)
     tipPlacementBtn:SetPoint("TOP", parent, "TOP", 0, yOffset - 18)
     tipPlacementBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText("Tooltip placement", 1, 0.82, 0)
         GameTooltip:AddLine("Right / Left: anchor relative to the slot. Fixed modes: screen corner + X/Y insets (sliders below).", 0.75, 0.75, 0.75, true)
         GameTooltip:AddLine("Click the button to cycle modes.", 0.65, 0.65, 0.65, true)
         GameTooltip:Show()
     end)
-    tipPlacementBtn:SetScript("OnLeave", function()
+    tipPlacementBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
         GameTooltip:Hide()
-    end)
-    tipPlacementBtn:SetScript("OnClick", function()
-        CycleTooltipPlacementSetting()
-        Settings:RefreshTooltipPlacementControls()
     end)
     self.tooltipPlacementBtn = tipPlacementBtn
 
     yOffset = yOffset - TOOLTIP_PLACEMENT_TO_FIXED_SLIDER_GAP
 
-    local tipFixedXSlider = CreateFrame("Slider", "OmniTooltipFixedXSlider", parent, "OptionsSliderTemplate")
-    tipFixedXSlider:SetPoint("TOP", parent, "TOP", 0, yOffset)
-    tipFixedXSlider:SetMinMaxValues(0, TOOLTIP_FIXED_X_MAX)
-    tipFixedXSlider:SetValueStep(1)
-    tipFixedXSlider:SetWidth(200)
-    _G[tipFixedXSlider:GetName() .. "Low"]:SetText("0")
-    _G[tipFixedXSlider:GetName() .. "High"]:SetText(tostring(TOOLTIP_FIXED_X_MAX))
-    _G[tipFixedXSlider:GetName() .. "Text"]:SetText("Fixed X (horizontal inset)")
-    local tipFixedXValue = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    tipFixedXValue:SetPoint("TOP", tipFixedXSlider, "BOTTOM", 0, 2)
-    tipFixedXValue:SetText("24")
-    tipFixedXSlider:SetScript("OnValueChanged", function(_, value)
-        if Settings._syncingTooltipFixedSliders then
-            return
-        end
-        value = math.floor(value + 0.5)
-        tipFixedXValue:SetText(tostring(value))
+    local tipFixedXSlider = OpsTheme.CreateSlider(parent, "Fixed X (horizontal inset)", 0, TOOLTIP_FIXED_X_MAX, 1, nil, function(value)
+        if Settings._syncingTooltipFixedSliders then return end
         if OmniInventoryDB and OmniInventoryDB.global then
             OmniInventoryDB.global.itemTooltipFixed = OmniInventoryDB.global.itemTooltipFixed or {}
             OmniInventoryDB.global.itemTooltipFixed.x = value
@@ -728,28 +547,13 @@ function Settings:CreateControls(parent)
             Omni.ItemButton.FinalizeOmniItemTooltipLayout()
         end
     end)
+    tipFixedXSlider:SetPoint("TOP", parent, "TOP", 0, yOffset)
     self.tooltipFixedXSlider = tipFixedXSlider
-    self.tooltipFixedXValue = tipFixedXValue
 
     yOffset = yOffset - 36
 
-    local tipFixedYSlider = CreateFrame("Slider", "OmniTooltipFixedYSlider", parent, "OptionsSliderTemplate")
-    tipFixedYSlider:SetPoint("TOP", parent, "TOP", 0, yOffset)
-    tipFixedYSlider:SetMinMaxValues(0, TOOLTIP_FIXED_Y_MAX)
-    tipFixedYSlider:SetValueStep(1)
-    tipFixedYSlider:SetWidth(200)
-    _G[tipFixedYSlider:GetName() .. "Low"]:SetText("0")
-    _G[tipFixedYSlider:GetName() .. "High"]:SetText(tostring(TOOLTIP_FIXED_Y_MAX))
-    _G[tipFixedYSlider:GetName() .. "Text"]:SetText("Fixed Y (vertical inset)")
-    local tipFixedYValue = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    tipFixedYValue:SetPoint("TOP", tipFixedYSlider, "BOTTOM", 0, 2)
-    tipFixedYValue:SetText("140")
-    tipFixedYSlider:SetScript("OnValueChanged", function(_, value)
-        if Settings._syncingTooltipFixedSliders then
-            return
-        end
-        value = math.floor(value + 0.5)
-        tipFixedYValue:SetText(tostring(value))
+    local tipFixedYSlider = OpsTheme.CreateSlider(parent, "Fixed Y (vertical inset)", 0, TOOLTIP_FIXED_Y_MAX, 1, nil, function(value)
+        if Settings._syncingTooltipFixedSliders then return end
         if OmniInventoryDB and OmniInventoryDB.global then
             OmniInventoryDB.global.itemTooltipFixed = OmniInventoryDB.global.itemTooltipFixed or {}
             OmniInventoryDB.global.itemTooltipFixed.y = value
@@ -758,19 +562,15 @@ function Settings:CreateControls(parent)
             Omni.ItemButton.FinalizeOmniItemTooltipLayout()
         end
     end)
+    tipFixedYSlider:SetPoint("TOP", parent, "TOP", 0, yOffset)
     self.tooltipFixedYSlider = tipFixedYSlider
-    self.tooltipFixedYValue = tipFixedYValue
 
     yOffset = yOffset - 36
 
     self:RefreshTooltipPlacementControls()
 
-    -- 6. Reset Button
-    local resetBtn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    resetBtn:SetSize(160, 24)
-    resetBtn:SetPoint("TOP", 0, yOffset)
-    resetBtn:SetText("Reset Position & Scale")
-    resetBtn:SetScript("OnClick", function()
+    -- Reset Button
+    local resetBtn = OpsTheme.CreateButton(parent, "Reset Position & Scale", 200, function()
         local target = Settings.activeConfigTarget or "bag"
         if target == "bank" and Omni.BankFrame then
             local bFrame = Omni.BankFrame:GetFrame()
@@ -789,345 +589,206 @@ function Settings:CreateControls(parent)
         end
         Settings:UpdateValues()
     end)
+    resetBtn:SetPoint("TOP", 0, yOffset)
 
     yOffset = yOffset - SPACING - SECTION_GAP
 
-
-
-    CreateSectionHeader(parent, "Footer Buttons", yOffset, SECTION_COLORS.footer)
+    -- Footer Buttons
+    local footerHeader = OpsTheme.CreateSectionHeader(parent, "Footer Buttons", SECTION_COLORS.footer)
+    footerHeader:SetPoint("TOP", 0, yOffset)
     yOffset = yOffset - HEADER_GAP
 
     self.footerButtonCbs = self.footerButtonCbs or {}
     for i, def in ipairs(FOOTER_BUTTON_OPTIONS) do
         local column = (i - 1) % 2
-        local row = math.floor((i - 1) / 2)
-        local xOffset = (column == 0) and 14 or 160
-        local rowY = yOffset - (row * 22)
+        local rowIdx = math.floor((i - 1) / 2)
+        local xOff = (column == 0) and COL_LEFT or COL_RIGHT
+        local rowY = yOffset - (rowIdx * ROW_H)
 
-        local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-        cb:SetSize(24, 24)
-        cb:SetPoint("TOPLEFT", xOffset, rowY)
-        local lbl = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        lbl:SetPoint("LEFT", cb, "RIGHT", 2, 1)
-        lbl:SetText(def.label)
-        cb:SetChecked(IsFooterButtonEnabled(def.key))
-        cb.__fbKey = def.key
-        cb:SetScript("OnClick", function(self)
+        local cb = OpsTheme.CreateCheckButton(parent, def.label, nil, nil, IsFooterButtonEnabled(def.key), function(self, checked)
             local db = GetFooterButtonsDB()
-            db[self.__fbKey] = self:GetChecked() and true or false
+            db[def.key] = checked
             if Omni.Frame and Omni.Frame.UpdateFooterCustomButtons then
                 Omni.Frame:UpdateFooterCustomButtons()
             end
         end)
+        cb:SetPoint("TOPLEFT", xOff, rowY)
         self.footerButtonCbs[def.key] = cb
     end
     local rowCount = math.ceil(#FOOTER_BUTTON_OPTIONS / 2)
-    yOffset = yOffset - (rowCount * 22)
+    yOffset = yOffset - (rowCount * ROW_H)
 
     yOffset = yOffset - SECTION_GAP
 
-    CreateSectionHeader(parent, "Addon Buttons", yOffset, SECTION_COLORS.addon)
+    -- Addon Buttons
+    local addonHeader = OpsTheme.CreateSectionHeader(parent, "Addon Buttons", SECTION_COLORS.addon)
+    addonHeader:SetPoint("TOP", 0, yOffset)
     yOffset = yOffset - HEADER_GAP
 
     self.addonButtonCbs = self.addonButtonCbs or {}
     for i, def in ipairs(ADDON_BUTTON_OPTIONS) do
         local column = (i - 1) % 2
-        local row = math.floor((i - 1) / 2)
-        local xOffset = (column == 0) and 14 or 160
-        local rowY = yOffset - (row * 22)
+        local rowIdx = math.floor((i - 1) / 2)
+        local xOff = (column == 0) and COL_LEFT or COL_RIGHT
+        local rowY = yOffset - (rowIdx * ROW_H)
 
-        local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-        cb:SetSize(24, 24)
-        cb:SetPoint("TOPLEFT", xOffset, rowY)
-        local lbl = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        lbl:SetPoint("LEFT", cb, "RIGHT", 2, 1)
-        lbl:SetText(def.label)
-        cb:SetChecked(IsAddonButtonEnabled(def.key))
-        cb.__abKey = def.key
-        cb:SetScript("OnClick", function(self)
+        local cb = OpsTheme.CreateCheckButton(parent, def.label, nil, nil, IsAddonButtonEnabled(def.key), function(self, checked)
             local db = GetAddonButtonsDB()
-            db[self.__abKey] = self:GetChecked() and true or false
+            db[def.key] = checked
             if Omni.Frame and Omni.Frame.UpdateFooterCustomButtons then
                 Omni.Frame:UpdateFooterCustomButtons()
             end
         end)
+        cb:SetPoint("TOPLEFT", xOff, rowY)
         self.addonButtonCbs[def.key] = cb
     end
     local addonRowCount = math.ceil(#ADDON_BUTTON_OPTIONS / 2)
-    yOffset = yOffset - (addonRowCount * 22)
+    yOffset = yOffset - (addonRowCount * ROW_H)
 
     yOffset = yOffset - SECTION_GAP
 
-    -- New Features section: auto-display, junk lists, cache warmer,
-    -- auto-loot, money tracker, bound indicator, bag type tags, theme,
-    -- auto-tidy, resort button, global lock.
-    CreateSectionHeader(parent, "Auto-Display & Features", yOffset, { 0.85, 0.70, 1.00 })
+    -- Auto-Display & Features
+    local featHeader = OpsTheme.CreateSectionHeader(parent, "Auto-Display & Features", SECTION_COLORS.feat)
+    featHeader:SetPoint("TOP", 0, yOffset)
     yOffset = yOffset - HEADER_GAP
 
-    local autoDisplayBankCb = CreateFrame("CheckButton", "OmniAutoDisplayBank", parent, "UICheckButtonTemplate")
-    autoDisplayBankCb:SetSize(24, 24)
-    autoDisplayBankCb:SetPoint("TOPLEFT", 14, yOffset)
-    local autoDisplayBankLabel = autoDisplayBankCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    autoDisplayBankLabel:SetPoint("LEFT", autoDisplayBankCb, "RIGHT", 2, 1)
-    autoDisplayBankLabel:SetText("Auto-open at Bank")
-    autoDisplayBankCb:SetScript("OnClick", function(self)
+    -- Row 0: Auto-display bank/vendor
+    row = 0
+    self.autoDisplayBankCb = MakeCb(0, row, "Auto-open at Bank", nil, nil, false, function(self, checked)
         if Omni.Data then
             local ad = Omni.Data:Get("autoDisplay") or {}
-            ad.bank = self:GetChecked() and true or false
+            ad.bank = checked
             Omni.Data:Set("autoDisplay", ad)
         end
     end)
-    self.autoDisplayBankCb = autoDisplayBankCb
-
-    local autoDisplayVendorCb = CreateFrame("CheckButton", "OmniAutoDisplayVendor", parent, "UICheckButtonTemplate")
-    autoDisplayVendorCb:SetSize(24, 24)
-    autoDisplayVendorCb:SetPoint("TOPLEFT", 160, yOffset)
-    local autoDisplayVendorLabel = autoDisplayVendorCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    autoDisplayVendorLabel:SetPoint("LEFT", autoDisplayVendorCb, "RIGHT", 2, 1)
-    autoDisplayVendorLabel:SetText("Auto-open at Vendor")
-    autoDisplayVendorCb:SetScript("OnClick", function(self)
+    self.autoDisplayVendorCb = MakeCb(1, row, "Auto-open at Vendor", nil, nil, false, function(self, checked)
         if Omni.Data then
             local ad = Omni.Data:Get("autoDisplay") or {}
-            ad.vendor = self:GetChecked() and true or false
+            ad.vendor = checked
             Omni.Data:Set("autoDisplay", ad)
         end
     end)
-    self.autoDisplayVendorCb = autoDisplayVendorCb
 
-    yOffset = yOffset - 22
-
-    local autoDisplayMailCb = CreateFrame("CheckButton", "OmniAutoDisplayMail", parent, "UICheckButtonTemplate")
-    autoDisplayMailCb:SetSize(24, 24)
-    autoDisplayMailCb:SetPoint("TOPLEFT", 14, yOffset)
-    local autoDisplayMailLabel = autoDisplayMailCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    autoDisplayMailLabel:SetPoint("LEFT", autoDisplayMailCb, "RIGHT", 2, 1)
-    autoDisplayMailLabel:SetText("Auto-open at Mail")
-    autoDisplayMailCb:SetScript("OnClick", function(self)
+    -- Row 1: Mail / AH
+    row = 1
+    self.autoDisplayMailCb = MakeCb(0, row, "Auto-open at Mail", nil, nil, false, function(self, checked)
         if Omni.Data then
             local ad = Omni.Data:Get("autoDisplay") or {}
-            ad.mail = self:GetChecked() and true or false
+            ad.mail = checked
             Omni.Data:Set("autoDisplay", ad)
         end
     end)
-    self.autoDisplayMailCb = autoDisplayMailCb
-
-    local autoDisplayAhCb = CreateFrame("CheckButton", "OmniAutoDisplayAh", parent, "UICheckButtonTemplate")
-    autoDisplayAhCb:SetSize(24, 24)
-    autoDisplayAhCb:SetPoint("TOPLEFT", 160, yOffset)
-    local autoDisplayAhLabel = autoDisplayAhCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    autoDisplayAhLabel:SetPoint("LEFT", autoDisplayAhCb, "RIGHT", 2, 1)
-    autoDisplayAhLabel:SetText("Auto-open at AH")
-    autoDisplayAhCb:SetScript("OnClick", function(self)
+    self.autoDisplayAhCb = MakeCb(1, row, "Auto-open at AH", nil, nil, false, function(self, checked)
         if Omni.Data then
             local ad = Omni.Data:Get("autoDisplay") or {}
-            ad.ah = self:GetChecked() and true or false
+            ad.ah = checked
             Omni.Data:Set("autoDisplay", ad)
         end
     end)
-    self.autoDisplayAhCb = autoDisplayAhCb
 
-    yOffset = yOffset - 22
-
-    local autoDisplayTradeCb = CreateFrame("CheckButton", "OmniAutoDisplayTrade", parent, "UICheckButtonTemplate")
-    autoDisplayTradeCb:SetSize(24, 24)
-    autoDisplayTradeCb:SetPoint("TOPLEFT", 14, yOffset)
-    local autoDisplayTradeLabel = autoDisplayTradeCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    autoDisplayTradeLabel:SetPoint("LEFT", autoDisplayTradeCb, "RIGHT", 2, 1)
-    autoDisplayTradeLabel:SetText("Auto-open at Trade")
-    autoDisplayTradeCb:SetScript("OnClick", function(self)
+    -- Row 2: Trade / Craft
+    row = 2
+    self.autoDisplayTradeCb = MakeCb(0, row, "Auto-open at Trade", nil, nil, false, function(self, checked)
         if Omni.Data then
             local ad = Omni.Data:Get("autoDisplay") or {}
-            ad.trade = self:GetChecked() and true or false
+            ad.trade = checked
             Omni.Data:Set("autoDisplay", ad)
         end
     end)
-    self.autoDisplayTradeCb = autoDisplayTradeCb
-
-    local autoDisplayCraftCb = CreateFrame("CheckButton", "OmniAutoDisplayCraft", parent, "UICheckButtonTemplate")
-    autoDisplayCraftCb:SetSize(24, 24)
-    autoDisplayCraftCb:SetPoint("TOPLEFT", 160, yOffset)
-    local autoDisplayCraftLabel = autoDisplayCraftCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    autoDisplayCraftLabel:SetPoint("LEFT", autoDisplayCraftCb, "RIGHT", 2, 1)
-    autoDisplayCraftLabel:SetText("Auto-open at Craft")
-    autoDisplayCraftCb:SetScript("OnClick", function(self)
+    self.autoDisplayCraftCb = MakeCb(1, row, "Auto-open at Craft", nil, nil, false, function(self, checked)
         if Omni.Data then
             local ad = Omni.Data:Get("autoDisplay") or {}
-            ad.craft = self:GetChecked() and true or false
+            ad.craft = checked
             Omni.Data:Set("autoDisplay", ad)
         end
     end)
-    self.autoDisplayCraftCb = autoDisplayCraftCb
 
-    yOffset = yOffset - 22
-
-    local cacheWarmerCb = CreateFrame("CheckButton", "OmniCacheWarmer", parent, "UICheckButtonTemplate")
-    cacheWarmerCb:SetSize(24, 24)
-    cacheWarmerCb:SetPoint("TOPLEFT", 14, yOffset)
-    local cacheWarmerLabel = cacheWarmerCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    cacheWarmerLabel:SetPoint("LEFT", cacheWarmerCb, "RIGHT", 2, 1)
-    cacheWarmerLabel:SetText("Cache warmer")
-    cacheWarmerCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Cache Warmer", 1, 0.82, 0)
-        GameTooltip:AddLine("Pre-loads GetItemInfo for known item IDs on login to avoid tooltip delays.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    cacheWarmerCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    cacheWarmerCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("cacheWarmer", self:GetChecked() and true or false)
-            if self:GetChecked() and Omni.Features and Omni.Features.WarmCache then
-                Omni.Features:WarmCache()
+    -- Row 3: Cache warmer / Auto-loot
+    row = 3
+    self.cacheWarmerCb = MakeCb(0, row, "Cache warmer",
+        "Cache Warmer",
+        "Pre-loads GetItemInfo for known item IDs on login to avoid tooltip delays.",
+        true,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("cacheWarmer", checked)
+                if checked and Omni.Features and Omni.Features.WarmCache then
+                    Omni.Features:WarmCache()
+                end
             end
-        end
-    end)
-    self.cacheWarmerCb = cacheWarmerCb
-
-    local autoLootCb = CreateFrame("CheckButton", "OmniAutoLoot", parent, "UICheckButtonTemplate")
-    autoLootCb:SetSize(24, 24)
-    autoLootCb:SetPoint("TOPLEFT", 160, yOffset)
-    local autoLootLabel = autoLootCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    autoLootLabel:SetPoint("LEFT", autoLootCb, "RIGHT", 2, 1)
-    autoLootLabel:SetText("Auto-loot")
-    autoLootCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Auto-Loot", 1, 0.82, 0)
-        GameTooltip:AddLine("Automatically loots all items when a loot frame opens.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    autoLootCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    autoLootCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("autoLoot", self:GetChecked() and true or false)
-            if Omni.Features and Omni.Features.InitAutoLoot then
-                Omni.Features:InitAutoLoot()
+        end)
+    self.autoLootCb = MakeCb(1, row, "Auto-loot",
+        "Auto-Loot",
+        "Automatically loots all items when a loot frame opens.",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("autoLoot", checked)
+                if Omni.Features and Omni.Features.InitAutoLoot then
+                    Omni.Features:InitAutoLoot()
+                end
             end
-        end
-    end)
-    self.autoLootCb = autoLootCb
+        end)
 
-    yOffset = yOffset - 22
-
-    local moneyTrackerCb = CreateFrame("CheckButton", "OmniMoneyTracker", parent, "UICheckButtonTemplate")
-    moneyTrackerCb:SetSize(24, 24)
-    moneyTrackerCb:SetPoint("TOPLEFT", 14, yOffset)
-    local moneyTrackerLabel = moneyTrackerCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    moneyTrackerLabel:SetPoint("LEFT", moneyTrackerCb, "RIGHT", 2, 1)
-    moneyTrackerLabel:SetText("Money tracker")
-    moneyTrackerCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Money Tracker", 1, 0.82, 0)
-        GameTooltip:AddLine("Records gold history per character over time for trend display.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    moneyTrackerCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    moneyTrackerCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("moneyTracker", self:GetChecked() and true or false)
-        end
-    end)
-    self.moneyTrackerCb = moneyTrackerCb
-
-    local boundIndicatorCb = CreateFrame("CheckButton", "OmniBoundIndicator", parent, "UICheckButtonTemplate")
-    boundIndicatorCb:SetSize(24, 24)
-    boundIndicatorCb:SetPoint("TOPLEFT", 160, yOffset)
-    local boundIndicatorLabel = boundIndicatorCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    boundIndicatorLabel:SetPoint("LEFT", boundIndicatorCb, "RIGHT", 2, 1)
-    boundIndicatorLabel:SetText("Bound indicator")
-    boundIndicatorCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Bound Item Indicator", 1, 0.82, 0)
-        GameTooltip:AddLine("Shows a small chain icon on soulbound items in the bag.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    boundIndicatorCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    boundIndicatorCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("showBoundIndicator", self:GetChecked() and true or false)
-            RefreshAllInventory()
-        end
-    end)
-    self.boundIndicatorCb = boundIndicatorCb
-
-    yOffset = yOffset - 22
-
-    local bagTypeTagsCb = CreateFrame("CheckButton", "OmniBagTypeTags", parent, "UICheckButtonTemplate")
-    bagTypeTagsCb:SetSize(24, 24)
-    bagTypeTagsCb:SetPoint("TOPLEFT", 14, yOffset)
-    local bagTypeTagsLabel = bagTypeTagsCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    bagTypeTagsLabel:SetPoint("LEFT", bagTypeTagsCb, "RIGHT", 2, 1)
-    bagTypeTagsLabel:SetText("Bag type tags")
-    bagTypeTagsCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Bag Type Tags", 1, 0.82, 0)
-        GameTooltip:AddLine("Shows family tag text (Ammo, Herb, Mining, etc.) on specialty bag tooltips.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    bagTypeTagsCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    bagTypeTagsCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("showBagTypeTags", self:GetChecked() and true or false)
-        end
-    end)
-    self.bagTypeTagsCb = bagTypeTagsCb
-
-    local autoTidyCb = CreateFrame("CheckButton", "OmniAutoTidy", parent, "UICheckButtonTemplate")
-    autoTidyCb:SetSize(24, 24)
-    autoTidyCb:SetPoint("TOPLEFT", 160, yOffset)
-    local autoTidyLabel = autoTidyCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    autoTidyLabel:SetPoint("LEFT", autoTidyCb, "RIGHT", 2, 1)
-    autoTidyLabel:SetText("Auto-tidy on close")
-    autoTidyCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Auto-Tidy on Close", 1, 0.82, 0)
-        GameTooltip:AddLine("Compacts bag layout and sorts when the bag window is closed (AdiBags TidyBags).", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    autoTidyCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    autoTidyCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("autoTidyOnClose", self:GetChecked() and true or false)
-        end
-    end)
-    self.autoTidyCb = autoTidyCb
-
-    yOffset = yOffset - 22
-
-    local resortButtonCb = CreateFrame("CheckButton", "OmniResortButton", parent, "UICheckButtonTemplate")
-    resortButtonCb:SetSize(24, 24)
-    resortButtonCb:SetPoint("TOPLEFT", 14, yOffset)
-    local resortButtonLabel = resortButtonCb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    resortButtonLabel:SetPoint("LEFT", resortButtonCb, "RIGHT", 2, 1)
-    resortButtonLabel:SetText("Resort button")
-    resortButtonCb:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Resort Button", 1, 0.82, 0)
-        GameTooltip:AddLine("Shows a resort button when a dry-run detects the layout could be reorganized.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    resortButtonCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    resortButtonCb:SetScript("OnClick", function(self)
-        if Omni.Data then
-            Omni.Data:Set("showResortButton", self:GetChecked() and true or false)
-            if Omni.Frame and Omni.Frame.UpdateResortButtonVisibility then
-                Omni.Frame:UpdateResortButtonVisibility()
+    -- Row 4: Money tracker / Bound indicator
+    row = 4
+    self.moneyTrackerCb = MakeCb(0, row, "Money tracker",
+        "Money Tracker",
+        "Records gold history per character over time for trend display.",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("moneyTracker", checked)
             end
-        end
-    end)
-    self.resortButtonCb = resortButtonCb
+        end)
+    self.boundIndicatorCb = MakeCb(1, row, "Bound indicator",
+        "Bound Item Indicator",
+        "Shows a small chain icon on soulbound items in the bag.",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("showBoundIndicator", checked)
+                RefreshAllInventory()
+            end
+        end)
 
-    -- Theme cycle button
-    local themeBtn = CreateFrame("Button", "OmniThemeBtn", parent, "UIPanelButtonTemplate")
-    themeBtn:SetSize(120, 22)
-    themeBtn:SetPoint("TOPLEFT", 160, yOffset)
-    themeBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Theme", 1, 0.82, 0)
-        GameTooltip:AddLine("Rounded: default WoW borders. Square: pfUI-compatible, cropped icons.", 0.75, 0.75, 0.75, true)
-        GameTooltip:Show()
-    end)
-    themeBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    themeBtn:SetScript("OnClick", function()
+    -- Row 5: Bag type tags / Auto-tidy
+    row = 5
+    self.bagTypeTagsCb = MakeCb(0, row, "Bag type tags",
+        "Bag Type Tags",
+        "Shows family tag text (Ammo, Herb, Mining, etc.) on specialty bag tooltips.",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("showBagTypeTags", checked)
+            end
+        end)
+    self.autoTidyCb = MakeCb(1, row, "Auto-tidy on close",
+        "Auto-Tidy on Close",
+        "Compacts bag layout and sorts when the bag window is closed (AdiBags TidyBags).",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("autoTidyOnClose", checked)
+            end
+        end)
+
+    -- Row 6: Resort button / Theme
+    row = 6
+    self.resortButtonCb = MakeCb(0, row, "Resort button",
+        "Resort Button",
+        "Shows a resort button when a dry-run detects the layout could be reorganized.",
+        false,
+        function(self, checked)
+            if Omni.Data then
+                Omni.Data:Set("showResortButton", checked)
+                if Omni.Frame and Omni.Frame.UpdateResortButtonVisibility then
+                    Omni.Frame:UpdateResortButtonVisibility()
+                end
+            end
+        end)
+
+    local themeBtn = OpsTheme.CreateButton(parent, "Theme: Rounded", 120, function()
         if Omni.Features and Omni.Features.GetTheme then
             local cur = Omni.Features:GetTheme()
             local nextTheme = cur == "square" and "rounded" or "square"
@@ -1139,24 +800,42 @@ function Settings:CreateControls(parent)
             RefreshAllInventory()
         end
     end)
+    themeBtn:SetPoint("TOPLEFT", COL_RIGHT, yOffset - (row * ROW_H))
+    themeBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Theme", 1, 0.82, 0)
+        GameTooltip:AddLine("Rounded: default WoW borders. Square: pfUI-compatible, cropped icons.", 0.75, 0.75, 0.75, true)
+        GameTooltip:Show()
+    end)
+    themeBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+        GameTooltip:Hide()
+    end)
     self.themeBtn = themeBtn
 
-    yOffset = yOffset - SPACING - SECTION_GAP
+    yOffset = yOffset - ((row + 1) * ROW_H) - SPACING - SECTION_GAP
 
-    -- yOffset grows negative as rows are added — flip and pad for the scroll child
     self._contentHeight = math.abs(yOffset) + 40
-end
-
-function Settings:CreateLabel(parent, text, x, y)
-    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    label:SetPoint("TOP", x, y)
-    label:SetText(text)
-    return label
 end
 
 -- =============================================================================
 -- Actions
 -- =============================================================================
+
+function Settings:RefreshTabs()
+    local active = self.activeConfigTarget or "bag"
+    if self.configTabBag then
+        self.configTabBag._isActive = (active == "bag")
+        self.configTabBag:_ApplyState(active == "bag")
+    end
+    if self.configTabBank then
+        self.configTabBank._isActive = (active == "bank")
+        self.configTabBank:_ApplyState(active == "bank")
+    end
+end
 
 function Settings:Toggle()
     if not optionsFrame then
@@ -1177,14 +856,12 @@ function Settings:RefreshTooltipPlacementControls()
     end
     local mode = Omni.ItemButton.GetResolvedTooltipPlacement()
     if self.tooltipPlacementBtn then
-        self.tooltipPlacementBtn:SetText(GetTooltipPlacementButtonLabel(mode))
+        self.tooltipPlacementBtn.text:SetText(GetTooltipPlacementButtonLabel(mode))
     end
     local fixedActive = IsFixedTooltipPlacementMode(mode)
     local inactiveAlpha = 0.48
     local function StyleFixedSlider(slider, enabled)
-        if not slider then
-            return
-        end
+        if not slider then return end
         slider:SetAlpha(enabled and 1 or inactiveAlpha)
         slider:EnableMouse(enabled)
     end
@@ -1217,11 +894,9 @@ function Settings:UpdateValues()
         self.autoRepairCb:SetChecked(repairActive)
         if self.autoRepairGuildCb then
             if repairActive then
-                self.autoRepairGuildCb:Enable()
-                self.autoRepairGuildCb:SetAlpha(1.0)
+                self.autoRepairGuildCb:SetEnabled(true)
             else
-                self.autoRepairGuildCb:Disable()
-                self.autoRepairGuildCb:SetAlpha(0.5)
+                self.autoRepairGuildCb:SetEnabled(false)
             end
         end
     end
@@ -1274,12 +949,6 @@ function Settings:UpdateValues()
         local fy = math.max(0, math.min(tonumber(fix.y) or 140, TOOLTIP_FIXED_Y_MAX))
         self.tooltipFixedXSlider:SetValue(fx)
         self.tooltipFixedYSlider:SetValue(fy)
-        if self.tooltipFixedXValue then
-            self.tooltipFixedXValue:SetText(tostring(math.floor(fx + 0.5)))
-        end
-        if self.tooltipFixedYValue then
-            self.tooltipFixedYValue:SetText(tostring(math.floor(fy + 0.5)))
-        end
     end
     self._syncingTooltipFixedSliders = false
     self:RefreshTooltipPlacementControls()
@@ -1298,32 +967,17 @@ function Settings:UpdateValues()
 
     if self.scaleSlider then
         self.scaleSlider:SetValue(scale)
-        if self.scaleValueText then
-            self.scaleValueText:SetText("Current: " .. FormatScalePercent(scale))
-        end
     end
     if self.itemScaleSlider then
         self.itemScaleSlider:SetValue(itemScale)
-        if self.itemScaleValueText then
-            self.itemScaleValueText:SetText("Current: " .. FormatScalePercent(itemScale))
-        end
     end
     if self.itemGapSlider then
         self.itemGapSlider:SetValue(itemGap)
-        if self.itemGapValueText then
-            self.itemGapValueText:SetText("Current: " .. FormatGapPixels(itemGap))
-        end
     end
     local scaleControlsEnabled = not IsSettingEditLocked()
-    local function SetSliderInteractive(slider, enabled)
-        if not slider then return end
-        slider:EnableMouse(enabled)
-        slider:SetAlpha(enabled and 1 or 0.55)
-    end
-    SetSliderInteractive(self.scaleSlider, scaleControlsEnabled)
-    SetSliderInteractive(self.itemScaleSlider, scaleControlsEnabled)
-    SetSliderInteractive(self.itemGapSlider, scaleControlsEnabled)
-
+    if self.scaleSlider then self.scaleSlider:SetEnabled(scaleControlsEnabled) end
+    if self.itemScaleSlider then self.itemScaleSlider:SetEnabled(scaleControlsEnabled) end
+    if self.itemGapSlider then self.itemGapSlider:SetEnabled(scaleControlsEnabled) end
 
     if self.footerButtonCbs then
         for _, def in ipairs(FOOTER_BUTTON_OPTIONS) do
@@ -1355,7 +1009,7 @@ function Settings:RefreshThemeLabel()
     if Omni.Features and Omni.Features.GetTheme then
         theme = Omni.Features:GetTheme() == "square" and "Square" or "Rounded"
     end
-    self.themeBtn:SetText("Theme: " .. theme)
+    self.themeBtn.text:SetText("Theme: " .. theme)
 end
 
 function Settings:Init()
