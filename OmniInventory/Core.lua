@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- OmniInventory Core Entry Point
 -- =============================================================================
 -- The definitive inventory management addon for WoW 3.3.5a
@@ -201,12 +201,7 @@ local function SuppressBlizzardBagFrames()
     end
 
     if _G.BankFrame then
-        pcall(_G.BankFrame.HookScript, _G.BankFrame, "OnShow",
-            function(self)
-                if not (InCombatLockdown and InCombatLockdown()) then
-                    pcall(self.Hide, self)
-                end
-            end)
+        pcall(_G.BankFrame.UnregisterAllEvents, _G.BankFrame)
     end
 
     blizzardSuppressionDone = true
