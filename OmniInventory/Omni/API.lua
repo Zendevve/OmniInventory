@@ -20,8 +20,9 @@ local clientVersion = select(4, GetBuildInfo()) or 30300
 API.isWotLK = clientVersion < 40000
 API.isRetail = clientVersion >= 100000
 
-if not GetContainerNumFreeSlots then
-    _G.GetContainerNumFreeSlots = function(bagID)
+-- Always override GetContainerNumFreeSlots on WotLK client to prevent conflicts
+-- with incomplete/broken versions defined by other addons.
+_G.GetContainerNumFreeSlots = function(bagID)
         local totalSlots = GetContainerNumSlots(bagID) or 0
         local free = 0
         for slotID = 1, totalSlots do
@@ -48,7 +49,6 @@ if not GetContainerNumFreeSlots then
         end
         return free, bagType
     end
-end
 
 -- =============================================================================
 -- Polyfill: Tooltip Scanner
