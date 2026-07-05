@@ -32,6 +32,7 @@ local isSorting = false
 local sortQueue = {}         -- queue of pending moves
 local currentMove = nil
 local lockWaitElapsed = 0
+local totalWaitElapsed = 0
 local totalMoves = 0
 local passCount = 0
 local sortCancelled = false
@@ -211,7 +212,9 @@ local function FindConsolidationMoves(items)
             for i = 2, #stacks do
                 local target = stacks[1]
                 local source = stacks[i]
-                if (target.count or 1) < maxStack then
+                local space = maxStack - (target.count or 1)
+                if space > 0 and (source.count or 1) > 0 then
+                    local toMove = math.min(space, (source.count or 1))
                     table.insert(moves, {
                         fromBag = source.bagID,
                         fromSlot = source.slotID,
@@ -219,7 +222,11 @@ local function FindConsolidationMoves(items)
                         toSlot = target.slotID,
                         type = "merge",
                     })
-                    target.count = math.min(maxStack, (target.count or 1) + (source.count or 1))
+                    target.count = (target.count or 1) + toMove
+                    source.count = (source.count or 1) - toMove
+                    if source.count <= 0 then
+                        source.__empty = true
+                    end
                 end
             end
         end
@@ -232,25 +239,16 @@ end
 -- Phase 4: Build Desired Order
 -- =============================================================================
 
-local function BuildDesiredOrder(specializedBags)
-    local allItems = {}
-
-    for bagID = 0, 4 do
-        local numSlots = GetContainerNumSlots(bagID) or 0
-        for slotID = 1, numSlots do
-            local item = GetItemInfoForSlot(bagID, slotID)
-            if item then
-                -- Categorize for sort priority
-                if Omni.Categorizer then
-                    item.category = Omni.Categorizer:GetCategory(item)
-                end
-                table.insert(allItems, item)
-            end
+local function BuildDesiredOrder(allItems, specializedBags)
+    local activeItems = {}
+    for _, item in ipairs(allItems) do
+        if not item.__empty then
+            table.insert(activeItems, item)
         end
     end
 
     -- Sort by desired order
-    table.sort(allItems, ItemSortComparator)
+    table.sort(activeItems, ItemSortComparator)
 
     -- Assign target positions: specialized items go to their bags first
     local targetPositions = {}
@@ -259,7 +257,7 @@ local function BuildDesiredOrder(specializedBags)
         bagSlotCounters[bagID] = 1
     end
 
-    for _, item in ipairs(allItems) do
+    for _, item in ipairs(activeItems) do
         -- Find the best target bag for this item
         local targetBag = nil
         
@@ -325,37 +323,95 @@ local function FindEmptySlot(bagID, excludeSlot)
     return nil
 end
 
-local function BuildMoveList(targetPositions)
+local function BuildMoveList(targetPositions, allItems, specializedBags)
     local moves = {}
 
-    -- For each item that's not in its target position, create a move
-    -- We need to handle cycles (A->B, B->A) by using a temp slot
-    for _, tp in ipairs(targetPositions) do
-        local item = tp.item
-        if item.bagID ~= tp.targetBag or item.slotID ~= tp.targetSlot then
-            -- Check what's currently at the target position
-            local occupant = FindItemAt(tp.targetBag, tp.targetSlot)
-            if occupant then
-                -- Target is occupied; we need to move the occupant first
-                -- Find an empty slot to use as temp
-                local tempSlot = FindEmptySlot(tp.targetBag, tp.targetSlot)
-                if tempSlot then
-                    table.insert(moves, {
-                        fromBag = tp.targetBag,
-                        fromSlot = tp.targetSlot,
-                        toBag = tp.targetBag,
-                        toSlot = tempSlot,
-                        type = "temp",
-                    })
+    -- 1. Initialize virtual board from allItems to ensure reference equality
+    local virtualBags = {}
+    for bagID = 0, 4 do
+        virtualBags[bagID] = {}
+    end
+    for _, item in ipairs(allItems) do
+        if not item.__empty then
+            virtualBags[item.bagID][item.slotID] = item
+        end
+    end
+
+    -- Helper to find an empty slot in the virtual board
+    local function FindVirtualEmptySlot(item, preferredBag)
+        -- First try the preferred bag
+        if preferredBag and ShouldItemGoInBag(item, preferredBag, specializedBags) then
+            local numSlots = GetContainerNumSlots(preferredBag) or 0
+            for slotID = 1, numSlots do
+                if not virtualBags[preferredBag][slotID] then
+                    return preferredBag, slotID
                 end
             end
-            table.insert(moves, {
-                fromBag = item.bagID,
-                fromSlot = item.slotID,
-                toBag = tp.targetBag,
-                toSlot = tp.targetSlot,
-                type = "place",
-            })
+        end
+        -- Then search all bags (0-4)
+        for bagID = 0, 4 do
+            if ShouldItemGoInBag(item, bagID, specializedBags) then
+                local numSlots = GetContainerNumSlots(bagID) or 0
+                for slotID = 1, numSlots do
+                    if not virtualBags[bagID][slotID] then
+                        return bagID, slotID
+                    end
+                end
+            end
+        end
+        return nil, nil
+    end
+
+    local maxIterations = 1000
+    local iterations = 0
+    local done = false
+
+    while not done and iterations < maxIterations do
+        iterations = iterations + 1
+        done = true
+
+        for _, tp in ipairs(targetPositions) do
+            local item = tp.item
+            local curBag, curSlot = item.bagID, item.slotID
+
+            if curBag ~= tp.targetBag or curSlot ~= tp.targetSlot then
+                done = false
+
+                -- Check what's currently at the target slot
+                local occupant = virtualBags[tp.targetBag][tp.targetSlot]
+                if occupant then
+                    -- Target is occupied; find a virtual empty slot to move the occupant to
+                    local tempBag, tempSlot = FindVirtualEmptySlot(occupant, tp.targetBag)
+                    if tempBag and tempSlot then
+                        table.insert(moves, {
+                            fromBag = tp.targetBag,
+                            fromSlot = tp.targetSlot,
+                            toBag = tempBag,
+                            toSlot = tempSlot,
+                            type = "temp",
+                        })
+                        virtualBags[tempBag][tempSlot] = occupant
+                        virtualBags[tp.targetBag][tp.targetSlot] = nil
+                        occupant.bagID = tempBag
+                        occupant.slotID = tempSlot
+                    else
+                        break
+                    end
+                end
+
+                -- Now the target slot is empty; move the item there
+                table.insert(moves, {
+                    fromBag = curBag,
+                    fromSlot = curSlot,
+                    toBag = tp.targetBag,
+                    toSlot = tp.targetSlot,
+                    type = "place",
+                })
+                virtualBags[tp.targetBag][tp.targetSlot] = item
+                virtualBags[curBag][curSlot] = nil
+                item.bagID = tp.targetBag
+                item.slotID = tp.targetSlot
+            end
         end
     end
 
@@ -460,6 +516,7 @@ local function StartSortFrame()
         sortFrame = CreateFrame("Frame")
     end
 
+    totalWaitElapsed = 0
     sortFrame:SetScript("OnUpdate", function(self, elapsed)
         if not isSorting then
             self:SetScript("OnUpdate", nil)
@@ -468,9 +525,35 @@ local function StartSortFrame()
 
         lockWaitElapsed = lockWaitElapsed + (elapsed or 0)
 
-        -- Wait for lock to clear before next move
+        -- Wait for move delay before doing anything
         if lockWaitElapsed < MOVE_DELAY then
             return
+        end
+
+        -- Check item locks on the ACTIVE move (if we just executed one)
+        if currentMove then
+            local _, _, locked = GetContainerItemInfo(currentMove.fromBag, currentMove.fromSlot)
+            local targetLocked = false
+            -- If the target slot contains an item, we must check if that item is locked too (e.g. for swap/merge)
+            local _, targetCount = GetContainerItemInfo(currentMove.toBag, currentMove.toSlot)
+            if targetCount then
+                local _, _, tl = GetContainerItemInfo(currentMove.toBag, currentMove.toSlot)
+                targetLocked = tl
+            end
+
+            if locked or targetLocked then
+                totalWaitElapsed = totalWaitElapsed + (elapsed or 0)
+                if totalWaitElapsed > LOCK_TIMEOUT then
+                    -- Timed out! Force clear the active move and move to next
+                    currentMove = nil
+                    totalWaitElapsed = 0
+                else
+                    return -- Wait for lock to clear
+                end
+            else
+                currentMove = nil
+                totalWaitElapsed = 0
+            end
         end
 
         lockWaitElapsed = 0
@@ -527,10 +610,10 @@ function PhysicalSort:Sort(opts)
     end
 
     -- Phase 4: Build desired order
-    local targetPositions = BuildDesiredOrder(specializedBags)
+    local targetPositions = BuildDesiredOrder(allItems, specializedBags)
 
     -- Phase 5: Build move list
-    local placeMoves = BuildMoveList(targetPositions)
+    local placeMoves = BuildMoveList(targetPositions, allItems, specializedBags)
 
     -- Combine: consolidation first, then placement
     sortQueue = {}

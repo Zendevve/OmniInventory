@@ -1157,10 +1157,16 @@ function Frame:CreateHeader()
         self._tooltipSub = "Current: " .. mode
     end)
 
-    -- Resort button: visible when showResortButton setting is enabled
+    -- Resort button: physically sorts and consolidates the bags
     header.resortBtn = CreateRibbonTextButton(header, "Resort",
-        "Resort", "Re-sort the bag layout now",
-        function() Frame:UpdateLayout(nil, { forceFull = true, reason = "resort_button" }) end)
+        "Resort", "Physically sort and consolidate your bags",
+        function()
+            if Omni.PhysicalSort then
+                Omni.PhysicalSort:Sort({ consolidateStacks = true, routeSpecialized = true })
+            else
+                Frame:UpdateLayout(nil, { forceFull = true, reason = "resort_button" })
+            end
+        end)
     header.resortBtn:SetPoint("RIGHT", header.sortBtn, "LEFT", -DIM.RIBBON_GAP, 0)
     header.resortBtn:Hide()
 
