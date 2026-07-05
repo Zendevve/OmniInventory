@@ -940,6 +940,9 @@ function Frame:CreateMainFrame()
         anchorRepositionFrame.elapsed = 0
         anchorRepositionFrame.waiting = true
     end
+    local lastDonateMessageTime = nil
+    local DONATE_MESSAGE_COOLDOWN = 900 -- 15 minutes
+
     -- Hook OnShow / drag-end events so the secure anchor follows.
     mainFrame:HookScript("OnShow", function()
         if mainFrame.secureAnchor then
@@ -947,6 +950,15 @@ function Frame:CreateMainFrame()
             mainFrame.secureAnchor:Show()
         end
         requestSecureAnchorReposition()
+
+        -- Donation reminder with 15-minute rate limit
+        local now = GetTime()
+        if not lastDonateMessageTime or (now - lastDonateMessageTime) >= DONATE_MESSAGE_COOLDOWN then
+            lastDonateMessageTime = now
+            if DEFAULT_CHAT_FRAME then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[OmniInventory]|r: Like this addon? Support development at |cFF00FFFFbuymeacoffee.com/zendevve|r ☕")
+            end
+        end
     end)
     mainFrame:HookScript("OnHide", function()
         if mainFrame.secureAnchor then
