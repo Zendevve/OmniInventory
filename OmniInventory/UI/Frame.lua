@@ -3025,10 +3025,14 @@ function Frame:UpdateFooterCustomButtons()
     end
     self._pendingFooterUpdate = false
 
-    -- Ensure the secure anchor is shown and visible
+    -- Ensure the secure anchor is shown and visible only when the main frame is open
     if mainFrame.secureAnchor then
-        mainFrame.secureAnchor:SetAlpha(1)
-        mainFrame.secureAnchor:Show()
+        if mainFrame:IsShown() then
+            mainFrame.secureAnchor:SetAlpha(1)
+            mainFrame.secureAnchor:Show()
+        else
+            mainFrame.secureAnchor:Hide()
+        end
     end
 
     if footer.customButtons.openables then
