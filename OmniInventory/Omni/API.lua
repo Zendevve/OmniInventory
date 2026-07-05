@@ -20,6 +20,36 @@ local clientVersion = select(4, GetBuildInfo()) or 30300
 API.isWotLK = clientVersion < 40000
 API.isRetail = clientVersion >= 100000
 
+if not GetContainerNumFreeSlots then
+    _G.GetContainerNumFreeSlots = function(bagID)
+        local totalSlots = GetContainerNumSlots(bagID) or 0
+        local free = 0
+        for slotID = 1, totalSlots do
+            local texture = GetContainerItemInfo(bagID, slotID)
+            if not texture then
+                free = free + 1
+            end
+        end
+        local bagType = 0
+        if bagID > 0 and GetInventoryItemLink and ContainerIDToInventoryID then
+            local invID
+            if bagID >= 1 and bagID <= 4 then
+                invID = ContainerIDToInventoryID(bagID)
+            elseif bagID >= 5 and bagID <= 11 and BankButtonIDToInvSlotID then
+                invID = BankButtonIDToInvSlotID(bagID - 4, 1)
+            end
+            if invID then
+                local link = GetInventoryItemLink("player", invID)
+                if link then
+                    local _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, family = GetItemInfo(link)
+                    bagType = family or 0
+                end
+            end
+        end
+        return free, bagType
+    end
+end
+
 -- =============================================================================
 -- Polyfill: Tooltip Scanner
 -- =============================================================================
