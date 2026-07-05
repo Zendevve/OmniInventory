@@ -1,9 +1,12 @@
 -- =============================================================================
--- OmniInventory Design System
+-- OmniInventory Design System (OpenCode-flavored, dark mode)
 -- =============================================================================
--- Purpose: Shared palette tokens + widget factories matching the bag interface
---          visual language (Frame.lua DIM palette). Used by Options.lua and
---          available for future adoption by BankFrame, GuildBankFrame, etc.
+-- Purpose: Shared palette tokens + widget factories. Adapted from the
+--          OpenCode marketing design system — Berkeley Mono typography
+--          spirit (substituted to JetBrains Mono since WoW fonts are
+--          limited to the .ttf files in the client), warm cream canvas
+--          inverted to a deep warm-black, hairline 1px hairlines, and
+--          the Apple HIG semantic ramp for the in-TUI mockup.
 -- WoTLK 3.3.5a Compatible - Uses only native APIs
 -- =============================================================================
 
@@ -13,53 +16,117 @@ Omni.OpsTheme = {}
 local OpsTheme = Omni.OpsTheme
 
 -- =============================================================================
--- Palette
+-- Helpers
 -- =============================================================================
 
+-- Convert a hex string "#rrggbb" or "#rrggbbaa" to { r, g, b, a } in 0..1
+local function Hex(h)
+    if not h or h:sub(1, 1) ~= "#" then return { 0, 0, 0, 1 } end
+    h = h:sub(2)
+    if #h == 6 then
+        return {
+            tonumber(h:sub(1, 2), 16) / 255,
+            tonumber(h:sub(3, 4), 16) / 255,
+            tonumber(h:sub(5, 6), 16) / 255,
+            1,
+        }
+    end
+    if #h == 8 then
+        return {
+            tonumber(h:sub(1, 2), 16) / 255,
+            tonumber(h:sub(3, 4), 16) / 255,
+            tonumber(h:sub(5, 6), 16) / 255,
+            tonumber(h:sub(7, 8), 16) / 255,
+        }
+    end
+    return { 0, 0, 0, 1 }
+end
+
+-- =============================================================================
+-- Palette — Dark mode (OpenCode inverse)
+-- =============================================================================
+-- Reference: refs/opencode-design-system.md (dark section)
+
 OpsTheme.PAL = {
-    -- Frame
-    BG               = { 0.08, 0.08, 0.08, 0.95 },
-    BG_HEADER        = { 0.15, 0.15, 0.15, 1.00 },
-    BG_CONTROL       = { 0.12, 0.12, 0.12, 1.00 },
-    BG_CONTROL_HOVER = { 0.22, 0.22, 0.22, 1.00 },
-    BG_CONTROL_PRESSED = { 0.06, 0.06, 0.06, 1.00 },
-    BG_DISABLED      = { 0.10, 0.10, 0.10, 0.55 },
+    -- Canvas / surface
+    BG                 = Hex("#161413ff"),  -- canvas (deep warm black, replaces #fdfcfc)
+    BG_HEADER          = Hex("#1f1c1aff"),  -- surface-soft (nav bar fill, header strip)
+    BG_CONTROL         = Hex("#262220ff"),  -- surface-card 2-tier (controls, inputs)
+    BG_CONTROL_HOVER   = Hex("#332e2bff"),  -- surface-card hover
+    BG_CONTROL_PRESSED = Hex("#0e0d0cff"),  -- ink-deep (#0f0000) inverted for dark
+    BG_DISABLED        = Hex("#1a1715cc"),  -- disabled fill at lower alpha
 
-    -- Borders
-    BORDER           = { 0.35, 0.35, 0.35, 1.00 },
-    BORDER_HOVER     = { 0.60, 0.60, 0.60, 1.00 },
-    BORDER_PRESSED   = { 0.80, 0.80, 0.80, 1.00 },
-    BORDER_FRAME     = { 0.40, 0.40, 0.40, 1.00 },
-    BORDER_GOLD      = { 0.45, 0.38, 0.15, 1.00 },
+    -- Borders (hairline / hairline-strong)
+    BORDER             = Hex("#5a5654ff"),  -- hairline-strong (~ -40% from ink)
+    BORDER_HOVER       = Hex("#8a857fff"),  -- mid-tone warm gray
+    BORDER_PRESSED     = Hex("#f1eee9ff"),  -- ink (pressed border is bright)
+    BORDER_FRAME       = Hex("#5a5654ff"),  -- outer frame hairline
+    BORDER_GOLD        = Hex("#a9800aff"),  -- preserved gold tone for category accents
 
-    -- Accents
-    ACCENT_GREEN     = { 0.20, 0.80, 0.20, 1.00 },
-    ACCENT_CYAN      = { 0.45, 0.80, 1.00, 1.00 },
-    ACCENT_GOLD      = { 1.00, 0.82, 0.00, 1.00 },
+    -- Accents (Apple HIG ramp — used inside the TUI mockup)
+    ACCENT_GREEN       = Hex("#30d158ff"),  -- success (replaces ANSI green)
+    ACCENT_CYAN        = Hex("#007affff"),  -- accent (Apple Blue — replaces cyan)
+    ACCENT_GOLD        = Hex("#ff9f0aff"),  -- warning
 
-    -- Text
-    TEXT             = { 1.00, 1.00, 1.00, 1.00 },
-    TEXT_DIM         = { 0.55, 0.55, 0.55, 1.00 },
-    TEXT_LABEL       = { 0.90, 0.90, 0.90, 1.00 },
-    TEXT_DISABLED    = { 0.50, 0.50, 0.50, 1.00 },
-
-    -- Section header tints (carried from original SECTION_COLORS)
-    SECTION = {
-        view   = { 0.85, 0.90, 1.00 },
-        sort   = { 0.85, 0.90, 1.00 },
-        misc   = { 0.78, 0.88, 1.00 },
-        colors = { 1.00, 0.60, 0.20 },
-        footer = { 0.40, 1.00, 0.55 },
-        addon  = { 0.45, 0.80, 1.00 },
-        feat   = { 0.85, 0.70, 1.00 },
+    -- Semantic ramp (kept per design system, available to TUI mockup)
+    SEMANTIC = {
+        accent        = Hex("#007affff"),
+        accent_hover  = Hex("#0056b3ff"),
+        accent_active = Hex("#004085ff"),
+        danger        = Hex("#ff3b30ff"),
+        danger_hover  = Hex("#d70015ff"),
+        danger_active = Hex("#a50011ff"),
+        warning       = Hex("#ff9f0aff"),
+        warning_hover = Hex("#cc7f08ff"),
+        warning_active= Hex("#995f06ff"),
+        success       = Hex("#30d158ff"),
     },
 
-    -- Layout
-    PADDING       = 8,
-    EDGE_SIZE     = 14,
-    EDGE_INSETS   = { left = 3, right = 3, top = 3, bottom = 3 },
+    -- Text ladder (mapped from {ink, charcoal, body, mute, stone, ash})
+    TEXT               = Hex("#f1eee9ff"),  -- ink (warm off-white)
+    TEXT_SECONDARY     = Hex("#cfcbc4ff"),  -- charcoal
+    TEXT_BODY          = Hex("#a8a39cff"),  -- body (default paragraph)
+    TEXT_DIM           = Hex("#7a746eff"),  -- mute (metadata, tab labels default)
+    TEXT_LABEL         = Hex("#605c58ff"),  -- stone (breadcrumb separators)
+    TEXT_DISABLED      = Hex("#4a4642ff"),  -- ash
+    TEXT_ON_DARK       = Hex("#f1eee9ff"),  -- on-dark (text on surface-dark = canvas)
 
-    -- Widgets
+    -- Hero TUI mockup surface (the ONE allowed dark surface)
+    BG_HERO            = Hex("#0a0908ff"),  -- deeper than canvas, derived from ink-deep
+    BG_HERO_ELEVATED   = Hex("#1a1715ff"),  -- prompt row inside the mockup
+
+    -- Section header tints (sample tints; marketing pages keep mostly monochrome)
+    SECTION = {
+        view   = Hex("#007affff"),  -- accent-style
+        sort   = Hex("#007affff"),
+        misc   = Hex("#a8a39cff"),  -- body-tier
+        colors = Hex("#ff9f0aff"),  -- warning (TUI mockup vibe)
+        footer = Hex("#30d158ff"),  -- success
+        addon  = Hex("#007affff"),
+        feat   = Hex("#cfcbc4ff"),
+    },
+
+    -- Layout (OpenCode 8px base + finer)
+    PADDING       = 8,
+    EDGE_SIZE     = 1,                       -- 1px hairline, matches WoW flat dark
+    EDGE_INSETS   = { left = 0, right = 0, top = 0, bottom = 0 },
+    SPACING = {
+        xxs = 1,
+        xs  = 4,
+        sm  = 8,
+        md  = 12,
+        lg  = 16,
+        xl  = 24,
+        xxl = 32,
+        section = 96,
+    },
+    ROUNDED = {
+        none = 0,
+        sm   = 4,
+        full = 9999,
+    },
+
+    -- Widget sizing
     CHECKBOX_SIZE = 16,
     SLIDER_HEIGHT = 16,
     SLIDER_WIDTH  = 200,
@@ -71,6 +138,36 @@ OpsTheme.PAL = {
     SCROLL_THUMB_H = 20,
     ICON_SIZE     = 18,
 }
+
+-- =============================================================================
+-- Type tokens (Berkeley Mono substitute -> available WoW fonts)
+-- =============================================================================
+-- WoW's available bodies include GameFontNormal, GameFontNormalSmall,
+-- GameFontHighlight, GameFontHighlightSmall, etc. Sizes are tampered with
+-- SetFont to approach the OpenCode scale (38 / 16 / 14).
+
+OpsTheme.TYPE = {
+    display_xl    = { font = "Fonts\\FRIZQT__.TTF", size = 38, weight = "OUTLINE" },
+    heading_md    = { font = "Fonts\\FRIZQT__.TTF", size = 16 },
+    body_md       = { font = "Fonts\\FRIZQT__.TTF", size = 16 },
+    body_strong   = { font = "Fonts\\FRIZQT__.TTF", size = 16 },
+    body_tight    = { font = "Fonts\\FRIZQT__.TTF", size = 16 },
+    link_md       = { font = "Fonts\\FRIZQT__.TTF", size = 16 },
+    button_md     = { font = "Fonts\\FRIZQT__.TTF", size = 16 },
+    caption_md    = { font = "Fonts\\FRIZQT__.TTF", size = 14 },
+}
+
+-- Apply a type token to a FontString. Returns the FontString for chaining.
+function OpsTheme:ApplyType(fs, tokenName, color)
+    local t = self.TYPE[tokenName]
+    if not t then return fs end
+    fs:SetFont(t.font, t.size)
+    if color then
+        fs:SetTextColor(color[1] or 1, color[2] or 1, color[3] or 1, color[4] or 1)
+    end
+    return fs
+end
+
 
 -- =============================================================================
 -- Theme (rounded / square)
@@ -133,6 +230,228 @@ function OpsTheme:ApplyControlBackdrop(frame)
 end
 
 -- =============================================================================
+-- Factory: Sidebar Tab (vertical, list-oriented)
+-- =============================================================================
+-- Vertical button used in the left-hand sidebar of the options panel.
+-- Active state is shown by an accent left bar + brightened background; the
+-- button stays enabled so it can be re-clicked (unlike CreateTabButton).
+
+function OpsTheme.CreateSidebarTab(parent, label, width, height, isActive, onClick)
+    local PAL = OpsTheme.PAL
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(width or 120, height or 30)
+    OpsTheme:ApplyControlBackdrop(btn)
+
+    btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    btn.text:SetPoint("LEFT", btn, "LEFT", 10, 0)
+    btn.text:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
+    btn.text:SetJustifyH("LEFT")
+    btn.text:SetText(label)
+
+    -- Active accent bar (left edge)
+    btn.accent = btn:CreateTexture(nil, "OVERLAY")
+    btn.accent:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
+    btn.accent:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
+    btn.accent:SetWidth(3)
+    btn.accent:SetTexture("Interface\\Buttons\\WHITE8X8")
+
+    btn._isActive = isActive and true or false
+
+    local function ApplyState(active)
+        if active then
+            btn:SetBackdropColor(unpack(PAL.BG_CONTROL_HOVER))
+            btn:SetBackdropBorderColor(unpack(PAL.ACCENT_GREEN))
+            btn.accent:SetVertexColor(unpack(PAL.ACCENT_GREEN))
+            btn.accent:Show()
+            btn.text:SetTextColor(unpack(PAL.ACCENT_GREEN))
+        else
+            btn:SetBackdropColor(unpack(PAL.BG_CONTROL))
+            btn:SetBackdropBorderColor(unpack(PAL.BORDER))
+            btn.accent:Hide()
+            btn.text:SetTextColor(unpack(PAL.TEXT_LABEL))
+        end
+    end
+
+    btn._ApplyState = ApplyState
+    ApplyState(btn._isActive)
+
+    btn:SetScript("OnEnter", function(self)
+        if not self._isActive then
+            self:SetBackdropColor(unpack(PAL.BG_CONTROL_HOVER))
+            self:SetBackdropBorderColor(unpack(PAL.BORDER_HOVER))
+        end
+    end)
+    btn:SetScript("OnLeave", function(self)
+        ApplyState(self._isActive)
+    end)
+    btn:SetScript("OnClick", function(self)
+        if onClick then onClick(self) end
+    end)
+
+    btn.SetActive = function(self, active)
+        self._isActive = active and true or false
+        ApplyState(self._isActive)
+    end
+
+    return btn
+end
+
+-- =============================================================================
+-- Factory: Radio Button (flat circle, optional group)
+-- =============================================================================
+
+function OpsTheme.CreateRadioButton(parent, label, tooltipTitle, tooltipSub, group, onSelected)
+    local PAL = OpsTheme.PAL
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(16, 16)
+
+    -- Outer ring
+    btn.ring = btn:CreateTexture(nil, "ARTWORK")
+    btn.ring:SetAllPoints()
+    btn.ring:SetTexture("Interface\\Buttons\\WHITE8X8")
+    btn.ring:SetVertexColor(unpack(PAL.BORDER))
+
+    -- Inner fill (to give a hollow look)
+    btn.inner = btn:CreateTexture(nil, "OVERLAY")
+    btn.inner:SetPoint("TOPLEFT", 2, -2)
+    btn.inner:SetPoint("BOTTOMRIGHT", -2, 2)
+    btn.inner:SetTexture("Interface\\Buttons\\WHITE8X8")
+    btn.inner:SetVertexColor(unpack(PAL.BG_CONTROL))
+
+    -- Selection dot
+    btn.dot = btn:CreateTexture(nil, "OVERLAY")
+    btn.dot:SetPoint("TOPLEFT", 4, -4)
+    btn.dot:SetPoint("BOTTOMRIGHT", -4, 4)
+    btn.dot:SetTexture("Interface\\Buttons\\WHITE8X8")
+    btn.dot:SetVertexColor(unpack(PAL.ACCENT_GREEN))
+    btn.dot:Hide()
+
+    -- Label
+    btn.labelStr = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    btn.labelStr:SetPoint("LEFT", btn, "RIGHT", 5, 0)
+    btn.labelStr:SetText(label)
+    btn.labelStr:SetJustifyH("LEFT")
+
+    btn._checked = false
+    btn._group = group
+    btn._siblings = nil  -- set by parent code
+
+    local function ApplyVisual(checked)
+        if checked then
+            btn.ring:SetVertexColor(unpack(PAL.ACCENT_GREEN))
+            btn.dot:Show()
+        else
+            btn.ring:SetVertexColor(unpack(PAL.BORDER))
+            btn.dot:Hide()
+        end
+    end
+
+    btn._ApplyVisual = ApplyVisual
+    btn._onSelected = onSelected
+
+    -- 1px border around the dot/inner (chevron-lite, matches checkboxes)
+    btn.borderTop = btn:CreateTexture(nil, "OVERLAY")
+    btn.borderTop:SetTexture("Interface\\Buttons\\WHITE8X8")
+    btn.borderTop:SetPoint("TOPLEFT", -1, 1)
+    btn.borderTop:SetPoint("TOPRIGHT", 1, 1)
+    btn.borderTop:SetHeight(1)
+    btn.borderBottom = btn:CreateTexture(nil, "OVERLAY")
+    btn.borderBottom:SetTexture("Interface\\Buttons\\WHITE8X8")
+    btn.borderBottom:SetPoint("BOTTOMLEFT", -1, -1)
+    btn.borderBottom:SetPoint("BOTTOMRIGHT", 1, -1)
+    btn.borderBottom:SetHeight(1)
+    btn.borderLeft = btn:CreateTexture(nil, "OVERLAY")
+    btn.borderLeft:SetTexture("Interface\\Buttons\\WHITE8X8")
+    btn.borderLeft:SetPoint("TOPLEFT", -1, 1)
+    btn.borderLeft:SetPoint("BOTTOMLEFT", -1, -1)
+    btn.borderLeft:SetWidth(1)
+    btn.borderRight = btn:CreateTexture(nil, "OVERLAY")
+    btn.borderRight:SetTexture("Interface\\Buttons\\WHITE8X8")
+    btn.borderRight:SetPoint("TOPRIGHT", 1, 1)
+    btn.borderRight:SetPoint("BOTTOMRIGHT", 1, -1)
+    btn.borderRight:SetWidth(1)
+    local function SetBorderColor(r, g, b)
+        btn.borderTop:SetVertexColor(r, g, b, 1)
+        btn.borderBottom:SetVertexColor(r, g, b, 1)
+        btn.borderLeft:SetVertexColor(r, g, b, 1)
+        btn.borderRight:SetVertexColor(r, g, b, 1)
+    end
+    SetBorderColor(unpack(PAL.BORDER))
+
+    btn:SetScript("OnEnter", function(self)
+        SetBorderColor(unpack(PAL.BORDER_HOVER))
+        if tooltipTitle then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(tooltipTitle, 1, 0.82, 0)
+            if tooltipSub then
+                GameTooltip:AddLine(tooltipSub, 1, 1, 1, true)
+            end
+            GameTooltip:Show()
+        end
+    end)
+    btn:SetScript("OnLeave", function(self)
+        SetBorderColor(unpack(PAL.BORDER))
+        GameTooltip:Hide()
+    end)
+
+    btn:SetScript("OnClick", function(self)
+        self:_Select()
+    end)
+
+    function btn:_Select()
+        if self._checked then return end
+        -- Deselect siblings in the same group
+        if self._siblings then
+            for _, other in ipairs(self._siblings) do
+                if other ~= self and other._group == self._group then
+                    other._checked = false
+                    other:_ApplyVisual(false)
+                end
+            end
+        end
+        self._checked = true
+        ApplyVisual(true)
+        if self._onSelected then self._onSelected(self) end
+    end
+
+    btn.SetChecked = function(self, checked)
+        self._checked = checked and true or false
+        ApplyVisual(self._checked)
+        -- When selected externally, also deselect siblings
+        if checked and self._siblings then
+            for _, other in ipairs(self._siblings) do
+                if other ~= self and other._group == self._group then
+                    other._checked = false
+                    other:_ApplyVisual(false)
+                end
+            end
+        end
+    end
+    btn.GetChecked = function(self)
+        return self._checked
+    end
+    btn.SetLabel = function(self, text)
+        self.labelStr:SetText(text)
+    end
+    btn.SetTooltip = function(self, title, sub)
+        tooltipTitle = title
+        tooltipSub = sub
+    end
+
+    return btn
+end
+
+-- =============================================================================
+-- Factory: Group radios (links siblings so they deselect each other)
+-- =============================================================================
+
+function OpsTheme.GroupRadios(radios)
+    for _, r in ipairs(radios) do
+        r._siblings = radios
+    end
+end
+
+-- =============================================================================
 -- Factory: Tab Button (ribbon style)
 -- =============================================================================
 
@@ -150,12 +469,16 @@ function OpsTheme.CreateTabButton(parent, label, isActive, onClick)
             btn:SetBackdropColor(0.18, 0.18, 0.18, 1)
             btn:SetBackdropBorderColor(unpack(OpsTheme.PAL.ACCENT_GREEN))
             btn.text:SetTextColor(unpack(OpsTheme.PAL.ACCENT_GREEN))
-            btn:Disable()
+            if btn:IsEnabled() then
+                btn:Disable()
+            end
         else
             btn:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
             btn:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
             btn.text:SetTextColor(unpack(OpsTheme.PAL.TEXT_LABEL))
-            btn:Enable()
+            if not btn:IsEnabled() then
+                btn:Enable()
+            end
         end
     end
 
@@ -639,6 +962,7 @@ function OpsTheme.CreateScrollFrame(parent, width, height)
     bar:SetWidth(barW)
     bar:SetPoint("TOPRIGHT", 0, 0)
     bar:SetPoint("BOTTOMRIGHT", 0, 0)
+    bar:EnableMouse(true)
 
     bar.track = bar:CreateTexture(nil, "ARTWORK")
     bar.track:SetAllPoints()
@@ -649,6 +973,7 @@ function OpsTheme.CreateScrollFrame(parent, width, height)
     bar.thumb:SetWidth(barW)
     bar.thumb:SetHeight(OpsTheme.PAL.SCROLL_THUMB_H)
     bar.thumb:SetPoint("TOP", 0, 0)
+    bar.thumb:EnableMouse(true)
 
     bar.thumb.tex = bar.thumb:CreateTexture(nil, "ARTWORK")
     bar.thumb.tex:SetAllPoints()
@@ -658,12 +983,54 @@ function OpsTheme.CreateScrollFrame(parent, width, height)
     scrollFrame._bar = bar
     scrollFrame._barW = barW
 
+    -- Mouse wheel scrolling
     scrollFrame:SetScript("OnMouseWheel", function(self, delta)
         local step = 28
         self:SetVerticalScroll(math.max(0, math.min(
             self:GetVerticalScrollRange(),
             self:GetVerticalScroll() - (delta * step)
         )))
+    end)
+
+    -- Handle scrollbar thumb dragging
+    bar.thumb:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" then
+            self._dragging = true
+            local cursorY = GetCursorPosition()
+            local scale = self:GetEffectiveScale()
+            local top = self:GetTop()
+            if top and scale and scale > 0 then
+                self._clickOffset = top - (cursorY / scale)
+            else
+                self._clickOffset = 0
+            end
+        end
+    end)
+    bar.thumb:SetScript("OnMouseUp", function(self)
+        self._dragging = false
+    end)
+
+    -- Handle track click (scroll to clicked position and start dragging)
+    bar:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" then
+            local cursorY = GetCursorPosition()
+            local scale = self:GetEffectiveScale()
+            local barTop = self:GetTop()
+            if barTop and scale and scale > 0 then
+                local mouseVal = barTop - (cursorY / scale)
+                local thumbH = bar.thumb:GetHeight()
+                local usableRange = self:GetHeight() - thumbH
+                local pct = 0
+                if usableRange > 0 then
+                    pct = (mouseVal - thumbH / 2) / usableRange
+                    pct = math.max(0, math.min(1, pct))
+                end
+                scrollFrame:SetVerticalScroll(pct * scrollFrame:GetVerticalScrollRange())
+
+                bar.thumb._dragging = true
+                bar.thumb._clickOffset = thumbH / 2
+            end
+        end
     end)
 
     scrollFrame:SetScript("OnScrollRangeChanged", function(self, range)
@@ -676,17 +1043,41 @@ function OpsTheme.CreateScrollFrame(parent, width, height)
 
     scrollFrame:SetScript("OnUpdate", function(self)
         if not self._bar then return end
+
+        -- Process dragging if active
+        if self._bar.thumb._dragging then
+            if not IsMouseButtonDown("LeftButton") then
+                self._bar.thumb._dragging = false
+            else
+                local thumb = self._bar.thumb
+                local cursorY = GetCursorPosition()
+                local scale = thumb:GetEffectiveScale()
+                local barTop = self._bar:GetTop()
+                if barTop and scale and scale > 0 then
+                    local targetThumbTop = (cursorY / scale) + (thumb._clickOffset or 0)
+                    local y = targetThumbTop - barTop
+                    local barH = self._bar:GetHeight() - thumb:GetHeight()
+                    local pct = 0
+                    if barH > 0 then
+                        pct = -y / barH
+                        pct = math.max(0, math.min(1, pct))
+                    end
+                    self:SetVerticalScroll(pct * self:GetVerticalScrollRange())
+                end
+            end
+        end
+
         local range = self:GetVerticalScrollRange()
         local cur = self:GetVerticalScroll()
-        local viewH = self:GetHeight()
         if range <= 0 then
-            self._bar.thumb:SetPoint("TOP", 0, 0)
+            self._bar.thumb:ClearAllPoints()
+            self._bar.thumb:SetPoint("TOP", self._bar, "TOP", 0, 0)
             return
         end
         local pct = cur / range
         local thumbH = self._bar.thumb:GetHeight()
         local barH = self._bar:GetHeight() - thumbH
-        local y = -(pct * barH) - (thumbH / 2)
+        local y = -pct * barH
         self._bar.thumb:ClearAllPoints()
         self._bar.thumb:SetPoint("TOP", self._bar, "TOP", 0, y)
     end)
