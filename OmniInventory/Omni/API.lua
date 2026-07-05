@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- OmniInventory API Abstraction Layer (The Shim)
 -- =============================================================================
 -- Purpose: Bridge legacy 3.3.5a APIs to modern Retail-style table returns.
@@ -62,7 +62,10 @@ local function ScanTooltipForBinding(bag, slot, resolvedLink)
     end
 
     scanningTooltip:ClearLines()
-    scanningTooltip:SetBagItem(bag, slot)
+    local ok = pcall(scanningTooltip.SetBagItem, scanningTooltip, bag, slot)
+    if not ok and link then
+        pcall(scanningTooltip.SetHyperlink, scanningTooltip, link)
+    end
 
     for i = 2, math.min(5, scanningTooltip:NumLines()) do
         local textFrame = _G["OmniScanningTooltipTextLeft" .. i]

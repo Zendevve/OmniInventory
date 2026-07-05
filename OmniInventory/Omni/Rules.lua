@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- OmniInventory Rule Engine + User-Defined Categories
 -- =============================================================================
 -- Purpose: Bagshui-style rule engine with compiled expressions.
@@ -334,7 +334,10 @@ ruleFunctions.Tooltip = function(item, character, arg)
     if not scanningTooltip then return false end
     scanningTooltip:ClearLines()
     if item.bagID and item.slotID then
-        scanningTooltip:SetBagItem(item.bagID, item.slotID)
+        local ok = pcall(scanningTooltip.SetBagItem, scanningTooltip, item.bagID, item.slotID)
+        if not ok and item.hyperlink then
+            pcall(scanningTooltip.SetHyperlink, scanningTooltip, item.hyperlink)
+        end
     elseif item.hyperlink then
         scanningTooltip:SetHyperlink(item.hyperlink)
     else

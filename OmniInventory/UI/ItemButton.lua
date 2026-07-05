@@ -96,7 +96,13 @@ local function CheckIfItemUnusable(bag, slot, itemID)
     if not scanningTooltip then return false end
 
     scanningTooltip:ClearLines()
-    scanningTooltip:SetBagItem(bag, slot)
+    local ok = pcall(scanningTooltip.SetBagItem, scanningTooltip, bag, slot)
+    if not ok then
+        local link = GetContainerItemLink(bag, slot)
+        if link then
+            pcall(scanningTooltip.SetHyperlink, scanningTooltip, link)
+        end
+    end
 
     for i = 2, scanningTooltip:NumLines() do
         local leftFrame = _G["OmniScanningTooltipTextLeft" .. i]
@@ -258,7 +264,13 @@ local function BagSlotTooltipMentionsStartsQuest(bagID, slotID)
     end
     local tip = GetQuestScanTooltip()
     tip:ClearLines()
-    tip:SetBagItem(bagID, slotID)
+    local ok = pcall(tip.SetBagItem, tip, bagID, slotID)
+    if not ok then
+        local link = GetContainerItemLink(bagID, slotID)
+        if link then
+            pcall(tip.SetHyperlink, tip, link)
+        end
+    end
     local prefix = "OmniItemQuestScanTooltipTextLeft"
     for i = 1, tip:NumLines() do
         local left = _G[prefix .. i]
@@ -1361,11 +1373,13 @@ function ItemButton:OnEnter(button)
 
     local shown = false
     if not info.__offline and IsLiveContainerFrameSlot(bagID, slotID) and slotID then
-        GameTooltip:SetBagItem(bagID, slotID)
-        if GameTooltip.NumLines then
-            shown = GameTooltip:NumLines() > 0
-        else
-            shown = true
+        local ok = pcall(GameTooltip.SetBagItem, GameTooltip, bagID, slotID)
+        if ok then
+            if GameTooltip.NumLines then
+                shown = GameTooltip:NumLines() > 0
+            else
+                shown = true
+            end
         end
     end
 

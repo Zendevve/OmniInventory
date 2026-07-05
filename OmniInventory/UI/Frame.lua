@@ -5093,7 +5093,10 @@ function Frame:RenderListView(items)
                     else
                         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                     end
-                    GameTooltip:SetBagItem(self.itemInfo.bagID, self.itemInfo.slotID)
+                    local ok = pcall(GameTooltip.SetBagItem, GameTooltip, self.itemInfo.bagID, self.itemInfo.slotID)
+                    if not ok and self.itemInfo.hyperlink then
+                        pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
+                    end
                     GameTooltip:Show()
                     if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
                         Omni.ItemButton.FinalizeOmniItemTooltipLayout()
@@ -5261,7 +5264,10 @@ local function GetItemSearchInfo(itemInfo)
     if scanningTooltip then
         scanningTooltip:ClearLines()
         if itemInfo.bagID and itemInfo.slotID then
-            scanningTooltip:SetBagItem(itemInfo.bagID, itemInfo.slotID)
+            local ok = pcall(scanningTooltip.SetBagItem, scanningTooltip, itemInfo.bagID, itemInfo.slotID)
+            if not ok and link then
+                pcall(scanningTooltip.SetHyperlink, scanningTooltip, link)
+            end
         else
             scanningTooltip:SetHyperlink(link)
         end
@@ -5426,7 +5432,10 @@ local function MatchTooltip(itemInfo, queryVal)
     if not scanningTooltip then return false end
     scanningTooltip:ClearLines()
     if itemInfo.bagID and itemInfo.slotID then
-        scanningTooltip:SetBagItem(itemInfo.bagID, itemInfo.slotID)
+        local ok = pcall(scanningTooltip.SetBagItem, scanningTooltip, itemInfo.bagID, itemInfo.slotID)
+        if not ok and itemInfo.hyperlink then
+            pcall(scanningTooltip.SetHyperlink, scanningTooltip, itemInfo.hyperlink)
+        end
     else
         scanningTooltip:SetHyperlink(itemInfo.hyperlink)
     end
