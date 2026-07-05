@@ -1170,7 +1170,7 @@ function Frame:CreateHeader()
     end)
 
     -- Resort button: physically sorts and consolidates the bags
-    header.resortBtn = CreateRibbonTextButton(header, "Resort",
+    header.resortBtn = CreateRibbonIconButton(header, "Interface\\AddOns\\OmniInventory\\Textures\\Broom",
         "Resort", "Physically sort and consolidate your bags",
         function()
             if Omni.PhysicalSort then
@@ -1179,6 +1179,7 @@ function Frame:CreateHeader()
                 Frame:UpdateLayout(nil, { forceFull = true, reason = "resort_button" })
             end
         end)
+    header.resortBtn.icon:SetTexCoord(0, 1, 0, 1) -- Keep full broom texture uncropped
     header.resortBtn:SetPoint("RIGHT", header.sortBtn, "LEFT", -DIM.RIBBON_GAP, 0)
     header.resortBtn:Hide()
 
