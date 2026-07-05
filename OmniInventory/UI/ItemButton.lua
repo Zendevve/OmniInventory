@@ -27,7 +27,7 @@ local function GetBagDisplayName(bagID)
     if bagID == 0 then
         return BACKPACK_CONTAINER or "Backpack"
     elseif bagID == -1 then
-        return BANK_CONTAINER or "Bank"
+        return (type(BANK_CONTAINER) == "string" and BANK_CONTAINER) or "Bank"
     elseif bagID == -2 then
         return KEYRING or "Keyring"
     elseif bagID and bagID >= 1 and bagID <= 11 then
