@@ -3499,6 +3499,10 @@ function Frame:CycleView()
     Frame:SetView(modes[nextIdx])
 end
 
+function Frame:GetView()
+    return currentView
+end
+
 function Frame:CycleSort()
     if not Omni.Sorter then return end
 

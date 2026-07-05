@@ -590,8 +590,11 @@ function Settings:BuildViewSort(panel)
     viewHeader:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
     y = y - HEADER_GAP
 
-    local viewBtn = OpsTheme.CreateButton(panel, "Cycle View", 160, function()
-        if Omni.Frame then Omni.Frame:CycleView() end
+    local viewBtn = OpsTheme.CreateButton(panel, "View: Grid", 160, function()
+        if Omni.Frame then
+            Omni.Frame:CycleView()
+            self:RefreshViewLabel()
+        end
     end)
     viewBtn:SetSize(160, OpsTheme.PAL.BTN_HEIGHT)
     viewBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
@@ -602,8 +605,11 @@ function Settings:BuildViewSort(panel)
     sortHeader:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
     y = y - HEADER_GAP
 
-    local sortBtn = OpsTheme.CreateButton(panel, "Cycle Sort", 160, function()
-        if Omni.Frame then Omni.Frame:CycleSort() end
+    local sortBtn = OpsTheme.CreateButton(panel, "Sort: Category", 160, function()
+        if Omni.Frame then
+            Omni.Frame:CycleSort()
+            self:RefreshSortLabel()
+        end
     end)
     sortBtn:SetSize(160, OpsTheme.PAL.BTN_HEIGHT)
     sortBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
@@ -1087,8 +1093,10 @@ function Settings:UpdateValues()
         self.resortButtonCb:SetChecked(Omni.Data:Get("showResortButton") == true)
     end
 
-    -- Theme + target label
+    -- Theme + view + sort + target labels
     self:RefreshThemeLabel()
+    self:RefreshViewLabel()
+    self:RefreshSortLabel()
     self:RefreshTargetLabel()
 
     -- Make the visible panel the correct height
@@ -1117,6 +1125,30 @@ function Settings:RefreshThemeLabel()
         theme = Omni.Features:GetTheme() == "square" and "Square" or "Rounded"
     end
     self.themeBtn.text:SetText("Theme: " .. theme)
+end
+
+function Settings:RefreshViewLabel()
+    if not self.viewBtn then return end
+    local view = "Grid"
+    if Omni.Frame and Omni.Frame.GetView then
+        view = Omni.Frame:GetView()
+    elseif OmniInventoryDB and OmniInventoryDB.char and OmniInventoryDB.char.settings then
+        view = OmniInventoryDB.char.settings.viewMode or "grid"
+    end
+    -- Capitalize first letter
+    view = view:gsub("^%l", string.upper)
+    self.viewBtn.text:SetText("View: " .. view)
+end
+
+function Settings:RefreshSortLabel()
+    if not self.sortBtn then return end
+    local sort = "Category"
+    if Omni.Sorter and Omni.Sorter.GetDefaultMode then
+        sort = Omni.Sorter:GetDefaultMode()
+    end
+    -- Capitalize first letter
+    sort = sort:gsub("^%l", string.upper)
+    self.sortBtn.text:SetText("Sort: " .. sort)
 end
 
 function Settings:Init()
