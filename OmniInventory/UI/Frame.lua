@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- OmniInventory Main Frame
 -- =============================================================================
 -- Purpose: Primary window container with header, search, content area,
@@ -915,16 +915,18 @@ function Frame:CreateMainFrame()
         if not (mainFrame and mainFrame.secureAnchor and mainFrame.footer) then return end
         if InCombatLockdown and InCombatLockdown() then return end
         local footer = mainFrame.footer
-        -- Cheap relocation: anchor a corner of the secure anchor to the
-        -- footer's BOTTOMLEFT in screen coordinates. The buttons themselves
-        -- are SetPoint'd into the secure anchor with their own offsets, so
-        -- a single shared baseline is sufficient.
-        local scale = (footer:GetEffectiveScale() or 1) / (UIParent:GetEffectiveScale() or 1)
-        if not scale or scale == 0 then return end
-        local x = (footer:GetLeft() or 0) * scale
-        local y = (footer:GetBottom() or 0) * scale
+        -- Set scale to match mainFrame so secure buttons scale correctly and cross-parent anchoring works reliably
+        local bagScale = mainFrame:GetScale() or 1
+        mainFrame.secureAnchor:SetScale(bagScale)
+
+        local x = footer:GetLeft() or 0
+        local y = footer:GetBottom() or 0
+        local w = footer:GetWidth() or 1
+        local h = footer:GetHeight() or 1
+
         mainFrame.secureAnchor:ClearAllPoints()
         mainFrame.secureAnchor:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x, y)
+        mainFrame.secureAnchor:SetSize(w, h)
     end
     anchorRepositionFrame:SetScript("OnUpdate", function(self, elapsed)
         if not self.waiting then return end
@@ -941,6 +943,7 @@ function Frame:CreateMainFrame()
     -- Hook OnShow / drag-end events so the secure anchor follows.
     mainFrame:HookScript("OnShow", function()
         if mainFrame.secureAnchor then
+            mainFrame.secureAnchor:SetAlpha(1)
             mainFrame.secureAnchor:Show()
         end
         requestSecureAnchorReposition()
@@ -2489,7 +2492,11 @@ local function CreateFooterMiniButton(parent, def)
     end)
 
     if type(def.onClick) == "function" then
-        btn:SetScript("OnClick", def.onClick)
+        if def.secure then
+            btn:SetScript("PreClick", def.onClick)
+        else
+            btn:SetScript("OnClick", def.onClick)
+        end
     elseif type(def.fn) == "string" then
         btn.__openFn = def.fn
         btn.__closeFn = def.fn:gsub("^Open", "Close")
@@ -3012,6 +3019,12 @@ function Frame:UpdateFooterCustomButtons()
     end
     self._pendingFooterUpdate = false
 
+    -- Ensure the secure anchor is shown and visible
+    if mainFrame.secureAnchor then
+        mainFrame.secureAnchor:SetAlpha(1)
+        mainFrame.secureAnchor:Show()
+    end
+
     if footer.customButtons.openables then
         local btn = footer.customButtons.openables
         if not InCombatLockdown() then
@@ -3052,46 +3065,53 @@ function Frame:UpdateFooterCustomButtons()
     local mustOverflow  = totalNeededWidth > available
     local inlineBudget  = mustOverflow and (available - DIM.OVERFLOW_SLOT_COST) or available
 
+    local slotsBlock = GetFooterSlotsBlockWidth(footer)
+    local leftEdge = 6 + slotsBlock
+    local currentX = leftEdge + inlineAnchorGap
+
     local inlinePrev        = nil
     local runningWidth      = 0
     local overflowButtons   = {}
     local lastInlineSep     = nil
 
-    -- Choose the right non-secure parent for each item. Secure buttons
-    -- (hearthstone / openables / disenchant / picklock) MUST live under
-    -- mainFrame.secureAnchor to keep OmniInventoryFrame free of
-    -- SecureActionButtonTemplate descendants (see CreateMainFrame /
-    -- CreateFooterMiniButton).  We detect by looking at the button's
-    -- current parent (CreateFooterMiniButton parents secure buttons
-    -- directly to secureAnchor at creation time).
-    local function parentFor(obj)
-        if secureAnchor and obj.GetParent and obj:GetParent() == secureAnchor then
+    local function parentFor(item)
+        if item.def and item.def.secure and secureAnchor then
             return secureAnchor
         end
         return footer
     end
-    local function placeInline(obj, kind)
+
+    local function placeInline(item)
+        local obj = item.obj
+        local kind = item.kind
         obj:ClearAllPoints()
-        obj:SetParent(parentFor(obj))
-        if kind == "sep" then
-            if inlinePrev then
-                obj:SetPoint("LEFT", inlinePrev, "RIGHT", DIM.FOOTER_SEP_GAP, 0)
-            else
-                obj:SetPoint("LEFT", inlineAnchor, "RIGHT", inlineAnchorGap, 0)
+        
+        local parent = parentFor(item)
+        obj:SetParent(parent)
+
+        -- Calculate the exact xOffset relative to parent to prevent cross-parent SetPoint bugs in WoW
+        local xOffset = currentX
+        if inlinePrev then
+            local gap = DIM.FOOTER_BTN_GAP
+            if kind == "sep" then
+                gap = DIM.FOOTER_SEP_GAP
+            elseif inlinePrev == lastInlineSep then
+                gap = DIM.FOOTER_SEP_GAP
             end
-            obj:Show()
-            lastInlineSep = obj
-            inlinePrev = obj
-        else
-            if inlinePrev then
-                local gap = (inlinePrev == lastInlineSep) and DIM.FOOTER_SEP_GAP or DIM.FOOTER_BTN_GAP
-                obj:SetPoint("LEFT", inlinePrev, "RIGHT", gap, 0)
-            else
-                obj:SetPoint("LEFT", inlineAnchor, "RIGHT", inlineAnchorGap, 0)
-            end
-            obj:Show()
-            inlinePrev = obj
+            currentX = currentX + gap
+            xOffset = currentX
         end
+
+        obj:SetPoint("LEFT", parent, "LEFT", xOffset, 0)
+        obj:Show()
+
+        if kind == "sep" then
+            lastInlineSep = obj
+            currentX = currentX + DIM.SEP_SLOT_WIDTH
+        else
+            currentX = currentX + DIM.FOOTER_BTN_SIZE
+        end
+        inlinePrev = obj
     end
 
     for i, item in ipairs(items) do
@@ -3117,7 +3137,7 @@ function Frame:UpdateFooterCustomButtons()
         local forceInline = item.kind == "btn" and item.obj and item.obj.__def and item.obj.__def.secure
 
         if (not mustOverflow or not wouldOverflow) or forceInline then
-            placeInline(item.obj, item.kind)
+            placeInline(item)
             if forceInline then
                 runningWidth = runningWidth + cost
             else

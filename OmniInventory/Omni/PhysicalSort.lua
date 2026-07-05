@@ -76,7 +76,7 @@ end
 
 local function GetMaxStackSize(itemID)
     if not itemID then return 1 end
-    local _, _, _, _, _, _, maxStack = GetItemInfo(itemID)
+    local _, _, _, _, _, _, _, maxStack = GetItemInfo(itemID)
     return maxStack or 1
 end
 
@@ -262,23 +262,41 @@ local function BuildDesiredOrder(specializedBags)
     for _, item in ipairs(allItems) do
         -- Find the best target bag for this item
         local targetBag = nil
-        for bagID = 0, 4 do
-            if ShouldItemGoInBag(item, bagID, specializedBags) then
-                targetBag = bagID
-                break
+        
+        -- 1. Try to place in specialized bags first (bags 1-4)
+        for bagID = 1, 4 do
+            if specializedBags[bagID] and ShouldItemGoInBag(item, bagID, specializedBags) then
+                local slot = bagSlotCounters[bagID]
+                local numSlots = GetContainerNumSlots(bagID) or 0
+                if slot <= numSlots then
+                    targetBag = bagID
+                    break
+                end
             end
         end
+        
+        -- 2. Fall back to normal bags (checking bag 0 first, then 1-4 if they are normal)
+        if not targetBag then
+            for bagID = 0, 4 do
+                if not specializedBags[bagID] and ShouldItemGoInBag(item, bagID, specializedBags) then
+                    local slot = bagSlotCounters[bagID]
+                    local numSlots = GetContainerNumSlots(bagID) or 0
+                    if slot <= numSlots then
+                        targetBag = bagID
+                        break
+                    end
+                end
+            end
+        end
+
         if targetBag then
             local slot = bagSlotCounters[targetBag]
-            local numSlots = GetContainerNumSlots(targetBag) or 0
-            if slot <= numSlots then
-                table.insert(targetPositions, {
-                    item = item,
-                    targetBag = targetBag,
-                    targetSlot = slot,
-                })
-                bagSlotCounters[targetBag] = bagSlotCounters[targetBag] + 1
-            end
+            table.insert(targetPositions, {
+                item = item,
+                targetBag = targetBag,
+                targetSlot = slot,
+            })
+            bagSlotCounters[targetBag] = slot + 1
         end
     end
 
