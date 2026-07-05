@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- OmniInventory Bank Frame
 -- =============================================================================
 -- Standalone bank window that docks to the left of the main bag frame
@@ -1749,17 +1749,19 @@ function BankFrame:RenderGridView(items)
     end
 
     local slotsToRender = {}
-    if collapseEmpty then
-        for _, bagID in ipairs(activeBankBags) do
-            local slots = GetContainerNumSlots(bagID) or 0
-            for slotID = 1, slots do
-                local itemInfo = itemBySlot[bagID] and itemBySlot[bagID][slotID]
-                if itemInfo then
-                    table.insert(slotsToRender, { bagID = bagID, slotID = slotID, itemInfo = itemInfo })
-                end
-            end
-        end
+    local activeBagsSet = {}
+    for _, bagID in ipairs(activeBankBags) do
+        activeBagsSet[bagID] = true
+    end
 
+    -- Insert sorted filled items first
+    for _, itemInfo in ipairs(items or {}) do
+        if itemInfo.bagID and activeBagsSet[itemInfo.bagID] then
+            table.insert(slotsToRender, { bagID = itemInfo.bagID, slotID = itemInfo.slotID, itemInfo = itemInfo })
+        end
+    end
+
+    if collapseEmpty then
         local emptyGroups = {}
         for _, bagID in ipairs(activeBankBags) do
             local slots = GetContainerNumSlots(bagID) or 0
@@ -1792,7 +1794,9 @@ function BankFrame:RenderGridView(items)
             local slots = GetContainerNumSlots(bagID) or 0
             for slotID = 1, slots do
                 local itemInfo = itemBySlot[bagID] and itemBySlot[bagID][slotID]
-                table.insert(slotsToRender, { bagID = bagID, slotID = slotID, itemInfo = itemInfo })
+                if not itemInfo then
+                    table.insert(slotsToRender, { bagID = bagID, slotID = slotID, itemInfo = nil })
+                end
             end
         end
     end

@@ -473,6 +473,11 @@ function Settings:BuildGeneral(panel)
         "Bag Type Tags",
         "Shows family tag text (Ammo, Herb, Mining, etc.) on specialty bag tooltips.",
         "showBagTypeTags", false)
+    self.showCategoryStripeCb = MakeCb(1, row,
+        "Category stripe",
+        "Category Color Stripe",
+        "Displays a small vertical stripe on the left edge of each item slot matching its category color.",
+        "showCategoryStripe", false, nil, true)
 
     y = y - (ROW_H * 5) - SECTION_GAP
 
@@ -1001,6 +1006,9 @@ function Settings:UpdateValues()
     end
     if self.bagTypeTagsCb and Omni.Data then
         self.bagTypeTagsCb:SetChecked(Omni.Data:Get("showBagTypeTags") == true)
+    end
+    if self.showCategoryStripeCb and Omni.Data then
+        self.showCategoryStripeCb:SetChecked(Omni.Data:Get("showCategoryStripe") == true)
     end
 
     -- Scales sliders

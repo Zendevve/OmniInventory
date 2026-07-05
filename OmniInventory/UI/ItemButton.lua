@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- OmniInventory Item Button Widget
 -- =============================================================================
 -- Purpose: Reusable item slot button with icon, count, quality border,
@@ -625,6 +625,14 @@ function ItemButton:Create(parent)
     button.questStarterIcon:SetSize(QUEST_STARTER_ICON_SIZE, QUEST_STARTER_ICON_SIZE)
     button.questStarterIcon:Hide()
 
+    -- Category color stripe (left edge)
+    button.categoryStripe = button:CreateTexture(nil, "OVERLAY", nil, 5)
+    button.categoryStripe:SetWidth(2.5)
+    button.categoryStripe:SetPoint("TOPLEFT", button.icon, "TOPLEFT", 0, 0)
+    button.categoryStripe:SetPoint("BOTTOMLEFT", button.icon, "BOTTOMLEFT", 0, 0)
+    button.categoryStripe:SetTexture("Interface\\Buttons\\WHITE8X8")
+    button.categoryStripe:Hide()
+
     -- New item golden pulsing glow (Bagnon style)
     button.newGlow = button:CreateTexture(nil, "OVERLAY", nil, 6)
     button.newGlow:SetPoint("TOPLEFT", -2, 2)
@@ -772,6 +780,18 @@ end
 -- =============================================================================
 
 
+local function ClearButtonOverlays(button)
+    if button.boundIcon then button.boundIcon:Hide() end
+    if button.pinIcon then button.pinIcon:Hide() end
+    if button.questStarterIcon then button.questStarterIcon:Hide() end
+    if button.newGlow then
+        if button.newGlow.pulse then button.newGlow.pulse:Stop() end
+        button.newGlow:Hide()
+    end
+    if button.iLevelText then button.iLevelText:Hide() end
+    if button.categoryStripe then button.categoryStripe:Hide() end
+end
+
 function ItemButton:SetItem(button, itemInfo)
     if not button then return end
 
@@ -808,17 +828,8 @@ function ItemButton:SetItem(button, itemInfo)
         if button.borderRight then button.borderRight:SetVertexColor(r, g, b, 1) end
         button.dimOverlay:Hide()
         UpdateEmptyDropHighlight(button)
-        if button.newGlow then
-            if button.newGlow.pulse then
-                button.newGlow.pulse:Stop()
-            end
-            button.newGlow:Hide()
-        end
-        if button.iLevelText then
-            button.iLevelText:Hide()
-        end
+        ClearButtonOverlays(button)
         HideItemCooldown(button)
-        if button.questStarterIcon then button.questStarterIcon:Hide() end
         button.__lastRenderKey = nil
         return
     end
@@ -835,8 +846,8 @@ function ItemButton:SetItem(button, itemInfo)
         if button.borderRight then button.borderRight:SetVertexColor(grey, grey, grey, 1) end
         button.dimOverlay:Hide()
         UpdateEmptyDropHighlight(button)
+        ClearButtonOverlays(button)
         HideItemCooldown(button)
-        if button.questStarterIcon then button.questStarterIcon:Hide() end
         button.__lastRenderKey = nil
         return
     end
@@ -855,6 +866,7 @@ function ItemButton:SetItem(button, itemInfo)
     pcall(button.EnableMouse, button, true)
 
     local isPinned = itemInfo.itemID and Omni.Data and Omni.Data:IsPinned(itemInfo.itemID) or false
+    local showCategoryStripe = OmniInventoryDB and OmniInventoryDB.global.showCategoryStripe or false
     local renderKey = button.__lastRenderKey
     local questOverlayKind
     if renderKey
@@ -882,7 +894,8 @@ function ItemButton:SetItem(button, itemInfo)
             and renderKey.bagID == itemInfo.bagID
             and renderKey.slotID == itemInfo.slotID
             and renderKey.isPinned == isPinned
-            and renderKey.questOverlayKind == questOverlayKind then
+            and renderKey.questOverlayKind == questOverlayKind
+            and renderKey.showCategoryStripe == showCategoryStripe then
         UpdateQuestStarterIcon(button, itemInfo)
         self:UpdateCooldown(button)
         return
@@ -1056,6 +1069,24 @@ function ItemButton:SetItem(button, itemInfo)
         button.iLevelText:Hide()
     end
 
+    -- Update category stripe if enabled
+    if button.categoryStripe then
+        local showStripe = false
+        if itemInfo and not itemInfo.__empty and OmniInventoryDB and OmniInventoryDB.global.showCategoryStripe then
+            showStripe = true
+        end
+        if showStripe then
+            local r, g, b = 1, 1, 1
+            if itemInfo.category and Omni.Categorizer then
+                r, g, b = Omni.Categorizer:GetCategoryColor(itemInfo.category)
+            end
+            button.categoryStripe:SetVertexColor(r, g, b, 1)
+            button.categoryStripe:Show()
+        else
+            button.categoryStripe:Hide()
+        end
+    end
+
     button.__lastRenderKey = {
         hyperlink = itemInfo.hyperlink,
         iconFileID = itemInfo.iconFileID,
@@ -1068,6 +1099,7 @@ function ItemButton:SetItem(button, itemInfo)
         slotID = itemInfo.slotID,
         isPinned = isPinned,
         questOverlayKind = questOverlayKind,
+        showCategoryStripe = showCategoryStripe,
     }
 end
 

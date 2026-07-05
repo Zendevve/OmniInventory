@@ -3906,8 +3906,8 @@ function Frame:UpdateLayout(changedBags, opts)
         end
     end
 
-    -- Sort items (flow/list only: grid/bag render by physical slot index)
-    if Omni.Sorter and (currentView == "flow" or currentView == "list") then
+    -- Sort items
+    if Omni.Sorter then
         local perfSort = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("frame.UpdateLayout.sort")
         items = Omni.Sorter:Sort(items, Omni.Sorter:GetDefaultMode())
         if Omni._perfEnabled and Omni.Perf then
@@ -4058,6 +4058,13 @@ function Frame:RenderFlowView(items, layoutOpts)
             end
         end
 
+        -- Insert sorted filled items first
+        for _, itemInfo in ipairs(items) do
+            if IsValidBagID(itemInfo.bagID) and itemInfo.slotID and itemInfo.slotID > 0 then
+                table.insert(categories["All"], itemInfo)
+            end
+        end
+
         local collapseEmpty = false
         if Omni.Data and Omni.Data.Get then
             collapseEmpty = (Omni.Data:Get("collapseEmptySlots") == true)
@@ -4078,8 +4085,6 @@ function Frame:RenderFlowView(items, layoutOpts)
                         emptyCount = 0,
                     }
                     emptyGroups[grp].emptyCount = emptyGroups[grp].emptyCount + 1
-                else
-                    table.insert(categories["All"], info)
                 end
             end
         end
@@ -4138,11 +4143,22 @@ function Frame:RenderFlowView(items, layoutOpts)
             end
         end
 
+        -- Insert sorted filled items first
+        for _, item in ipairs(items) do
+            local bagID = item.bagID
+            if IsValidBagID(bagID) and categories[bagID] then
+                table.insert(categories[bagID], item)
+            end
+        end
+
+        -- Append empty slots
         for _, bagID in ipairs(bagScope) do
             local totalSlots = bagSlotCounts[bagID] or 0
             for slotID = 1, totalSlots do
                 local info = itemBySlot[bagID] and itemBySlot[bagID][slotID] or nil
-                table.insert(categories[bagID], info or { bagID = bagID, slotID = slotID, __empty = true })
+                if not info then
+                    table.insert(categories[bagID], { bagID = bagID, slotID = slotID, __empty = true })
+                end
             end
         end
     else

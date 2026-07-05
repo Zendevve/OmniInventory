@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- OmniInventory Data Persistence
 -- =============================================================================
 -- Manages SavedVariables and cross-character data
@@ -89,6 +89,9 @@ local defaults = {
         -- Resort button: show a button when a dry-run detects
         -- the layout could be reorganized (Bagshui-style).
         showResortButton = false,
+        -- Category stripe: show a small vertical stripe on the left
+        -- edge of each item slot matching its category color.
+        showCategoryStripe = false,
     },
     char = {
         position = nil,         -- { point, x, y }
