@@ -3527,8 +3527,23 @@ function Frame:CycleSort()
         mainFrame.header.sortBtn.text:SetText(displayMode)
     end
 
+    if Omni.BankFrame and Omni.BankFrame.UpdateSortButton then
+        Omni.BankFrame:UpdateSortButton()
+        if Omni.BankFrame.UpdateLayout then
+            Omni.BankFrame:UpdateLayout()
+        end
+    end
+
     -- Refresh layout with new sort
     Frame:UpdateLayout()
+end
+
+function Frame:UpdateSortButton()
+    if mainFrame and mainFrame.header and mainFrame.header.sortBtn then
+        local mode = Omni.Sorter and Omni.Sorter:GetDefaultMode() or "category"
+        local displayMode = mode:gsub("^%l", string.upper)
+        mainFrame.header.sortBtn.text:SetText(displayMode)
+    end
 end
 
 -- =============================================================================

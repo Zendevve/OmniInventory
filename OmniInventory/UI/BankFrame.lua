@@ -71,6 +71,7 @@ local BANK_BAG_IDS = { 5, 6, 7, 8, 9, 10, 11 }
 local bankFrame = nil
 local itemButtons = {}
 local categoryHeaders = {}
+local listRows = {}
 local searchText = ""
 local isSearchActive = false
 local selectedBankBagID = nil
@@ -182,8 +183,25 @@ local function GetSavedBankBagFilter()
     return nil
 end
 
+local function GetBagDisplayName(bagID)
+    if bagID == 0 then
+        return BACKPACK_CONTAINER or "Backpack"
+    elseif bagID == -1 then
+        return "Bank"
+    elseif bagID == -2 then
+        return KEYRING or "Keyring"
+    elseif bagID and bagID >= 1 and bagID <= 11 then
+        local name = GetBagName(bagID)
+        if name and name ~= "" then
+            return name
+        end
+        return string.format("Bag %d", bagID)
+    end
+    return tostring(bagID or "")
+end
+
 local function NormalizeBankView(mode)
-    if mode == "grid" or mode == "flow" then
+    if mode == "grid" or mode == "flow" or mode == "list" or mode == "bag" then
         return mode
     end
     return "flow"
@@ -194,9 +212,17 @@ local function GetSavedBankView()
     return NormalizeBankView(settings and settings.bankViewMode)
 end
 
+local VIEW_LABELS = {
+    grid = "Grid",
+    flow = "Flow",
+    list = "List",
+    bag = "Bag",
+}
+
 function BankFrame:UpdateViewButton()
     if bankFrame and bankFrame.header and bankFrame.header.viewBtn then
-        bankFrame.header.viewBtn.text:SetText(currentBankView == "grid" and "Grid" or "Flow")
+        local displayMode = VIEW_LABELS[currentBankView] or "Flow"
+        bankFrame.header.viewBtn.text:SetText(displayMode)
     end
 end
 
@@ -412,15 +438,29 @@ local function CreateHeader(parent)
     header.optBtn:SetPoint("RIGHT", header.closeBtn, "LEFT", -RIBBON_GAP, 0)
 
     header.viewBtn = CreateRibbonTextButton(header, "Flow",
-        "View Mode", "Click to switch bank Flow / Grid",
+        "View Mode", "Click to cycle bank view modes (Grid / Flow / List / Bag)",
         function() BankFrame:CycleView() end)
     header.viewBtn:SetPoint("RIGHT", header.optBtn, "LEFT", -RIBBON_GAP, 0)
+
+    header.sortBtn = CreateRibbonTextButton(header, "Sort",
+        "Sort Mode", "Click to cycle the active sort",
+        function() BankFrame:CycleSort() end)
+    header.sortBtn:SetPoint("RIGHT", header.viewBtn, "LEFT", -RIBBON_GAP, 0)
+
+    header.sortBtn:HookScript("OnEnter", function(self)
+        local mode = Omni.Sorter and Omni.Sorter:GetDefaultMode() or "category"
+        self._tooltipSub = "Current: " .. mode
+    end)
+
+    local initMode = Omni.Sorter and Omni.Sorter:GetDefaultMode() or "category"
+    local initDisplay = initMode:gsub("^%l", string.upper)
+    header.sortBtn.text:SetText(initDisplay)
 
     header.ribbonSep = header:CreateTexture(nil, "OVERLAY")
     header.ribbonSep:SetTexture("Interface\\Buttons\\WHITE8X8")
     header.ribbonSep:SetVertexColor(0.35, 0.35, 0.35, 1)
     header.ribbonSep:SetSize(1, 14)
-    header.ribbonSep:SetPoint("RIGHT", header.viewBtn, "LEFT", -RIBBON_SEP_GAP, 0)
+    header.ribbonSep:SetPoint("RIGHT", header.sortBtn, "LEFT", -RIBBON_SEP_GAP, 0)
 
     header.bagBar = CreateFrame("Frame", nil, header)
     header.bagBar:SetSize((BAG_ICON_SIZE + 2) * #BANK_BAG_IDS, BAG_ICON_SIZE)
@@ -800,7 +840,56 @@ function BankFrame:SetView(mode)
 end
 
 function BankFrame:CycleView()
-    self:SetView(currentBankView == "grid" and "flow" or "grid")
+    local modes = { "grid", "flow", "list", "bag" }
+    local nextIdx = 1
+    for i, mode in ipairs(modes) do
+        if mode == currentBankView then
+            nextIdx = (i % #modes) + 1
+            break
+        end
+    end
+    self:SetView(modes[nextIdx])
+end
+
+function BankFrame:UpdateSortButton()
+    if bankFrame and bankFrame.header and bankFrame.header.sortBtn then
+        local mode = Omni.Sorter and Omni.Sorter:GetDefaultMode() or "category"
+        local displayMode = mode:gsub("^%l", string.upper)
+        bankFrame.header.sortBtn.text:SetText(displayMode)
+    end
+end
+
+function BankFrame:CycleSort()
+    if not Omni.Sorter then return end
+
+    local modes = Omni.Sorter:GetModes()
+    local currentMode = Omni.Sorter:GetDefaultMode()
+    local nextIdx = 1
+
+    for i, mode in ipairs(modes) do
+        if mode == currentMode then
+            nextIdx = (i % #modes) + 1
+            break
+        end
+    end
+
+    local newMode = modes[nextIdx]
+    Omni.Sorter:SetDefaultMode(newMode)
+
+    -- Update sort buttons on both frames
+    self:UpdateSortButton()
+    if Omni.Frame and Omni.Frame.UpdateSortButton then
+        Omni.Frame:UpdateSortButton()
+    elseif _G.OmniInventoryFrame and _G.OmniInventoryFrame.header and _G.OmniInventoryFrame.header.sortBtn then
+        local displayMode = newMode:gsub("^%l", string.upper)
+        _G.OmniInventoryFrame.header.sortBtn.text:SetText(displayMode)
+    end
+
+    -- Refresh layouts
+    self:UpdateLayout()
+    if Omni.Frame and Omni.Frame.UpdateLayout then
+        Omni.Frame:UpdateLayout()
+    end
 end
 
 function BankFrame:UpdateBankBagButtonIcons()
@@ -1428,16 +1517,11 @@ function BankFrame:RenderFlowView(items)
 
     local categories = {}
     local categoryOrder = {}
-    for _, item in ipairs(items) do
-        local cat = item.category or "Miscellaneous"
-        if not categories[cat] then
-            categories[cat] = {}
-            table.insert(categoryOrder, cat)
-        end
-        table.insert(categories[cat], item)
+    local collapseEmpty = false
+    if Omni.Data and Omni.Data.Get then
+        collapseEmpty = (Omni.Data:Get("collapseEmptySlots") == true)
     end
 
-    -- Collect all empty slots in the bank
     local activeBags = {}
     if selectedBankBagID ~= nil then
         activeBags[1] = selectedBankBagID
@@ -1448,88 +1532,117 @@ function BankFrame:RenderFlowView(items)
         end
     end
 
-    local collapseEmpty = false
-    if Omni.Data and Omni.Data.Get then
-        collapseEmpty = (Omni.Data:Get("collapseEmptySlots") == true)
-    end
-
-    local emptyGroups = {}
-    for _, bagID in ipairs(activeBags) do
-        local numSlots = GetContainerNumSlots(bagID) or 0
-        for slotID = 1, numSlots do
-            local info = OmniC_Container.GetContainerItemInfo(bagID, slotID)
-            if not info then
-                local freeSpaceCat = GetFreeSpaceCategoryName(bagID)
-                emptyGroups[freeSpaceCat] = emptyGroups[freeSpaceCat] or {
-                    bagID = bagID,
-                    slotID = slotID,
-                    __empty = true,
-                    category = freeSpaceCat,
-                    emptyCount = 0,
-                }
-                emptyGroups[freeSpaceCat].emptyCount = emptyGroups[freeSpaceCat].emptyCount + 1
+    if currentBankView == "bag" then
+        -- BAG MODE: Group by physical bagID
+        for _, bagID in ipairs(activeBags) do
+            categories[bagID] = {}
+            table.insert(categoryOrder, bagID)
+        end
+        for _, item in ipairs(items) do
+            local bagID = item.bagID
+            if categories[bagID] then
+                table.insert(categories[bagID], item)
             end
         end
-    end
-
-    if collapseEmpty then
-        for catName, item in pairs(emptyGroups) do
-            if not categories[catName] then
-                categories[catName] = {}
-                table.insert(categoryOrder, catName)
+        -- Append empty slots to their respective bags
+        for _, bagID in ipairs(activeBags) do
+            local numSlots = GetContainerNumSlots(bagID) or 0
+            for slotID = 1, numSlots do
+                local info = OmniC_Container.GetContainerItemInfo(bagID, slotID)
+                if not info then
+                    table.insert(categories[bagID], { bagID = bagID, slotID = slotID, __empty = true, emptyCount = 1 })
+                end
             end
-            table.insert(categories[catName], item)
         end
     else
+        -- FLOW MODE: Group by assigned category
+        for _, item in ipairs(items) do
+            local cat = item.category or "Miscellaneous"
+            if not categories[cat] then
+                categories[cat] = {}
+                table.insert(categoryOrder, cat)
+            end
+            table.insert(categories[cat], item)
+        end
+
+        local emptyGroups = {}
         for _, bagID in ipairs(activeBags) do
             local numSlots = GetContainerNumSlots(bagID) or 0
             for slotID = 1, numSlots do
                 local info = OmniC_Container.GetContainerItemInfo(bagID, slotID)
                 if not info then
                     local freeSpaceCat = GetFreeSpaceCategoryName(bagID)
-                    local emptyItem = {
+                    emptyGroups[freeSpaceCat] = emptyGroups[freeSpaceCat] or {
                         bagID = bagID,
                         slotID = slotID,
                         __empty = true,
                         category = freeSpaceCat,
-                        emptyCount = 1,
+                        emptyCount = 0,
                     }
-                    if not categories[freeSpaceCat] then
-                        categories[freeSpaceCat] = {}
-                        table.insert(categoryOrder, freeSpaceCat)
-                    end
-                    table.insert(categories[freeSpaceCat], emptyItem)
+                    emptyGroups[freeSpaceCat].emptyCount = emptyGroups[freeSpaceCat].emptyCount + 1
                 end
             end
         end
-    end
 
-    if Omni.Categorizer then
-        table.sort(categoryOrder, function(a, b)
-            local infoA = Omni.Categorizer:GetCategoryInfo(a)
-            local infoB = Omni.Categorizer:GetCategoryInfo(b)
-            local prioA = infoA and infoA.priority or 99
-            local prioB = infoB and infoB.priority or 99
-            if prioA ~= prioB then
-                return prioA < prioB
+        if collapseEmpty then
+            for catName, item in pairs(emptyGroups) do
+                if not categories[catName] then
+                    categories[catName] = {}
+                    table.insert(categoryOrder, catName)
+                end
+                table.insert(categories[catName], item)
             end
-            return a < b
-        end)
-    end
+        else
+            for _, bagID in ipairs(activeBags) do
+                local numSlots = GetContainerNumSlots(bagID) or 0
+                for slotID = 1, numSlots do
+                    local info = OmniC_Container.GetContainerItemInfo(bagID, slotID)
+                    if not info then
+                        local freeSpaceCat = GetFreeSpaceCategoryName(bagID)
+                        local emptyItem = {
+                            bagID = bagID,
+                            slotID = slotID,
+                            __empty = true,
+                            category = freeSpaceCat,
+                            emptyCount = 1,
+                        }
+                        if not categories[freeSpaceCat] then
+                            categories[freeSpaceCat] = {}
+                            table.insert(categoryOrder, freeSpaceCat)
+                        end
+                        table.insert(categories[freeSpaceCat], emptyItem)
+                    end
+                end
+            end
+        end
 
-    -- Bubble all categories starting with "Free Space" to the absolute end
-    local reordered = {}
-    for _, catName in ipairs(categoryOrder) do
-        if not string.match(catName, "^Free Space") then
-            table.insert(reordered, catName)
+        if Omni.Categorizer then
+            table.sort(categoryOrder, function(a, b)
+                local infoA = Omni.Categorizer:GetCategoryInfo(a)
+                local infoB = Omni.Categorizer:GetCategoryInfo(b)
+                local prioA = infoA and infoA.priority or 99
+                local prioB = infoB and infoB.priority or 99
+                if prioA ~= prioB then
+                    return prioA < prioB
+                end
+                return a < b
+            end)
         end
-    end
-    for _, catName in ipairs(categoryOrder) do
-        if string.match(catName, "^Free Space") then
-            table.insert(reordered, catName)
+
+        -- Bubble all categories starting with "Free Space" to the absolute end
+        local reordered = {}
+        for _, catName in ipairs(categoryOrder) do
+            if not string.match(catName, "^Free Space") then
+                table.insert(reordered, catName)
+            end
         end
+        for _, catName in ipairs(categoryOrder) do
+            if string.match(catName, "^Free Space") then
+                table.insert(reordered, catName)
+            end
+        end
+        categoryOrder = reordered
     end
-    categoryOrder = reordered
 
     local dualCategoryLanes = #categoryOrder > 1
 
@@ -1566,11 +1679,23 @@ function BankFrame:RenderFlowView(items)
             header:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", laneX, laneY)
 
             local r, g, b = 1, 1, 1
-            if Omni.Categorizer then
-                r, g, b = Omni.Categorizer:GetCategoryColor(catName)
+            if currentBankView == "bag" then
+                local totalSlots = GetContainerNumSlots(catName) or 0
+                local filled = 0
+                for _, item in ipairs(catItems) do
+                    if not item.__empty then
+                        filled = filled + 1
+                    end
+                end
+                header:SetTextColor(0.9, 0.8, 0.4)
+                header:SetText(GetBagDisplayName(catName) .. " (" .. filled .. "/" .. totalSlots .. ")")
+            else
+                if Omni.Categorizer then
+                    r, g, b = Omni.Categorizer:GetCategoryColor(catName)
+                end
+                header:SetTextColor(r, g, b)
+                header:SetText(catName .. " (" .. #catItems .. ")")
             end
-            header:SetTextColor(r, g, b)
-            header:SetText(catName .. " (" .. #catItems .. ")")
             header:Show()
 
             laneY = laneY - sectionHeaderHeight
@@ -1827,8 +1952,10 @@ function BankFrame:UpdateLayout()
     self:UpdateBankBagButtonIcons()
     self:UpdateBankBagButtonVisuals()
 
+    local items = CollectBankItems()
+
     if currentBankView == "grid" or InCombat() then
-        local items = CollectBankItems()
+        for _, row in ipairs(listRows) do row:Hide() end
         local perfRender = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("bank.UpdateLayout.renderGrid")
         self:RenderGridView(items)
         if Omni._perfEnabled and Omni.Perf then
@@ -1842,9 +1969,26 @@ function BankFrame:UpdateLayout()
             Omni.Perf:End("bank.UpdateLayout.total", perfTotal, { itemCount = #items, view = "grid" })
         end
         return
+    elseif currentBankView == "list" then
+        for _, row in ipairs(listRows) do row:Hide() end
+        local perfRender = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("bank.UpdateLayout.renderList")
+        self:RenderListView(items)
+        if Omni._perfEnabled and Omni.Perf then
+            Omni.Perf:End("bank.UpdateLayout.renderList", perfRender, { itemCount = #items })
+        end
+        self:UpdateSlotCount()
+        if searchText and searchText ~= "" then
+            self:ApplySearch(searchText)
+        end
+        if Omni._perfEnabled and Omni.Perf then
+            Omni.Perf:End("bank.UpdateLayout.total", perfTotal, { itemCount = #items, view = "list" })
+        end
+        return
     end
 
-    local items = CollectBankItems()
+    -- Hide list rows for flow / bag mode
+    for _, row in ipairs(listRows) do row:Hide() end
+
     local perfRender = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("bank.UpdateLayout.renderFlow")
     self:RenderFlowView(items)
     if Omni._perfEnabled and Omni.Perf then
@@ -2054,4 +2198,172 @@ function BankFrame:SetItemGap(gap)
 
     self:UpdateLayout()
     return true
+end
+
+function BankFrame:RenderListView(items)
+    if not bankFrame or not bankFrame.scrollChild then return end
+
+    local scrollChild = bankFrame.scrollChild
+
+    -- Hide all flow/grid buttons
+    if Omni.Pool then
+        for _, btn in ipairs(itemButtons) do
+            Omni.Pool:Release("ItemButton", btn)
+            pcall(btn.Hide, btn)
+        end
+    end
+    itemButtons = {}
+
+    for _, header in ipairs(categoryHeaders) do
+        header:Hide()
+    end
+
+    for _, row in ipairs(listRows) do
+        row:Hide()
+    end
+
+    local ROW_HEIGHT = 22
+    local ICON_SIZE = 18
+    local yOffset = -4
+
+    for i, itemInfo in ipairs(items) do
+        local row = listRows[i]
+        if not row then
+            row = CreateFrame("Button", nil, scrollChild)
+            row:SetHeight(ROW_HEIGHT)
+            row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+
+            row.bg = row:CreateTexture(nil, "BACKGROUND")
+            row.bg:SetAllPoints()
+            row.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+
+            row.icon = row:CreateTexture(nil, "ARTWORK")
+            row.icon:SetSize(ICON_SIZE, ICON_SIZE)
+            row.icon:SetPoint("LEFT", 4, 0)
+
+            row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+            row.name:SetWidth(180)
+            row.name:SetJustifyH("LEFT")
+
+            row.itemType = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            row.itemType:SetPoint("LEFT", row.name, "RIGHT", 8, 0)
+            row.itemType:SetWidth(80)
+            row.itemType:SetJustifyH("LEFT")
+            row.itemType:SetTextColor(0.7, 0.7, 0.7)
+
+            row.qty = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            row.qty:SetPoint("RIGHT", -8, 0)
+            row.qty:SetWidth(30)
+            row.qty:SetJustifyH("RIGHT")
+
+            row:SetScript("OnEnter", function(self)
+                self.bg:SetVertexColor(0.3, 0.3, 0.3, 1)
+                if self.itemInfo and self.itemInfo.bagID and self.itemInfo.slotID then
+                    self.__omniUsesCustomTooltip = true
+                    if Omni.ItemButton and Omni.ItemButton.SetOmniItemTooltipOwner then
+                        Omni.ItemButton.SetOmniItemTooltipOwner(self)
+                    else
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    end
+                    local ok = pcall(GameTooltip.SetBagItem, GameTooltip, self.itemInfo.bagID, self.itemInfo.slotID)
+                    if not ok and self.itemInfo.hyperlink then
+                        pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
+                    end
+                    GameTooltip:Show()
+                    if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
+                        Omni.ItemButton.FinalizeOmniItemTooltipLayout()
+                    end
+                end
+            end)
+            row:SetScript("OnLeave", function(self)
+                self.bg:SetVertexColor(0.1, 0.1, 0.1, 1)
+                self.__omniUsesCustomTooltip = false
+                if Omni.ItemButton and Omni.ItemButton.HideTooltipIfOwnedBy then
+                    Omni.ItemButton.HideTooltipIfOwnedBy(self)
+                elseif GameTooltip and GameTooltip.GetOwner and GameTooltip:GetOwner() == self then
+                    GameTooltip:Hide()
+                end
+            end)
+            row:HookScript("OnClick", function(self, mouseButton)
+                local mb = mouseButton
+                if mb == "RightButtonUp" or mb == "RightButtonDown" then
+                    mb = "RightButton"
+                elseif mb == "LeftButtonUp" or mb == "LeftButtonDown" then
+                    mb = "LeftButton"
+                end
+                if mb == "RightButton" and self.itemInfo then
+                    local bagID, slotID = self.itemInfo.bagID, self.itemInfo.slotID
+                    if bagID and slotID then
+                        UseContainerItem(bagID, slotID)
+                    end
+                    return
+                end
+                if mb ~= "LeftButton" or not self.itemInfo then
+                    return
+                end
+                local bagID, slotID = self.itemInfo.bagID, self.itemInfo.slotID
+                if not bagID or not slotID then
+                    return
+                end
+                if InCombatLockdown and InCombatLockdown() then
+                    return
+                end
+                PickupContainerItem(bagID, slotID)
+            end)
+            listRows[i] = row
+        end
+
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, yOffset)
+        row:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", 0, yOffset)
+
+        if i % 2 == 0 then
+            row.bg:SetVertexColor(0.15, 0.15, 0.15, 1)
+        else
+            row.bg:SetVertexColor(0.1, 0.1, 0.1, 1)
+        end
+
+        local success, err = pcall(function()
+            row.icon:SetTexture(itemInfo.iconFileID or "Interface\\Icons\\INV_Misc_QuestionMark")
+            local itemName, _, quality, _, _, itemType, itemSubType = nil, nil, itemInfo.quality, nil, nil, nil, nil
+            if itemInfo.hyperlink then
+                itemName, _, quality, _, _, itemType, itemSubType = GetItemInfo(itemInfo.hyperlink)
+            end
+            local QUALITY_COLORS = {
+                [0] = { 0.62, 0.62, 0.62 },
+                [1] = { 1.00, 1.00, 1.00 },
+                [2] = { 0.12, 1.00, 0.00 },
+                [3] = { 0.00, 0.44, 0.87 },
+                [4] = { 0.64, 0.21, 0.93 },
+                [5] = { 1.00, 0.50, 0.00 },
+                [6] = { 0.90, 0.80, 0.50 },
+                [7] = { 0.00, 0.80, 1.00 },
+            }
+            local qColor = QUALITY_COLORS[quality or 1] or QUALITY_COLORS[1]
+            row.name:SetText(itemName or itemInfo.hyperlink or "Unknown")
+            row.name:SetTextColor(qColor[1], qColor[2], qColor[3])
+
+            row.itemType:SetText(itemSubType or itemType or "")
+
+            local count = itemInfo.stackCount or 1
+            if count > 1 then
+                row.qty:SetText(count)
+            else
+                row.qty:SetText("")
+            end
+        end)
+
+        if not success then
+             row.name:SetText("Error loading item")
+             row.name:SetTextColor(1, 0, 0)
+             row.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        end
+
+        row.itemInfo = itemInfo
+        row:Show()
+        yOffset = yOffset - ROW_HEIGHT
+    end
+
+    scrollChild:SetHeight(math.abs(yOffset) + 8)
 end
