@@ -902,6 +902,15 @@ function Frame:CreateMainFrame()
         end
     end
 
+    -- Focus button for Ctrl-F keybind (combat-safe keybinding override)
+    local focusButton = CreateFrame("Button", "OmniSearchFocusButton", mainFrame)
+    focusButton:SetScript("OnClick", function()
+        if mainFrame.searchBox and mainFrame.searchBox:IsShown() then
+            mainFrame.searchBox:SetFocus()
+        end
+    end)
+    SetOverrideBinding(mainFrame, true, "CTRL-F", "CLICK OmniSearchFocusButton:LeftButton")
+
     -- Secure-anchor watcher: keep OmniInventorySecureAnchor offset
     -- synchronized with the footer's screen-space position so the
     -- secure footer buttons always render over the footer even after
@@ -1528,16 +1537,35 @@ function Frame:CreateSearchBar()
     -- Search editbox (plain EditBox, no template to avoid white borders)
     searchBar.editBox = CreateFrame("EditBox", "OmniSearchBox", searchBar)
     searchBar.editBox:SetPoint("LEFT", searchBar.icon, "RIGHT", 4, 0)
-    searchBar.editBox:SetPoint("RIGHT", -6, 0)
     searchBar.editBox:SetHeight(18)
     searchBar.editBox:SetAutoFocus(false)
     searchBar.editBox:SetFontObject(ChatFontNormal)
     searchBar.editBox:SetTextColor(1, 1, 1, 1)
     searchBar.editBox:SetTextInsets(2, 2, 0, 0)
 
+    -- Clear button (red X)
+    local clearBtn = CreateFrame("Button", nil, searchBar)
+    clearBtn:SetSize(14, 14)
+    clearBtn:SetPoint("RIGHT", -6, 0)
+    clearBtn:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+    clearBtn:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
+    clearBtn:Hide()
+
+    searchBar.editBox:SetPoint("RIGHT", clearBtn, "LEFT", -4, 0)
+
+    clearBtn:SetScript("OnClick", function()
+        searchBar.editBox:SetText("")
+        searchBar.editBox:ClearFocus()
+    end)
+
     searchBar.editBox:SetScript("OnTextChanged", function(self)
         searchText = self:GetText() or ""
         Frame:ApplySearch(searchText)
+        if searchText ~= "" then
+            clearBtn:Show()
+        else
+            clearBtn:Hide()
+        end
     end)
 
     searchBar.editBox:SetScript("OnEscapePressed", function(self)
@@ -1547,6 +1575,8 @@ function Frame:CreateSearchBar()
 
     mainFrame.searchBar = searchBar
     mainFrame.searchBox = searchBar.editBox
+    mainFrame.searchClearBtn = clearBtn
+    searchBar.clearBtn = clearBtn
 end
 
 -- =============================================================================
