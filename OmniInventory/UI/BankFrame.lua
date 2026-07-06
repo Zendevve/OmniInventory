@@ -598,7 +598,10 @@ local function CreateSearchBar(parent)
 
     searchBar.editBox:SetScript("OnTextChanged", function(self)
         searchText = self:GetText() or ""
-        BankFrame:ApplySearch(searchText)
+        isSearchActive = (searchText ~= "")
+        if BankFrame and BankFrame.UpdateLayout then
+            BankFrame:UpdateLayout()
+        end
     end)
     searchBar.editBox:SetScript("OnEscapePressed", function(self)
         self:SetText("")

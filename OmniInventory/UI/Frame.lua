@@ -1561,7 +1561,10 @@ function Frame:CreateSearchBar()
 
     searchBar.editBox:SetScript("OnTextChanged", function(self)
         searchText = self:GetText() or ""
-        Frame:ApplySearch(searchText)
+        isSearchActive = (searchText ~= "")
+        if Frame and Frame.UpdateLayout then
+            Frame:UpdateLayout(nil, { reason = "search_change" })
+        end
         if searchText ~= "" then
             clearBtn:Show()
         else
