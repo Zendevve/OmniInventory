@@ -4787,13 +4787,15 @@ function Frame:RenderFlowView(items, layoutOpts)
                     if currentView == "bag" then
                         local usedSlots = bagItemCounts and bagItemCounts[catName] or #catItems
                         local totalSlots = bagSlotCounts and bagSlotCounts[catName] or #catItems
-                        local displayName = GetBagDisplayName(catName)
+                        local displayName = "Unknown Bag"
                         if type(catName) == "string" and string.find(catName, "_") then
                             local altName, bagIDStr = string.match(catName, "^([^_]+)_(%-?%d+)$")
                             if altName and bagIDStr then
                                 local bagID = tonumber(bagIDStr)
                                 displayName = altName .. "'s " .. GetBagDisplayName(bagID)
                             end
+                        else
+                            displayName = GetBagDisplayName(catName)
                         end
                         header:SetText(prefix .. displayName .. " (" .. usedSlots .. "/" .. totalSlots .. ")")
                     else
@@ -4803,13 +4805,15 @@ function Frame:RenderFlowView(items, layoutOpts)
                     if currentView == "bag" then
                         local usedSlots = bagItemCounts and bagItemCounts[catName] or #catItems
                         local totalSlots = bagSlotCounts and bagSlotCounts[catName] or #catItems
-                        local displayName = GetBagDisplayName(catName)
+                        local displayName = "Unknown Bag"
                         if type(catName) == "string" and string.find(catName, "_") then
                             local altName, bagIDStr = string.match(catName, "^([^_]+)_(%-?%d+)$")
                             if altName and bagIDStr then
                                 local bagID = tonumber(bagIDStr)
                                 displayName = altName .. "'s " .. GetBagDisplayName(bagID)
                             end
+                        else
+                            displayName = GetBagDisplayName(catName)
                         end
                         header:SetText(prefix .. displayName .. " (" .. usedSlots .. "/" .. totalSlots .. ")")
                     else

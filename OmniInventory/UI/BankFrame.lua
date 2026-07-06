@@ -1760,11 +1760,10 @@ function BankFrame:RenderFlowView(items)
             header:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", laneX, laneY)
 
             local r, g, b = 1, 1, 1
-            local r, g, b = 1, 1, 1
             if currentBankView == "bag" then
                 local totalSlots = 0
                 local filled = 0
-                local displayName = GetBagDisplayName(catName)
+                local displayName = "Unknown Bag"
                 if type(catName) == "string" and string.find(catName, "_") then
                     local altName, bagIDStr = string.match(catName, "^([^_]+)_(%-?%d+)$")
                     if altName and bagIDStr then
@@ -1777,6 +1776,7 @@ function BankFrame:RenderFlowView(items)
                         end
                     end
                 else
+                    displayName = GetBagDisplayName(catName)
                     totalSlots = GetContainerNumSlots(catName) or 0
                 end
                 for _, item in ipairs(catItems) do
