@@ -184,6 +184,7 @@ local TAB_CATALOG = {
     { label = "Addon Buttons",      key = "addons"  },
     { label = "Auto-Display",       key = "autodisplay" },
     { label = "Features",           key = "features" },
+    { label = "Rules",              key = "rules"   },
 }
 
 local activeTab = 1
@@ -349,6 +350,9 @@ function Settings:SelectTab(index, skipScrollReset)
     -- The scrollChild tracks the visible panel's height so the scrollbar
     -- reflects only the active tab's content length.
     local panel = self.tabPanels and self.tabPanels[index]
+    if panel and panel.Refresh then
+        panel:Refresh()
+    end
     if panel and panel._contentHeight and self.content then
         self.content:SetHeight(panel._contentHeight)
     end
@@ -374,6 +378,9 @@ function Settings:CreateControls()
     self:BuildAddonButtons(self.tabPanels[6])
     self:BuildAutoDisplay(self.tabPanels[7])
     self:BuildFeatures(self.tabPanels[8])
+    if self.tabPanels[9] then
+        self:BuildRules(self.tabPanels[9])
+    end
 end
 
 -- Shared checkbox factory that wires to Omni.Data
@@ -1157,6 +1164,251 @@ function Settings:RefreshSortLabel()
     -- Capitalize first letter
     sort = sort:gsub("^%l", string.upper)
     self.sortBtn.text:SetText("Sort: " .. sort)
+end
+
+function Settings:BuildRules(panel)
+    panel.editingCategoryName = nil  -- nil: list view, "": new category/rule, "name": edit rule
+
+    local container = CreateFrame("Frame", nil, panel)
+    container:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, 0)
+    container:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
+    panel.container = container
+
+    local function RefreshPanel()
+        -- Clean up existing widgets in container
+        local children = { container:GetChildren() }
+        for _, child in ipairs(children) do
+            child:Hide()
+            child:SetParent(nil)
+        end
+        local regions = { container:GetRegions() }
+        for _, region in ipairs(regions) do
+            region:Hide()
+        end
+
+        local y = -15
+        local header = OpsTheme.CreateSectionHeader(container, "[+]  Custom Rules", SECTION_COLORS.colors)
+        header:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+        y = y - HEADER_GAP
+
+        if panel.editingCategoryName then
+            -- =============================================================================
+            -- EDITOR MODE
+            -- =============================================================================
+            local isNew = (panel.editingCategoryName == "")
+            local catName = panel.editingCategoryName
+            local catDef = not isNew and Omni.Categories and Omni.Categories:Get(catName)
+
+            local ruleName = isNew and "" or catName
+            local rulePrio = catDef and tostring(catDef.sequence or 50) or "50"
+            local ruleFormula = catDef and tostring(catDef.rule or "") or ""
+
+            -- Title for Editor
+            local subHeader = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            subHeader:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            subHeader:SetText(isNew and "CREATE NEW RULE" or "EDIT RULE: " .. catName)
+            subHeader:SetTextColor(0.9, 0.9, 0.9)
+            y = y - 16
+
+            -- Input Helper Function
+            local function CreateEditBox(width, height, defaultVal, isMultiLine)
+                local f = CreateFrame("Frame", nil, container)
+                f:SetSize(width, height)
+                OpsTheme:ApplyControlBackdrop(f)
+                f:SetBackdropColor(0.08, 0.08, 0.08, 1)
+
+                local eb = CreateFrame("EditBox", nil, f)
+                eb:SetSize(width - 12, height - 6)
+                eb:SetPoint("TOPLEFT", 6, -3)
+                eb:SetAutoFocus(false)
+                eb:SetFontObject(ChatFontNormal)
+                eb:SetTextColor(1, 1, 1, 1)
+                eb:SetTextInsets(0, 0, 0, 0)
+                eb:SetText(defaultVal)
+                if isMultiLine then
+                    eb:SetMultiLine(true)
+                end
+                eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+
+                f.editBox = eb
+                return f
+            end
+
+            -- Rule Name Label
+            local nameLabel = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            nameLabel:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            nameLabel:SetText("Rule / Category Name:")
+            nameLabel:SetTextColor(0.7, 0.7, 0.7)
+            y = y - 14
+
+            -- Rule Name Input
+            local nameFrame = CreateEditBox(200, 22, ruleName)
+            nameFrame:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            y = y - 30
+            if not isNew then
+                nameFrame.editBox:EnableMouse(false)
+                nameFrame.editBox:SetTextColor(0.5, 0.5, 0.5)
+            end
+
+            -- Priority Label
+            local prioLabel = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            prioLabel:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            prioLabel:SetText("Priority / Order (lower numbers run first):")
+            prioLabel:SetTextColor(0.7, 0.7, 0.7)
+            y = y - 14
+
+            -- Priority Input
+            local prioFrame = CreateEditBox(60, 22, rulePrio)
+            prioFrame:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            y = y - 30
+
+            -- Formula Label
+            local formulaLabel = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            formulaLabel:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            formulaLabel:SetText("Rule Formula:")
+            formulaLabel:SetTextColor(0.7, 0.7, 0.7)
+            y = y - 14
+
+            -- Formula Input
+            local formulaFrame = CreateEditBox(320, 60, ruleFormula, true)
+            formulaFrame:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            y = y - 70
+
+            -- Status / Error text
+            local errorLabel = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            errorLabel:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            errorLabel:SetWidth(320)
+            errorLabel:SetJustifyH("LEFT")
+            errorLabel:SetText("")
+            errorLabel:SetTextColor(1, 0.2, 0.2)
+            y = y - 30
+
+            -- Buttons
+            local saveBtn = OpsTheme.CreateButton(container, "Save", 80, function()
+                local nameText = nameFrame.editBox:GetText() or ""
+                nameText = nameText:match("^%s*(.-)%s*$") -- simple trim
+                local prioNum = tonumber(prioFrame.editBox:GetText()) or 50
+                local formulaText = formulaFrame.editBox:GetText() or ""
+
+                if nameText == "" then
+                    errorLabel:SetText("Error: Name is required.")
+                    return
+                end
+
+                -- Check syntax by compiling the rule first
+                local _, compileErr = Omni.Rules:Compile(formulaText)
+                if compileErr then
+                    errorLabel:SetText("Formula Error: " .. compileErr)
+                    return
+                end
+
+                if Omni.Categories then
+                    -- Save category
+                    local success, err = Omni.Categories:Create(nameText, {
+                        sequence = prioNum,
+                        rule = formulaText,
+                    })
+                    if not success then
+                        errorLabel:SetText("Error: " .. (err or "failed to create"))
+                        return
+                    end
+                end
+
+                -- Close editor
+                panel.editingCategoryName = nil
+                RefreshPanel()
+                RefreshAllInventory()
+            end)
+            saveBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+
+            local cancelBtn = OpsTheme.CreateButton(container, "Cancel", 80, function()
+                panel.editingCategoryName = nil
+                RefreshPanel()
+            end)
+            cancelBtn:SetPoint("TOPLEFT", saveBtn, "TOPRIGHT", 10, 0)
+            y = y - 30
+
+        else
+            -- =============================================================================
+            -- LIST MODE
+            -- =============================================================================
+            local addBtn = OpsTheme.CreateButton(container, "+ Add New Rule", 120, function()
+                panel.editingCategoryName = ""
+                RefreshPanel()
+            end)
+            addBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            y = y - 30
+
+            local cats = Omni.Categories and Omni.Categories:GetAll() or {}
+            if #cats == 0 then
+                local noRulesText = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                noRulesText:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                noRulesText:SetText("No custom rules created yet.")
+                noRulesText:SetTextColor(0.5, 0.5, 0.5)
+                y = y - 20
+            else
+                for _, cat in ipairs(cats) do
+                    local rowFrame = CreateFrame("Frame", nil, container)
+                    rowFrame:SetSize(CONTENT_W - 24, 38)
+                    rowFrame:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                    OpsTheme:ApplyControlBackdrop(rowFrame)
+                    rowFrame:SetBackdropColor(0.1, 0.1, 0.1, 0.3)
+
+                    -- Name & Prio
+                    local nameText = rowFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+                    nameText:SetPoint("TOPLEFT", 6, -4)
+                    nameText:SetText(cat.name)
+                    nameText:SetTextColor(1, 0.82, 0)
+
+                    local prioText = rowFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                    prioText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
+                    prioText:SetText("Prio: " .. (cat.sequence or 50))
+                    prioText:SetTextColor(0.6, 0.6, 0.6)
+
+                    -- Formula (truncated)
+                    local formulaText = rowFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                    formulaText:SetPoint("LEFT", 120, 0)
+                    formulaText:SetWidth(120)
+                    formulaText:SetJustifyH("LEFT")
+                    local rawFormula = cat.rule or ""
+                    if #rawFormula > 25 then
+                        rawFormula = string.sub(rawFormula, 1, 22) .. "..."
+                    end
+                    formulaText:SetText(rawFormula)
+                    formulaText:SetTextColor(0.8, 0.8, 0.8)
+
+                    -- Action buttons
+                    local editBtn = OpsTheme.CreateButton(rowFrame, "Edit", 40, function()
+                        panel.editingCategoryName = cat.name
+                        RefreshPanel()
+                    end)
+                    editBtn:SetPoint("RIGHT", -50, 0)
+                    editBtn:SetHeight(18)
+
+                    local deleteBtn = OpsTheme.CreateButton(rowFrame, "Del", 36, function()
+                        if Omni.Categories then
+                            Omni.Categories:Delete(cat.name)
+                        end
+                        RefreshPanel()
+                        RefreshAllInventory()
+                    end)
+                    deleteBtn:SetPoint("RIGHT", -8, 0)
+                    deleteBtn:SetHeight(18)
+                    deleteBtn.text:SetTextColor(1, 0.3, 0.3)
+
+                    y = y - 42
+                end
+            end
+        end
+
+        panel._contentHeight = math.abs(y) + 40
+        if Settings.content then
+            Settings.content:SetHeight(panel._contentHeight)
+        end
+    end
+
+    panel.Refresh = RefreshPanel
+    RefreshPanel()
 end
 
 function Settings:Init()
