@@ -4060,9 +4060,9 @@ function Frame:RenderFlowView(items, layoutOpts)
     -- needing a protected structural call.
     EnsureSlotButtons()
 
-    if Omni.Data and Omni.Data.currentViewedChar then
+    if isOfflineCharView then
         if IterateSlotButtons then
-            IterateSlotButtons(function(btn)
+            IterateSlotButtons(function(bagID, slotID, btn)
                 pcall(btn.Hide, btn)
             end)
         end
@@ -5071,6 +5071,12 @@ function Frame:RenderFlowView(items, layoutOpts)
         local nTouched = CountTouchedSlotsInScope(touched, bagPreviewScopeSet)
         overflowIndex = math.max(0, scopedTotal - nTouched)
     else
+        if isOfflineCharView then
+            -- When viewing an offline character, all items use pool buttons.
+            -- The real player's slot buttons were already hidden above.
+            -- Skip the overflow parking entirely.
+            overflowIndex = 0
+        else
         IterateSlotButtons(function(bagID, slotID, btn)
             if bagPreviewScopeSet and not bagPreviewScopeSet[bagID] then
                 pcall(btn.SetAlpha, btn, 0)
@@ -5119,6 +5125,7 @@ function Frame:RenderFlowView(items, layoutOpts)
 
             overflowIndex = overflowIndex + 1
         end)
+        end -- not isOfflineCharView
     end
 
     local overflowRows = math.ceil(overflowIndex / math.max(overflowColumns, 1))
@@ -5794,8 +5801,9 @@ local function OpenCharacterSelectMenu(anchorFrame)
                 end
 
                 if Omni.Frame then
+                    Omni.Frame:InvalidateRenderCaches({ clearLayout = true })
                     Omni.Frame:UpdateTitle()
-                    Omni.Frame:UpdateLayout(nil, { forceFull = true, immediate = true })
+                    Omni.Frame:UpdateLayout(nil, { forceFull = true, immediate = true, reason = "char_switch" })
                 end
                 if Omni.BankFrame then
                     Omni.BankFrame:UpdateTitle()
