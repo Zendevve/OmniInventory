@@ -4051,6 +4051,14 @@ function Frame:RenderFlowView(items, layoutOpts)
     -- needing a protected structural call.
     EnsureSlotButtons()
 
+    if Omni.Data and Omni.Data.currentViewedChar then
+        if IterateSlotButtons then
+            IterateSlotButtons(function(btn)
+                pcall(btn.Hide, btn)
+            end)
+        end
+    end
+
     if Omni.Pool then
         for _, btn in ipairs(offlineFlowButtons) do
             Omni.Pool:Release("ItemButton", btn)
