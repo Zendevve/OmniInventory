@@ -361,6 +361,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
 
     elseif event == "PLAYER_LOGIN" then
+        if Omni.Data then
+            Omni.Data:Init()
+            local rName = GetRealmName()
+            if OmniInventoryDB and OmniInventoryDB.realm and OmniInventoryDB.realm[rName] then
+                OmniInventoryDB.realm[rName]["Unknown Character"] = nil
+            end
+        end
         if Omni.Pool then Omni.Pool:Init() end
         if Omni.Events then Omni.Events:Init() end
         if Omni.Categorizer then Omni.Categorizer:Init() end
