@@ -3523,6 +3523,7 @@ function Frame:CycleSort()
 
     local newMode = modes[nextIdx]
     Omni.Sorter:SetDefaultMode(newMode)
+    self:InvalidateRenderCaches({ clearLayout = true })
 
     -- Update button tooltip on next hover
     if mainFrame and mainFrame.header and mainFrame.header.sortBtn then
@@ -5185,6 +5186,14 @@ function Frame:RenderListView(items)
     IterateSlotButtons(function(_, _, btn)
         pcall(btn.SetAlpha, btn, 0)
     end)
+    if Omni.Pool then
+        for _, btn in ipairs(offlineFlowButtons) do
+            Omni.Pool:Release("ItemButton", btn)
+            pcall(btn.Hide, btn)
+        end
+    end
+    ClearArray(offlineFlowButtons)
+
     itemButtons = {}
 
     for _, row in ipairs(listRows) do
