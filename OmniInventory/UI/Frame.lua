@@ -3486,7 +3486,7 @@ function Frame:SetView(mode)
     OmniInventoryDB.char.settings.viewMode = currentView
 
     self:UpdateBagIconVisuals()
-    Frame:UpdateLayout()
+    Frame:UpdateLayout(nil, { forceFull = true, immediate = true, reason = "view_change" })
 end
 
 function Frame:CycleView()
@@ -3540,7 +3540,7 @@ function Frame:CycleSort()
     end
 
     -- Refresh layout with new sort
-    Frame:UpdateLayout()
+    Frame:UpdateLayout(nil, { forceFull = true, immediate = true, reason = "sort_change" })
 end
 
 function Frame:UpdateSortButton()
