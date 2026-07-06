@@ -1230,6 +1230,11 @@ function ItemButton:OnPreClick(button, mouseButton)
 
     button._realID = button:GetID()
 
+    if button.itemInfo and button.itemInfo.__offline then
+        pcall(button.SetID, button, 0)
+        return
+    end
+
     if mouseButton == "RightButton" and MerchantFrame and MerchantFrame:IsShown() and MerchantFrame.selectedTab == 1 then
         local bagID = button.bagID
         local slotID = button.slotID
@@ -1387,8 +1392,9 @@ function ItemButton:OnEnter(button)
         GameTooltip:SetHyperlink(info.hyperlink)
         if info.__offline then
             GameTooltip:AddLine(" ")
-            local charName = Omni.Data and Omni.Data.currentViewedChar or "Unknown Character"
-            GameTooltip:AddLine("Offline Item (" .. charName .. ")", 0.5, 0.5, 0.5)
+            local ownerName = info.__owner or (Omni.Data and Omni.Data.currentViewedChar) or "Unknown Character"
+            local locationStr = info.__location and (info.__location:gsub("^%l", string.upper)) or "Bags"
+            GameTooltip:AddLine("Held by: " .. ownerName .. " (" .. locationStr .. ")", 0.9, 0.8, 0.4)
         elseif not IsLiveContainerFrameSlot(bagID, slotID) then
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine("Bank Item (Offline)", 0.5, 0.5, 0.5)

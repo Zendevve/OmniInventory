@@ -152,6 +152,7 @@ end
 
 local slotButtons = {}
 local itemButtons = {}  -- Flat list of populated slot buttons (search / cooldown)
+local offlineFlowButtons = {}  -- Track pool-acquired alt/offline buttons in RenderFlowView
 local categoryHeaders = {}  -- Active category header FontStrings
 local listRows = {}  -- Track list row frames
 local currentView = DIM.DEFAULT_VIEW_MODE
@@ -3852,6 +3853,59 @@ function Frame:UpdateLayout(changedBags, opts)
         Omni.Perf:End("frame.UpdateLayout.collect", perfCollect, { itemCount = #items, reason = updateReason })
     end
 
+    -- Cross-character search logic
+    if isSearchActive and searchText ~= "" and OmniInventoryDB and OmniInventoryDB.realm then
+        local currentRealm = GetRealmName()
+        local realmData = OmniInventoryDB.realm[currentRealm]
+        if realmData then
+            local currentOwner = Omni.Data and (Omni.Data.currentViewedChar or Omni.Data.playerName)
+            for charName, charData in pairs(realmData) do
+                if charName ~= currentOwner then
+                    -- Scan bags
+                    if charData.bags then
+                        for _, item in ipairs(charData.bags) do
+                            local altItem = {
+                                bagID = item.bagID,
+                                slotID = item.slotID,
+                                hyperlink = item.link,
+                                link = item.link,
+                                stackCount = item.count or 1,
+                                quality = item.quality or 0,
+                                iconFileID = GetItemIcon(item.link),
+                                __offline = true,
+                                __owner = charName,
+                                __location = "bags",
+                            }
+                            if Omni.MatchItemQuery and Omni.MatchItemQuery(altItem, searchText) then
+                                table.insert(items, altItem)
+                            end
+                        end
+                    end
+                    -- Scan bank
+                    if charData.bank then
+                        for _, item in ipairs(charData.bank) do
+                            local altItem = {
+                                bagID = item.bagID,
+                                slotID = item.slotID,
+                                hyperlink = item.link,
+                                link = item.link,
+                                stackCount = item.count or 1,
+                                quality = item.quality or 0,
+                                iconFileID = GetItemIcon(item.link),
+                                __offline = true,
+                                __owner = charName,
+                                __location = "bank",
+                            }
+                            if Omni.MatchItemQuery and Omni.MatchItemQuery(altItem, searchText) then
+                                table.insert(items, altItem)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     -- Categorize items
     if Omni.Categorizer then
         local perfCategorize = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("frame.UpdateLayout.categorize")
@@ -3997,6 +4051,14 @@ function Frame:RenderFlowView(items, layoutOpts)
     -- needing a protected structural call.
     EnsureSlotButtons()
 
+    if Omni.Pool then
+        for _, btn in ipairs(offlineFlowButtons) do
+            Omni.Pool:Release("ItemButton", btn)
+            pcall(btn.Hide, btn)
+        end
+    end
+    ClearArray(offlineFlowButtons)
+
     ClearArray(itemButtons)
 
     local categories = renderScratch.categories
@@ -4067,7 +4129,7 @@ function Frame:RenderFlowView(items, layoutOpts)
         categoryOrder[1] = "All"
 
         for _, itemInfo in ipairs(items) do
-            if IsValidBagID(itemInfo.bagID) and itemInfo.slotID and itemInfo.slotID > 0 then
+            if not itemInfo.__offline and IsValidBagID(itemInfo.bagID) and itemInfo.slotID and itemInfo.slotID > 0 then
                 itemBySlot[itemInfo.bagID] = itemBySlot[itemInfo.bagID] or {}
                 itemBySlot[itemInfo.bagID][itemInfo.slotID] = itemInfo
             end
@@ -4075,7 +4137,7 @@ function Frame:RenderFlowView(items, layoutOpts)
 
         -- Insert sorted filled items first
         for _, itemInfo in ipairs(items) do
-            if IsValidBagID(itemInfo.bagID) and itemInfo.slotID and itemInfo.slotID > 0 then
+            if itemInfo.__offline or (IsValidBagID(itemInfo.bagID) and itemInfo.slotID and itemInfo.slotID > 0) then
                 table.insert(categories["All"], itemInfo)
             end
         end
@@ -4150,23 +4212,71 @@ function Frame:RenderFlowView(items, layoutOpts)
             bagItemCounts[bagID] = 0
         end
 
+        -- Handle alt bag scope
+        local altBagsSeen = {}
+        local altBagOrders = {}
         for _, item in ipairs(items) do
-            if IsValidBagID(item.bagID) then
-                itemBySlot[item.bagID] = itemBySlot[item.bagID] or {}
-                itemBySlot[item.bagID][item.slotID] = item
-                bagItemCounts[item.bagID] = (bagItemCounts[item.bagID] or 0) + 1
+            if item.__offline and item.__owner then
+                local altKey = item.__owner .. "_" .. item.bagID
+                if not altBagsSeen[altKey] then
+                    altBagsSeen[altKey] = true
+                    table.insert(altBagOrders, { key = altKey, owner = item.__owner, bagID = item.bagID })
+                end
+            end
+        end
+        table.sort(altBagOrders, function(a, b)
+            if a.owner ~= b.owner then
+                return a.owner < b.owner
+            end
+            return a.bagID < b.bagID
+        end)
+
+        for _, altBag in ipairs(altBagOrders) do
+            local altKey = altBag.key
+            categories[altKey] = categories[altKey] or {}
+            seenCategoryThisPass[altKey] = true
+            usedCategoryKeys[#usedCategoryKeys + 1] = altKey
+            table.insert(categoryOrder, altKey)
+
+            local totalSlots = 0
+            local currentRealm = GetRealmName()
+            local charData = OmniInventoryDB and OmniInventoryDB.realm and OmniInventoryDB.realm[currentRealm] and OmniInventoryDB.realm[currentRealm][altBag.owner]
+            if charData and charData.bagSizes then
+                totalSlots = charData.bagSizes[tostring(altBag.bagID)] or 0
+            end
+            bagSlotCounts[altKey] = totalSlots
+            bagItemCounts[altKey] = 0
+        end
+
+        for _, item in ipairs(items) do
+            if not item.__offline then
+                if IsValidBagID(item.bagID) then
+                    itemBySlot[item.bagID] = itemBySlot[item.bagID] or {}
+                    itemBySlot[item.bagID][item.slotID] = item
+                    bagItemCounts[item.bagID] = (bagItemCounts[item.bagID] or 0) + 1
+                end
+            else
+                local altKey = item.__owner .. "_" .. item.bagID
+                bagItemCounts[altKey] = (bagItemCounts[altKey] or 0) + 1
             end
         end
 
         -- Insert sorted filled items first
         for _, item in ipairs(items) do
-            local bagID = item.bagID
-            if IsValidBagID(bagID) and categories[bagID] then
-                table.insert(categories[bagID], item)
+            if not item.__offline then
+                local bagID = item.bagID
+                if IsValidBagID(bagID) and categories[bagID] then
+                    table.insert(categories[bagID], item)
+                end
+            else
+                local altKey = item.__owner .. "_" .. item.bagID
+                if categories[altKey] then
+                    table.insert(categories[altKey], item)
+                end
             end
         end
 
-        -- Append empty slots
+        -- Append empty slots (only for current player's active bags)
         for _, bagID in ipairs(bagScope) do
             local totalSlots = bagSlotCounts[bagID] or 0
             for slotID = 1, totalSlots do
@@ -4677,7 +4787,15 @@ function Frame:RenderFlowView(items, layoutOpts)
                     if currentView == "bag" then
                         local usedSlots = bagItemCounts and bagItemCounts[catName] or #catItems
                         local totalSlots = bagSlotCounts and bagSlotCounts[catName] or #catItems
-                        header:SetText(prefix .. GetBagDisplayName(catName) .. " (" .. usedSlots .. "/" .. totalSlots .. ")")
+                        local displayName = GetBagDisplayName(catName)
+                        if type(catName) == "string" and string.find(catName, "_") then
+                            local altName, bagIDStr = string.match(catName, "^([^_]+)_(%-?%d+)$")
+                            if altName and bagIDStr then
+                                local bagID = tonumber(bagIDStr)
+                                displayName = altName .. "'s " .. GetBagDisplayName(bagID)
+                            end
+                        end
+                        header:SetText(prefix .. displayName .. " (" .. usedSlots .. "/" .. totalSlots .. ")")
                     else
                         header:SetText(prefix .. catName .. " (" .. #catItems .. ")")
                     end
@@ -4685,7 +4803,15 @@ function Frame:RenderFlowView(items, layoutOpts)
                     if currentView == "bag" then
                         local usedSlots = bagItemCounts and bagItemCounts[catName] or #catItems
                         local totalSlots = bagSlotCounts and bagSlotCounts[catName] or #catItems
-                        header:SetText(prefix .. GetBagDisplayName(catName) .. " (" .. usedSlots .. "/" .. totalSlots .. ")")
+                        local displayName = GetBagDisplayName(catName)
+                        if type(catName) == "string" and string.find(catName, "_") then
+                            local altName, bagIDStr = string.match(catName, "^([^_]+)_(%-?%d+)$")
+                            if altName and bagIDStr then
+                                local bagID = tonumber(bagIDStr)
+                                displayName = altName .. "'s " .. GetBagDisplayName(bagID)
+                            end
+                        end
+                        header:SetText(prefix .. displayName .. " (" .. usedSlots .. "/" .. totalSlots .. ")")
                     else
                         header:SetText(prefix .. catName .. " (" .. #catItems .. ")")
                     end
@@ -4706,7 +4832,20 @@ function Frame:RenderFlowView(items, layoutOpts)
                     -- which is still OOC because UpdateLayout is combat-gated.
                     local bagID = itemInfo.bagID
                     local slotID = itemInfo.slotID
-                    local btn = (bagID and slotID) and GetSlotButton(bagID, slotID) or nil
+                    local btn
+                    if itemInfo.__offline then
+                        if Omni.Pool then
+                            btn = Omni.Pool:Acquire("ItemButton")
+                        end
+                        if btn then
+                            table.insert(offlineFlowButtons, btn)
+                            if btn:GetParent() ~= scrollChild then
+                                pcall(btn.SetParent, btn, scrollChild)
+                            end
+                        end
+                    else
+                        btn = (bagID and slotID) and GetSlotButton(bagID, slotID) or nil
+                    end
 
                     if btn then
                         layoutIndex = layoutIndex + 1
@@ -5101,16 +5240,24 @@ function Frame:RenderListView(items)
             -- Hover highlight
             row:SetScript("OnEnter", function(self)
                 self.bg:SetVertexColor(0.3, 0.3, 0.3, 1)
-                if self.itemInfo and self.itemInfo.bagID and self.itemInfo.slotID then
+                if self.itemInfo then
                     self.__omniUsesCustomTooltip = true
                     if Omni.ItemButton and Omni.ItemButton.SetOmniItemTooltipOwner then
                         Omni.ItemButton.SetOmniItemTooltipOwner(self)
                     else
                         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                     end
-                    local ok = pcall(GameTooltip.SetBagItem, GameTooltip, self.itemInfo.bagID, self.itemInfo.slotID)
-                    if not ok and self.itemInfo.hyperlink then
+                    if self.itemInfo.__offline then
                         pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
+                        GameTooltip:AddLine(" ")
+                        local ownerName = self.itemInfo.__owner or "Unknown Character"
+                        local locationStr = self.itemInfo.__location and (self.itemInfo.__location:gsub("^%l", string.upper)) or "Bags"
+                        GameTooltip:AddLine("Held by: " .. ownerName .. " (" .. locationStr .. ")", 0.9, 0.8, 0.4)
+                    else
+                        local ok = pcall(GameTooltip.SetBagItem, GameTooltip, self.itemInfo.bagID, self.itemInfo.slotID)
+                        if not ok and self.itemInfo.hyperlink then
+                            pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
+                        end
                     end
                     GameTooltip:Show()
                     if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
@@ -5150,6 +5297,12 @@ function Frame:RenderListView(items)
                     mb = "RightButton"
                 elseif mb == "LeftButtonUp" or mb == "LeftButtonDown" then
                     mb = "LeftButton"
+                end
+                if self.itemInfo and self.itemInfo.__offline then
+                    if mb == "LeftButton" and IsModifiedClick() then
+                        HandleModifiedItemClick(self.itemInfo.hyperlink)
+                    end
+                    return
                 end
                 if mb == "RightButton" and self.itemInfo then
                     local bagID, slotID = self.itemInfo.bagID, self.itemInfo.slotID
@@ -5210,7 +5363,11 @@ function Frame:RenderListView(items)
                 [7] = { 0.00, 0.80, 1.00 },
             }
             local qColor = QUALITY_COLORS[quality or 1] or QUALITY_COLORS[1]
-            row.name:SetText(itemName or itemInfo.hyperlink or "Unknown")
+            local displayName = itemName or itemInfo.hyperlink or "Unknown"
+            if itemInfo.__offline and itemInfo.__owner then
+                displayName = displayName .. " |cFF808080[" .. itemInfo.__owner .. "]|r"
+            end
+            row.name:SetText(displayName)
             row.name:SetTextColor(qColor[1], qColor[2], qColor[3])
 
             -- Set type
@@ -5237,10 +5394,15 @@ function Frame:RenderListView(items)
         ConfigureSecureRowUse(row, itemInfo.bagID, itemInfo.slotID)
 
         -- Apply quick filter dimming
-        if itemInfo.isQuickFiltered then
+        if itemInfo.__offline then
+            row:SetAlpha(0.65)
+            row.icon:SetDesaturated(true)
+        elseif itemInfo.isQuickFiltered then
             row:SetAlpha(0.28)
+            row.icon:SetDesaturated(true)
         else
             row:SetAlpha(1.0)
+            row.icon:SetDesaturated(false)
         end
 
         row:Show()

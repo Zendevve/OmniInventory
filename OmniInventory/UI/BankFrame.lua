@@ -771,6 +771,59 @@ local function CollectBankItems()
         items = OmniC_Container.GetAllBankItems() or {}
     end
 
+    -- Cross-character search logic
+    if isSearchActive and searchText ~= "" and OmniInventoryDB and OmniInventoryDB.realm then
+        local currentRealm = GetRealmName()
+        local realmData = OmniInventoryDB.realm[currentRealm]
+        if realmData then
+            local currentOwner = Omni.Data and (Omni.Data.currentViewedChar or Omni.Data.playerName)
+            for charName, charData in pairs(realmData) do
+                if charName ~= currentOwner then
+                    -- Scan bags
+                    if charData.bags then
+                        for _, item in ipairs(charData.bags) do
+                            local altItem = {
+                                bagID = item.bagID,
+                                slotID = item.slotID,
+                                hyperlink = item.link,
+                                link = item.link,
+                                stackCount = item.count or 1,
+                                quality = item.quality or 0,
+                                iconFileID = GetItemIcon(item.link),
+                                __offline = true,
+                                __owner = charName,
+                                __location = "bags",
+                            }
+                            if Omni.MatchItemQuery and Omni.MatchItemQuery(altItem, searchText) then
+                                table.insert(items, altItem)
+                            end
+                        end
+                    end
+                    -- Scan bank
+                    if charData.bank then
+                        for _, item in ipairs(charData.bank) do
+                            local altItem = {
+                                bagID = item.bagID,
+                                slotID = item.slotID,
+                                hyperlink = item.link,
+                                link = item.link,
+                                stackCount = item.count or 1,
+                                quality = item.quality or 0,
+                                iconFileID = GetItemIcon(item.link),
+                                __offline = true,
+                                __owner = charName,
+                                __location = "bank",
+                            }
+                            if Omni.MatchItemQuery and Omni.MatchItemQuery(altItem, searchText) then
+                                table.insert(items, altItem)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     if Omni.Categorizer then
         local perfCategorize = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("bank.CollectBankItems.categorize")
         for _, item in ipairs(items) do
@@ -1538,13 +1591,41 @@ function BankFrame:RenderFlowView(items)
             categories[bagID] = {}
             table.insert(categoryOrder, bagID)
         end
+
+        local altBagsSeen = {}
+        local altBagOrders = {}
         for _, item in ipairs(items) do
-            local bagID = item.bagID
-            if categories[bagID] then
-                table.insert(categories[bagID], item)
+            if item.__offline and item.__owner then
+                local altKey = item.__owner .. "_" .. item.bagID
+                if not altBagsSeen[altKey] then
+                    altBagsSeen[altKey] = true
+                    table.insert(altBagOrders, { key = altKey, owner = item.__owner, bagID = item.bagID })
+                end
             end
         end
-        -- Append empty slots to their respective bags
+        table.sort(altBagOrders, function(a, b)
+            if a.owner ~= b.owner then return a.owner < b.owner end
+            return a.bagID < b.bagID
+        end)
+        for _, altBag in ipairs(altBagOrders) do
+            categories[altBag.key] = {}
+            table.insert(categoryOrder, altBag.key)
+        end
+
+        for _, item in ipairs(items) do
+            if not item.__offline then
+                local bagID = item.bagID
+                if categories[bagID] then
+                    table.insert(categories[bagID], item)
+                end
+            else
+                local altKey = item.__owner .. "_" .. item.bagID
+                if categories[altKey] then
+                    table.insert(categories[altKey], item)
+                end
+            end
+        end
+        -- Append empty slots to their respective bags (current player only)
         for _, bagID in ipairs(activeBags) do
             local numSlots = GetContainerNumSlots(bagID) or 0
             for slotID = 1, numSlots do
@@ -1679,16 +1760,32 @@ function BankFrame:RenderFlowView(items)
             header:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", laneX, laneY)
 
             local r, g, b = 1, 1, 1
+            local r, g, b = 1, 1, 1
             if currentBankView == "bag" then
-                local totalSlots = GetContainerNumSlots(catName) or 0
+                local totalSlots = 0
                 local filled = 0
+                local displayName = GetBagDisplayName(catName)
+                if type(catName) == "string" and string.find(catName, "_") then
+                    local altName, bagIDStr = string.match(catName, "^([^_]+)_(%-?%d+)$")
+                    if altName and bagIDStr then
+                        local bagID = tonumber(bagIDStr)
+                        displayName = altName .. "'s " .. GetBagDisplayName(bagID)
+                        local currentRealm = GetRealmName()
+                        local charData = OmniInventoryDB and OmniInventoryDB.realm and OmniInventoryDB.realm[currentRealm] and OmniInventoryDB.realm[currentRealm][altName]
+                        if charData and charData.bagSizes then
+                            totalSlots = charData.bagSizes[tostring(bagID)] or 0
+                        end
+                    end
+                else
+                    totalSlots = GetContainerNumSlots(catName) or 0
+                end
                 for _, item in ipairs(catItems) do
                     if not item.__empty then
                         filled = filled + 1
                     end
                 end
                 header:SetTextColor(0.9, 0.8, 0.4)
-                header:SetText(GetBagDisplayName(catName) .. " (" .. filled .. "/" .. totalSlots .. ")")
+                header:SetText(displayName .. " (" .. filled .. "/" .. totalSlots .. ")")
             else
                 if Omni.Categorizer then
                     r, g, b = Omni.Categorizer:GetCategoryColor(catName)
@@ -1716,7 +1813,7 @@ function BankFrame:RenderFlowView(items)
                     local x = laneX + col * itemStep
                     local y = laneY - row * itemStep
 
-                    local container = GetBankItemContainer(itemInfo.bagID or -1) or scrollChild
+                    local container = (itemInfo.__offline) and scrollChild or (GetBankItemContainer(itemInfo.bagID or -1) or scrollChild)
                     if btn:GetParent() ~= container then
                         pcall(btn.SetParent, btn, container)
                     end
@@ -1790,7 +1887,7 @@ function BankFrame:RenderGridView(items)
 
     local itemBySlot = {}
     for _, item in ipairs(items or {}) do
-        if item.bagID and item.slotID then
+        if not item.__offline and item.bagID and item.slotID then
             itemBySlot[item.bagID] = itemBySlot[item.bagID] or {}
             itemBySlot[item.bagID][item.slotID] = item
         end
@@ -1808,7 +1905,7 @@ function BankFrame:RenderGridView(items)
 
     local function renderSlot(bagID, slotID, customItemInfo)
         index = index + 1
-        local container = GetBankItemContainer(bagID) or scrollChild
+        local container = (customItemInfo and customItemInfo.__offline) and scrollChild or (GetBankItemContainer(bagID) or scrollChild)
         local btn = (not releasedPreviousToPool) and previousButtons[index] or nil
         if not btn then
             if InCombat() and Omni.ItemButton then
@@ -1881,7 +1978,7 @@ function BankFrame:RenderGridView(items)
 
     -- Insert sorted filled items first
     for _, itemInfo in ipairs(items or {}) do
-        if itemInfo.bagID and activeBagsSet[itemInfo.bagID] then
+        if itemInfo.__offline or (itemInfo.bagID and activeBagsSet[itemInfo.bagID]) then
             table.insert(slotsToRender, { bagID = itemInfo.bagID, slotID = itemInfo.slotID, itemInfo = itemInfo })
         end
     end
@@ -2259,16 +2356,24 @@ function BankFrame:RenderListView(items)
 
             row:SetScript("OnEnter", function(self)
                 self.bg:SetVertexColor(0.3, 0.3, 0.3, 1)
-                if self.itemInfo and self.itemInfo.bagID and self.itemInfo.slotID then
+                if self.itemInfo then
                     self.__omniUsesCustomTooltip = true
                     if Omni.ItemButton and Omni.ItemButton.SetOmniItemTooltipOwner then
                         Omni.ItemButton.SetOmniItemTooltipOwner(self)
                     else
                         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                     end
-                    local ok = pcall(GameTooltip.SetBagItem, GameTooltip, self.itemInfo.bagID, self.itemInfo.slotID)
-                    if not ok and self.itemInfo.hyperlink then
+                    if self.itemInfo.__offline then
                         pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
+                        GameTooltip:AddLine(" ")
+                        local ownerName = self.itemInfo.__owner or "Unknown Character"
+                        local locationStr = self.itemInfo.__location and (self.itemInfo.__location:gsub("^%l", string.upper)) or "Bags"
+                        GameTooltip:AddLine("Held by: " .. ownerName .. " (" .. locationStr .. ")", 0.9, 0.8, 0.4)
+                    else
+                        local ok = pcall(GameTooltip.SetBagItem, GameTooltip, self.itemInfo.bagID, self.itemInfo.slotID)
+                        if not ok and self.itemInfo.hyperlink then
+                            pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
+                        end
                     end
                     GameTooltip:Show()
                     if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
@@ -2291,6 +2396,12 @@ function BankFrame:RenderListView(items)
                     mb = "RightButton"
                 elseif mb == "LeftButtonUp" or mb == "LeftButtonDown" then
                     mb = "LeftButton"
+                end
+                if self.itemInfo and self.itemInfo.__offline then
+                    if mb == "LeftButton" and IsModifiedClick() then
+                        HandleModifiedItemClick(self.itemInfo.hyperlink)
+                    end
+                    return
                 end
                 if mb == "RightButton" and self.itemInfo then
                     local bagID, slotID = self.itemInfo.bagID, self.itemInfo.slotID
@@ -2341,7 +2452,11 @@ function BankFrame:RenderListView(items)
                 [7] = { 0.00, 0.80, 1.00 },
             }
             local qColor = QUALITY_COLORS[quality or 1] or QUALITY_COLORS[1]
-            row.name:SetText(itemName or itemInfo.hyperlink or "Unknown")
+            local displayName = itemName or itemInfo.hyperlink or "Unknown"
+            if itemInfo.__offline and itemInfo.__owner then
+                displayName = displayName .. " |cFF808080[" .. itemInfo.__owner .. "]|r"
+            end
+            row.name:SetText(displayName)
             row.name:SetTextColor(qColor[1], qColor[2], qColor[3])
 
             row.itemType:SetText(itemSubType or itemType or "")
@@ -2361,6 +2476,13 @@ function BankFrame:RenderListView(items)
         end
 
         row.itemInfo = itemInfo
+        if itemInfo.__offline then
+            row:SetAlpha(0.65)
+            row.icon:SetDesaturated(true)
+        else
+            row:SetAlpha(1.0)
+            row.icon:SetDesaturated(false)
+        end
         row:Show()
         yOffset = yOffset - ROW_HEIGHT
     end
