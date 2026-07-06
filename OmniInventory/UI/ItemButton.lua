@@ -1392,9 +1392,13 @@ function ItemButton:OnEnter(button)
         GameTooltip:SetHyperlink(info.hyperlink)
         if info.__offline then
             GameTooltip:AddLine(" ")
-            local ownerName = info.__owner or (Omni.Data and Omni.Data.currentViewedChar) or "Unknown Character"
-            local locationStr = info.__location and (info.__location:gsub("^%l", string.upper)) or "Bags"
-            GameTooltip:AddLine("Held by: " .. ownerName .. " (" .. locationStr .. ")", 0.9, 0.8, 0.4)
+            if info.__owner then
+                local locationStr = info.__location and (info.__location:gsub("^%l", string.upper)) or "Bags"
+                GameTooltip:AddLine("Held by: " .. info.__owner .. " (" .. locationStr .. ")", 0.9, 0.8, 0.4)
+            else
+                local charName = Omni.Data and Omni.Data.currentViewedChar or "Unknown Character"
+                GameTooltip:AddLine("Offline Item (" .. charName .. ")", 0.5, 0.5, 0.5)
+            end
         elseif not IsLiveContainerFrameSlot(bagID, slotID) then
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine("Bank Item (Offline)", 0.5, 0.5, 0.5)

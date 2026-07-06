@@ -4129,7 +4129,7 @@ function Frame:RenderFlowView(items, layoutOpts)
         categoryOrder[1] = "All"
 
         for _, itemInfo in ipairs(items) do
-            if not itemInfo.__offline and IsValidBagID(itemInfo.bagID) and itemInfo.slotID and itemInfo.slotID > 0 then
+            if (not itemInfo.__offline or not itemInfo.__owner) and IsValidBagID(itemInfo.bagID) and itemInfo.slotID and itemInfo.slotID > 0 then
                 itemBySlot[itemInfo.bagID] = itemBySlot[itemInfo.bagID] or {}
                 itemBySlot[itemInfo.bagID][itemInfo.slotID] = itemInfo
             end
@@ -4137,7 +4137,7 @@ function Frame:RenderFlowView(items, layoutOpts)
 
         -- Insert sorted filled items first
         for _, itemInfo in ipairs(items) do
-            if itemInfo.__offline or (IsValidBagID(itemInfo.bagID) and itemInfo.slotID and itemInfo.slotID > 0) then
+            if (itemInfo.__offline and itemInfo.__owner) or (IsValidBagID(itemInfo.bagID) and itemInfo.slotID and itemInfo.slotID > 0) then
                 table.insert(categories["All"], itemInfo)
             end
         end
@@ -4249,7 +4249,7 @@ function Frame:RenderFlowView(items, layoutOpts)
         end
 
         for _, item in ipairs(items) do
-            if not item.__offline then
+            if not item.__offline or not item.__owner then
                 if IsValidBagID(item.bagID) then
                     itemBySlot[item.bagID] = itemBySlot[item.bagID] or {}
                     itemBySlot[item.bagID][item.slotID] = item
@@ -4263,7 +4263,7 @@ function Frame:RenderFlowView(items, layoutOpts)
 
         -- Insert sorted filled items first
         for _, item in ipairs(items) do
-            if not item.__offline then
+            if not item.__offline or not item.__owner then
                 local bagID = item.bagID
                 if IsValidBagID(bagID) and categories[bagID] then
                     table.insert(categories[bagID], item)
@@ -5247,7 +5247,7 @@ function Frame:RenderListView(items)
                     else
                         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                     end
-                    if self.itemInfo.__offline then
+                    if self.itemInfo.__offline and self.itemInfo.__owner then
                         pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
                         GameTooltip:AddLine(" ")
                         local ownerName = self.itemInfo.__owner or "Unknown Character"
@@ -5257,6 +5257,11 @@ function Frame:RenderListView(items)
                         local ok = pcall(GameTooltip.SetBagItem, GameTooltip, self.itemInfo.bagID, self.itemInfo.slotID)
                         if not ok and self.itemInfo.hyperlink then
                             pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
+                            if self.itemInfo.__offline then
+                                GameTooltip:AddLine(" ")
+                                local charName = Omni.Data and Omni.Data.currentViewedChar or "Unknown Character"
+                                GameTooltip:AddLine("Offline Item (" .. charName .. ")", 0.5, 0.5, 0.5)
+                            end
                         end
                     end
                     GameTooltip:Show()

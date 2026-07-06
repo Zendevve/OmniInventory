@@ -1613,7 +1613,7 @@ function BankFrame:RenderFlowView(items)
         end
 
         for _, item in ipairs(items) do
-            if not item.__offline then
+            if not item.__offline or not item.__owner then
                 local bagID = item.bagID
                 if categories[bagID] then
                     table.insert(categories[bagID], item)
@@ -1813,7 +1813,7 @@ function BankFrame:RenderFlowView(items)
                     local x = laneX + col * itemStep
                     local y = laneY - row * itemStep
 
-                    local container = (itemInfo.__offline) and scrollChild or (GetBankItemContainer(itemInfo.bagID or -1) or scrollChild)
+                    local container = (itemInfo.__offline and itemInfo.__owner) and scrollChild or (GetBankItemContainer(itemInfo.bagID or -1) or scrollChild)
                     if btn:GetParent() ~= container then
                         pcall(btn.SetParent, btn, container)
                     end
@@ -1887,7 +1887,7 @@ function BankFrame:RenderGridView(items)
 
     local itemBySlot = {}
     for _, item in ipairs(items or {}) do
-        if not item.__offline and item.bagID and item.slotID then
+        if (not item.__offline or not item.__owner) and item.bagID and item.slotID then
             itemBySlot[item.bagID] = itemBySlot[item.bagID] or {}
             itemBySlot[item.bagID][item.slotID] = item
         end
@@ -1905,7 +1905,7 @@ function BankFrame:RenderGridView(items)
 
     local function renderSlot(bagID, slotID, customItemInfo)
         index = index + 1
-        local container = (customItemInfo and customItemInfo.__offline) and scrollChild or (GetBankItemContainer(bagID) or scrollChild)
+        local container = (customItemInfo and customItemInfo.__offline and customItemInfo.__owner) and scrollChild or (GetBankItemContainer(bagID) or scrollChild)
         local btn = (not releasedPreviousToPool) and previousButtons[index] or nil
         if not btn then
             if InCombat() and Omni.ItemButton then
@@ -1978,7 +1978,7 @@ function BankFrame:RenderGridView(items)
 
     -- Insert sorted filled items first
     for _, itemInfo in ipairs(items or {}) do
-        if itemInfo.__offline or (itemInfo.bagID and activeBagsSet[itemInfo.bagID]) then
+        if (itemInfo.__offline and itemInfo.__owner) or (itemInfo.bagID and activeBagsSet[itemInfo.bagID]) then
             table.insert(slotsToRender, { bagID = itemInfo.bagID, slotID = itemInfo.slotID, itemInfo = itemInfo })
         end
     end
@@ -2363,7 +2363,7 @@ function BankFrame:RenderListView(items)
                     else
                         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                     end
-                    if self.itemInfo.__offline then
+                    if self.itemInfo.__offline and self.itemInfo.__owner then
                         pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
                         GameTooltip:AddLine(" ")
                         local ownerName = self.itemInfo.__owner or "Unknown Character"
@@ -2373,6 +2373,11 @@ function BankFrame:RenderListView(items)
                         local ok = pcall(GameTooltip.SetBagItem, GameTooltip, self.itemInfo.bagID, self.itemInfo.slotID)
                         if not ok and self.itemInfo.hyperlink then
                             pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
+                            if self.itemInfo.__offline then
+                                GameTooltip:AddLine(" ")
+                                local charName = Omni.Data and Omni.Data.currentViewedChar or "Unknown Character"
+                                GameTooltip:AddLine("Offline Item (" .. charName .. ")", 0.5, 0.5, 0.5)
+                            end
                         end
                     end
                     GameTooltip:Show()
