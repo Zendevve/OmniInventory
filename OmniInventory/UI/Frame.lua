@@ -4044,6 +4044,11 @@ function Frame:RenderFlowView(items, layoutOpts)
         return "na"
     end
 
+    local isOfflineCharView = false
+    if Omni.Data and Omni.Data.currentViewedChar and Omni.Data.playerName then
+        isOfflineCharView = (Omni.Data.currentViewedChar ~= Omni.Data.playerName)
+    end
+
     CancelDeferredFlowItemPaint()
 
     local scrollChild = mainFrame.scrollChild
@@ -4849,7 +4854,7 @@ function Frame:RenderFlowView(items, layoutOpts)
                     local bagID = itemInfo.bagID
                     local slotID = itemInfo.slotID
                     local btn
-                    if itemInfo.__offline then
+                    if itemInfo.__offline or isOfflineCharView then
                         if Omni.Pool then
                             btn = Omni.Pool:Acquire("ItemButton")
                         end
@@ -4864,6 +4869,9 @@ function Frame:RenderFlowView(items, layoutOpts)
                     end
 
                     if btn then
+                        if slotID then
+                            pcall(btn.SetID, btn, slotID)
+                        end
                         layoutIndex = layoutIndex + 1
                         flowSlotPaintIndex = flowSlotPaintIndex + 1
                         local col = ((layoutIndex - 1) % columns)
