@@ -1248,6 +1248,8 @@ function ItemButton:OnPreClick(button, mouseButton)
                     ctrlBypassEnabled = (Omni.Data:Get("vendorCtrlRightClick") ~= false)
                 end
                 if ctrlBypassEnabled then
+                    UseContainerItem(bagID, slotID)
+                    pcall(button.SetID, button, 0)
                     return
                 end
             end
