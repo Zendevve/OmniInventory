@@ -57,10 +57,16 @@ _G.GetContainerNumFreeSlots = function(bagID)
 local scanningTooltip = CreateFrame("GameTooltip", "OmniScanningTooltip", nil, "GameTooltipTemplate")
 scanningTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
 
-local bindScanCache = {}
+local bindScanCache = {} -- structured: [bagID][slotID] = { link, isBound, bindType }
 
-function API:ClearContainerBindScanCache()
-    wipe(bindScanCache)
+function API:ClearContainerBindScanCache(modifiedBags)
+    if not modifiedBags then
+        wipe(bindScanCache)
+        return
+    end
+    for bagID in pairs(modifiedBags) do
+        bindScanCache[bagID] = nil
+    end
 end
 
 local SOULBOUND_TEXT = ITEM_SOULBOUND or "Soulbound"
@@ -71,24 +77,29 @@ local BOA_BNET_TEXT = ITEM_BIND_TO_BNETACCOUNT or "Binds to Battle.net account"
 
 local function ScanTooltipForBinding(bag, slot, resolvedLink)
     local link = resolvedLink or GetContainerItemLink(bag, slot)
-    local cacheKey = link and (tostring(bag) .. "\031" .. tostring(slot) .. "\031" .. link)
-    if cacheKey then
-        local cached = bindScanCache[cacheKey]
-        if cached then
-            return cached[1], cached[2]
+    if not link then
+        if bindScanCache[bag] then
+            bindScanCache[bag][slot] = nil
         end
+        return false, "BoE"
+    end
+
+    bindScanCache[bag] = bindScanCache[bag] or {}
+    local cached = bindScanCache[bag][slot]
+    if cached and cached.link == link then
+        return cached.isBound, cached.bindType
     end
 
     local boundResult, typeResult = false, "BoE"
-    if link then
-        local _, _, quality = GetItemInfo(link)
-        if quality == 7 then
-            boundResult, typeResult = true, "BoA"
-            if cacheKey then
-                bindScanCache[cacheKey] = { boundResult, typeResult }
-            end
-            return boundResult, typeResult
-        end
+    local _, _, quality = GetItemInfo(link)
+    if quality == 7 then
+        boundResult, typeResult = true, "BoA"
+        bindScanCache[bag][slot] = {
+            link = link,
+            isBound = boundResult,
+            bindType = typeResult
+        }
+        return boundResult, typeResult
     end
 
     scanningTooltip:ClearLines()
@@ -116,9 +127,11 @@ local function ScanTooltipForBinding(bag, slot, resolvedLink)
         end
     end
 
-    if cacheKey then
-        bindScanCache[cacheKey] = { boundResult, typeResult }
-    end
+    bindScanCache[bag][slot] = {
+        link = link,
+        isBound = boundResult,
+        bindType = typeResult
+    }
     return boundResult, typeResult
 end
 

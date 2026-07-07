@@ -392,7 +392,44 @@ end
 -- Priority Pipeline
 -- =============================================================================
 
+local categoryCache = {}
+
+function Categorizer:ClearCategoryCache()
+    wipe(categoryCache)
+end
+
 function Categorizer:GetCategory(itemInfo)
+    local perfToken = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("categorizer.GetCategory")
+    if not itemInfo then
+        if Omni._perfEnabled and Omni.Perf then
+            Omni.Perf:End("categorizer.GetCategory", perfToken)
+        end
+        return "Miscellaneous"
+    end
+
+    local itemID = itemInfo.itemID or (itemInfo.hyperlink and tonumber(string.match(itemInfo.hyperlink, "item:(%d+)")))
+    if itemID then
+        local cached = categoryCache[itemID]
+        if cached then
+            if Omni._perfEnabled and Omni.Perf then
+                Omni.Perf:End("categorizer.GetCategory", perfToken)
+            end
+            return cached
+        end
+    end
+
+    local category = self:GetCategoryInternal(itemInfo)
+    if itemID and category then
+        categoryCache[itemID] = category
+    end
+
+    if Omni._perfEnabled and Omni.Perf then
+        Omni.Perf:End("categorizer.GetCategory", perfToken, { result = category })
+    end
+    return category
+end
+
+function Categorizer:GetCategoryInternal(itemInfo)
     local perfToken = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("categorizer.GetCategory")
     if not itemInfo then
         if Omni._perfEnabled and Omni.Perf then
@@ -523,6 +560,7 @@ function Categorizer:SetManualOverride(itemID, categoryName)
 
     OmniInventoryDB.categoryOverrides = OmniInventoryDB.categoryOverrides or {}
     OmniInventoryDB.categoryOverrides[itemID] = categoryName
+    self:ClearCategoryCache()
 end
 
 function Categorizer:ClearManualOverride(itemID)
@@ -531,6 +569,7 @@ function Categorizer:ClearManualOverride(itemID)
     if OmniInventoryDB and OmniInventoryDB.categoryOverrides then
         OmniInventoryDB.categoryOverrides[itemID] = nil
     end
+    self:ClearCategoryCache()
 end
 
 -- =============================================================================

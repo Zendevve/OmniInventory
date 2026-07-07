@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- OmniInventory Event Bucketing System
 -- =============================================================================
 -- Purpose: Coalesce rapid BAG_UPDATE events into single UI refresh
@@ -183,6 +183,70 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     end
 end)
 
+local saveDeferred = false
+local saveTimerFrame = nil
+local bankSaveDeferred = false
+local bankSaveTimerFrame = nil
+
+function Events:RequestDeferredInventorySave()
+    if not saveTimerFrame then
+        saveTimerFrame = CreateFrame("Frame")
+    end
+    saveTimerFrame.elapsed = 0
+    if saveDeferred then return end
+    saveDeferred = true
+    saveTimerFrame:SetScript("OnUpdate", function(self, elapsed)
+        self.elapsed = self.elapsed + elapsed
+        if self.elapsed >= 2.0 then
+            self:SetScript("OnUpdate", nil)
+            saveDeferred = false
+            if Omni.Data and Omni.Data.SaveCharacterInventory then
+                local perfToken = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("data.deferred_save")
+                Omni.Data:SaveCharacterInventory()
+                if Omni._perfEnabled and Omni.Perf then
+                    Omni.Perf:End("data.deferred_save", perfToken)
+                end
+            end
+        end
+    end)
+end
+
+function Events:RequestDeferredBankSave()
+    if not bankSaveTimerFrame then
+        bankSaveTimerFrame = CreateFrame("Frame")
+    end
+    bankSaveTimerFrame.elapsed = 0
+    if bankSaveDeferred then return end
+    bankSaveDeferred = true
+    bankSaveTimerFrame:SetScript("OnUpdate", function(self, elapsed)
+        self.elapsed = self.elapsed + elapsed
+        if self.elapsed >= 2.0 then
+            self:SetScript("OnUpdate", nil)
+            bankSaveDeferred = false
+            if Omni.Data and Omni.Data.SaveBankItems then
+                Omni.Data:SaveBankItems()
+            end
+        end
+    end)
+end
+
+function Events:FlushDeferredSaves()
+    if saveDeferred then
+        if saveTimerFrame then saveTimerFrame:SetScript("OnUpdate", nil) end
+        saveDeferred = false
+        if Omni.Data and Omni.Data.SaveCharacterInventory then
+            Omni.Data:SaveCharacterInventory()
+        end
+    end
+    if bankSaveDeferred then
+        if bankSaveTimerFrame then bankSaveTimerFrame:SetScript("OnUpdate", nil) end
+        bankSaveDeferred = false
+        if Omni.Data and Omni.Data.SaveBankItems then
+            Omni.Data:SaveBankItems()
+        end
+    end
+end
+
 -- =============================================================================
 -- Pre-registered Common Events
 -- =============================================================================
@@ -194,11 +258,9 @@ function Events:Init()
 
     self:RegisterBucketEvent("BAG_UPDATE", function(modifiedBags)
         if Omni.API and Omni.API.ClearContainerBindScanCache then
-            Omni.API:ClearContainerBindScanCache()
+            Omni.API:ClearContainerBindScanCache(modifiedBags)
         end
-        if Omni.Data and Omni.Data.SaveCharacterInventory then
-            Omni.Data:SaveCharacterInventory()
-        end
+        self:RequestDeferredInventorySave()
 
         -- New item detection scan
         if not hasDoneInitialScan then
@@ -302,9 +364,7 @@ function Events:Init()
     end)
 
     self:RegisterEvent("PLAYERBANKSLOTS_CHANGED", function()
-        if Omni.Data and Omni.Data.SaveBankItems then
-            Omni.Data:SaveBankItems()
-        end
+        self:RequestDeferredBankSave()
         if Omni.BankFrame and Omni.BankFrame:IsShown() then
             Omni.BankFrame:UpdateLayout()
         end
@@ -317,6 +377,7 @@ function Events:Init()
     end)
 
     self:RegisterEvent("BANKFRAME_CLOSED", function()
+        self:FlushDeferredSaves()
         if Omni.Features and Omni.Features.SetInteractingWindow then
             if Omni.Features:GetInteractingWindow() == "bank" then
                 Omni.Features:SetInteractingWindow(nil)
@@ -392,9 +453,7 @@ function Events:Init()
 
     -- Player money changed
     self:RegisterEvent("PLAYER_MONEY", function()
-        if Omni.Data and Omni.Data.SaveCharacterInventory then
-            Omni.Data:SaveCharacterInventory()
-        end
+        self:RequestDeferredInventorySave()
         if Omni.Frame then
             Omni.Frame:UpdateMoney()
         end
@@ -654,4 +713,11 @@ function Events:Init()
             Omni.Data:SaveBankSlotCount()
         end
     end
+
+    self:RegisterEvent("PLAYER_LOGOUT", function()
+        self:FlushDeferredSaves()
+    end)
+    self:RegisterEvent("PLAYER_LEAVING_WORLD", function()
+        self:FlushDeferredSaves()
+    end)
 end

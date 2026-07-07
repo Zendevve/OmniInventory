@@ -606,6 +606,9 @@ function Categories:Delete(name)
     local db = ensureCategoriesDB()
     db[name] = nil
     compiledCategories[name] = nil
+    if Omni.Categorizer and Omni.Categorizer.ClearCategoryCache then
+        Omni.Categorizer:ClearCategoryCache()
+    end
 end
 
 --- Get a user-defined category definition.
@@ -656,6 +659,9 @@ function Categories:Compile(name)
     end
 
     compiledCategories[name] = compiled
+    if Omni.Categorizer and Omni.Categorizer.ClearCategoryCache then
+        Omni.Categorizer:ClearCategoryCache()
+    end
 end
 
 --- Compile all user-defined categories.

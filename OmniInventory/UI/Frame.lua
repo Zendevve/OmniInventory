@@ -974,6 +974,9 @@ function Frame:CreateMainFrame()
         end
     end)
     mainFrame:HookScript("OnHide", function()
+        if Omni.Events and Omni.Events.FlushDeferredSaves then
+            Omni.Events:FlushDeferredSaves()
+        end
         if mainFrame.secureAnchor then
             -- Use SetAlpha(0) where allowed: Show/Hide on a frame with
             -- secure descendants is a protected op in combat, but SetAlpha

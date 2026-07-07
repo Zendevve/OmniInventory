@@ -1099,20 +1099,23 @@ function ItemButton:SetItem(button, itemInfo)
         end
     end
 
-    button.__lastRenderKey = {
-        hyperlink = itemInfo.hyperlink,
-        iconFileID = itemInfo.iconFileID,
-        stackCount = itemInfo.stackCount,
-        quality = itemInfo.quality,
-        isNew = itemInfo.isNew,
-        isQuickFiltered = itemInfo.isQuickFiltered,
-        itemID = itemInfo.itemID,
-        bagID = itemInfo.bagID,
-        slotID = itemInfo.slotID,
-        isPinned = isPinned,
-        questOverlayKind = questOverlayKind,
-        showCategoryStripe = showCategoryStripe,
-    }
+    local rKey = button.__lastRenderKey
+    if not rKey then
+        rKey = {}
+        button.__lastRenderKey = rKey
+    end
+    rKey.hyperlink = itemInfo.hyperlink
+    rKey.iconFileID = itemInfo.iconFileID
+    rKey.stackCount = itemInfo.stackCount
+    rKey.quality = itemInfo.quality
+    rKey.isNew = itemInfo.isNew
+    rKey.isQuickFiltered = itemInfo.isQuickFiltered
+    rKey.itemID = itemInfo.itemID
+    rKey.bagID = itemInfo.bagID
+    rKey.slotID = itemInfo.slotID
+    rKey.isPinned = isPinned
+    rKey.questOverlayKind = questOverlayKind
+    rKey.showCategoryStripe = showCategoryStripe
 end
 
 -- =============================================================================
