@@ -1315,6 +1315,49 @@ function ItemButton:OnClick(button, mouseButton)
         return
     end
 
+    if mouseButton == "RightButton" and IsAltKeyDown()
+            and button.itemInfo and button.itemInfo.itemID then
+        local itemID = button.itemInfo.itemID
+        local quality = button.itemInfo.quality or 0
+        local name = button.itemInfo.name or "Item"
+        local itemLink = button.itemInfo.itemLink or name
+
+        if Omni.Features and Omni.Features.IsJunkItem then
+            if quality == 0 then
+                local exclude = Omni.Data and Omni.Data:Get("junkExclude") or {}
+                if exclude[itemID] then
+                    Omni.Features:RemoveJunkExclude(itemID)
+                    print(string.format("|cFF00FF00Omni|r: %s is no longer protected from auto-sell.", itemLink))
+                else
+                    Omni.Features:AddJunkExclude(itemID)
+                    print(string.format("|cFF00FF00Omni|r: %s is now protected from auto-sell.", itemLink))
+                end
+            else
+                local include = Omni.Data and Omni.Data:Get("junkInclude") or {}
+                if include[itemID] then
+                    Omni.Features:RemoveJunkInclude(itemID)
+                    print(string.format("|cFF00FF00Omni|r: %s will no longer be auto-sold.", itemLink))
+                else
+                    Omni.Features:AddJunkInclude(itemID)
+                    print(string.format("|cFF00FF00Omni|r: %s will now be auto-sold as junk.", itemLink))
+                end
+            end
+
+            button.itemInfo.category = nil
+
+            if Omni.Frame and not (InCombatLockdown and InCombatLockdown()) then
+                Omni.Frame:InvalidateRenderCaches({ clearLayout = true })
+                Omni.Frame:UpdateLayout()
+            end
+            if Omni.BankFrame and Omni.BankFrame.UpdateLayout
+                    and not (InCombatLockdown and InCombatLockdown()) then
+                Omni.BankFrame:UpdateLayout()
+            end
+        end
+        button.__omniActionStateKey = nil
+        return
+    end
+
     if button.itemInfo and button.itemInfo.isNew then
         button.itemInfo.isNew = false
         if Omni.Categorizer and button.itemInfo.itemID then

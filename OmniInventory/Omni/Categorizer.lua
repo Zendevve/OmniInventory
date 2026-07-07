@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- OmniInventory Smart Categorization Engine
 -- =============================================================================
 -- Purpose: Automatically assign items to logical categories using a
@@ -489,8 +489,15 @@ function Categorizer:GetCategory(itemInfo)
     end
 
 
-    -- Priority 88: Check quality for junk
-    if itemInfo.quality == 0 then
+    -- Priority 88: Check quality/include lists for junk
+    local isJunk = false
+    if Omni.Features and Omni.Features.IsJunkItem then
+        isJunk = Omni.Features:IsJunkItem(itemInfo)
+    else
+        isJunk = (itemInfo.quality == 0)
+    end
+
+    if isJunk then
         if Omni._perfEnabled and Omni.Perf then
             Omni.Perf:End("categorizer.GetCategory", perfToken)
         end

@@ -912,7 +912,7 @@ function Settings:BuildFeatures(panel)
     self.autoSellJunkCb = MakeFe(row, 1,
         "Auto-sell junk",
         "Auto-sell junk",
-        "Automatically sells all grey quality items in your bags when visiting a merchant NPC.",
+        "Automatically sells all grey quality items in your bags when visiting a merchant NPC. Alt+Right-Click any item in your bags to toggle its junk/auto-sell status.",
         "autoSellJunk", true)
 
     -- Row 2 (auto-repair + guild funds)

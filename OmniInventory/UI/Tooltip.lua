@@ -70,19 +70,48 @@ local function AddTooltipData(tooltip, targetItemID)
         end
     end
 
-    if #characterCounts == 0 then return end
+    -- Check junk include/exclude status
+    local hasJunkStatus = false
+    local isIncluded = false
+    local isExcluded = false
+    if Omni.Features and Omni.Features.IsJunkItem then
+        local exclude = Omni.Data and Omni.Data:Get("junkExclude") or {}
+        local include = Omni.Data and Omni.Data:Get("junkInclude") or {}
+        if include[targetItemID] then
+            isIncluded = true
+            hasJunkStatus = true
+        elseif exclude[targetItemID] then
+            isExcluded = true
+            hasJunkStatus = true
+        end
+    end
+
+    if #characterCounts == 0 and not hasJunkStatus then return end
 
     -- Sort current player first, then others alphabetically
-    table.sort(characterCounts, function(a, b)
-        if a.isCurrent ~= b.isCurrent then
-            return a.isCurrent
-        end
-        return a.name < b.name
-    end)
+    if #characterCounts > 0 then
+        table.sort(characterCounts, function(a, b)
+            if a.isCurrent ~= b.isCurrent then
+                return a.isCurrent
+            end
+            return a.name < b.name
+        end)
+    end
 
     -- Add a blank separator line if there are other lines
     tooltip:AddLine(" ")
 
+    -- Render Junk Status
+    if hasJunkStatus then
+        if isIncluded then
+            tooltip:AddDoubleLine(COLOR_SILVER .. "Junk Status:" .. COLOR_END, "|cffff4040Auto-Sold (Junk List)|r")
+        elseif isExcluded then
+            tooltip:AddDoubleLine(COLOR_SILVER .. "Junk Status:" .. COLOR_END, "|cff40ff40Protected (Excluded)|r")
+        end
+        charAdded = true
+    end
+
+    -- Render character counts
     for _, data in ipairs(characterCounts) do
         local nameStr = COLOR_TEAL .. data.name .. COLOR_END
         if data.isCurrent then
