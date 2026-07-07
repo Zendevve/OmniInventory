@@ -939,12 +939,13 @@ function Frame:CreateMainFrame()
         mainFrame.secureAnchor:SetSize(w, h)
     end
     anchorRepositionFrame:SetScript("OnUpdate", function(self, elapsed)
-        if not self.waiting then return end
-        self.elapsed = self.elapsed + elapsed
-        if self.elapsed < self.debounce then return end
-        self.elapsed = 0
-        self.waiting = false
-        RepositionSecureAnchor()
+        if self.waiting or (mainFrame and mainFrame.isMoving) then
+            self.elapsed = self.elapsed + elapsed
+            if self.elapsed < self.debounce then return end
+            self.elapsed = 0
+            self.waiting = false
+            RepositionSecureAnchor()
+        end
     end)
     local function requestSecureAnchorReposition()
         anchorRepositionFrame.elapsed = 0
@@ -1308,10 +1309,15 @@ function Frame:CreateHeader()
     header:RegisterForDrag("LeftButton")
     header:SetScript("OnDragStart", function()
         mainFrame:StartMoving()
+        mainFrame.isMoving = true
     end)
     header:SetScript("OnDragStop", function()
         mainFrame:StopMovingOrSizing()
+        mainFrame.isMoving = false
         Frame:SavePosition()
+        if mainFrame._requestSecureAnchorReposition then
+            mainFrame._requestSecureAnchorReposition()
+        end
     end)
 
     mainFrame.header = header
