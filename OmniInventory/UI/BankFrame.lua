@@ -587,20 +587,69 @@ local function CreateSearchBar(parent)
     searchBar.icon:SetPoint("LEFT", 6, 0)
     searchBar.icon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
 
+    -- Help button (?)
+    local helpBtn = CreateFrame("Button", nil, searchBar)
+    helpBtn:SetSize(14, 14)
+    helpBtn:SetPoint("RIGHT", -6, 0)
+    helpBtn:SetNormalTexture("Interface\\Common\\Help-i")
+    helpBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilit")
+    helpBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+        GameTooltip:SetText("OmniInventory Search Query Help", 1, 0.82, 0)
+        GameTooltip:AddLine("Type text to match item names (e.g. 'silk').", 1, 1, 1, true)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Prefix-based Search:", 1, 0.82, 0)
+        GameTooltip:AddLine("~t:text / tooltip:text - Search inside tooltips", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("~q:quality / quality:quality - Search by rarity (e.g. 'epic', '4')", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("~e / ~equip / equipment - Equippable items only", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Rule Engine Expressions (MyBags / Bagshui):", 1, 0.82, 0)
+        GameTooltip:AddLine("Quality('epic') - Match Epic items", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("Type('Armor') - Match Armor items", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("Name('shadow') - Match name containing 'shadow'", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("Binds('BoP') - Match soulbound items", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("Id(6948) - Match Hearthstone", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Combine expressions using 'and', 'or', 'not'.", 1, 1, 1, true)
+        GameTooltip:AddLine("Example: Quality('epic') and Type('Armor')", 0.6, 0.85, 1.0, true)
+        GameTooltip:Show()
+    end)
+    helpBtn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    -- Clear button (red X)
+    local clearBtn = CreateFrame("Button", nil, searchBar)
+    clearBtn:SetSize(14, 14)
+    clearBtn:SetPoint("RIGHT", helpBtn, "LEFT", -4, 0)
+    clearBtn:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+    clearBtn:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
+    clearBtn:Hide()
+
     searchBar.editBox = CreateFrame("EditBox", "OmniBankSearchBox", searchBar)
     searchBar.editBox:SetPoint("LEFT", searchBar.icon, "RIGHT", 4, 0)
-    searchBar.editBox:SetPoint("RIGHT", -6, 0)
+    searchBar.editBox:SetPoint("RIGHT", clearBtn, "LEFT", -4, 0)
     searchBar.editBox:SetHeight(18)
     searchBar.editBox:SetAutoFocus(false)
     searchBar.editBox:SetFontObject(ChatFontNormal)
     searchBar.editBox:SetTextColor(1, 1, 1, 1)
     searchBar.editBox:SetTextInsets(2, 2, 0, 0)
 
+    clearBtn:SetScript("OnClick", function()
+        searchBar.editBox:SetText("")
+        searchBar.editBox:ClearFocus()
+    end)
+
     searchBar.editBox:SetScript("OnTextChanged", function(self)
         searchText = self:GetText() or ""
         isSearchActive = (searchText ~= "")
         if BankFrame and BankFrame.UpdateLayout then
             BankFrame:UpdateLayout()
+        end
+        if searchText ~= "" then
+            clearBtn:Show()
+        else
+            clearBtn:Hide()
         end
     end)
     searchBar.editBox:SetScript("OnEscapePressed", function(self)
@@ -610,6 +659,8 @@ local function CreateSearchBar(parent)
 
     parent.searchBar = searchBar
     parent.searchBox = searchBar.editBox
+    searchBar.clearBtn = clearBtn
+    searchBar.helpBtn = helpBtn
     return searchBar
 end
 

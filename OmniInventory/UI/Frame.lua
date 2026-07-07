@@ -1535,6 +1535,45 @@ function Frame:CreateSearchBar()
     searchBar.icon:SetPoint("LEFT", 6, 0)
     searchBar.icon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
 
+    -- Help button (?)
+    local helpBtn = CreateFrame("Button", nil, searchBar)
+    helpBtn:SetSize(14, 14)
+    helpBtn:SetPoint("RIGHT", -6, 0)
+    helpBtn:SetNormalTexture("Interface\\Common\\Help-i")
+    helpBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilit")
+    helpBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+        GameTooltip:SetText("OmniInventory Search Query Help", 1, 0.82, 0)
+        GameTooltip:AddLine("Type text to match item names (e.g. 'silk').", 1, 1, 1, true)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Prefix-based Search:", 1, 0.82, 0)
+        GameTooltip:AddLine("~t:text / tooltip:text - Search inside tooltips", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("~q:quality / quality:quality - Search by rarity (e.g. 'epic', '4')", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("~e / ~equip / equipment - Equippable items only", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Rule Engine Expressions (MyBags / Bagshui):", 1, 0.82, 0)
+        GameTooltip:AddLine("Quality('epic') - Match Epic items", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("Type('Armor') - Match Armor items", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("Name('shadow') - Match name containing 'shadow'", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("Binds('BoP') - Match soulbound items", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("Id(6948) - Match Hearthstone", 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Combine expressions using 'and', 'or', 'not'.", 1, 1, 1, true)
+        GameTooltip:AddLine("Example: Quality('epic') and Type('Armor')", 0.6, 0.85, 1.0, true)
+        GameTooltip:Show()
+    end)
+    helpBtn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    -- Clear button (red X)
+    local clearBtn = CreateFrame("Button", nil, searchBar)
+    clearBtn:SetSize(14, 14)
+    clearBtn:SetPoint("RIGHT", helpBtn, "LEFT", -4, 0)
+    clearBtn:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+    clearBtn:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
+    clearBtn:Hide()
+
     -- Search editbox (plain EditBox, no template to avoid white borders)
     searchBar.editBox = CreateFrame("EditBox", "OmniSearchBox", searchBar)
     searchBar.editBox:SetPoint("LEFT", searchBar.icon, "RIGHT", 4, 0)
@@ -1543,15 +1582,6 @@ function Frame:CreateSearchBar()
     searchBar.editBox:SetFontObject(ChatFontNormal)
     searchBar.editBox:SetTextColor(1, 1, 1, 1)
     searchBar.editBox:SetTextInsets(2, 2, 0, 0)
-
-    -- Clear button (red X)
-    local clearBtn = CreateFrame("Button", nil, searchBar)
-    clearBtn:SetSize(14, 14)
-    clearBtn:SetPoint("RIGHT", -6, 0)
-    clearBtn:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
-    clearBtn:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
-    clearBtn:Hide()
-
     searchBar.editBox:SetPoint("RIGHT", clearBtn, "LEFT", -4, 0)
 
     clearBtn:SetScript("OnClick", function()
@@ -1581,6 +1611,7 @@ function Frame:CreateSearchBar()
     mainFrame.searchBox = searchBar.editBox
     mainFrame.searchClearBtn = clearBtn
     searchBar.clearBtn = clearBtn
+    searchBar.helpBtn = helpBtn
 end
 
 -- =============================================================================
@@ -5824,6 +5855,19 @@ local function MatchItemQuery(itemInfo, query)
     query = string.gsub(query or "", "^%s*(.-)%s*$", "%1")
     if query == "" then
         return true
+    end
+
+    -- Try rule engine expression (MyBags / Bagshui style)
+    if string.match(query, "%a+%b()") then
+        if Omni.Rules and Omni.Rules.Compile then
+            local func, err = Omni.Rules:Compile(query)
+            if func then
+                local ok, result = pcall(Omni.Rules.Match, Omni.Rules, func, itemInfo)
+                if ok then
+                    return result
+                end
+            end
+        end
     end
 
     local info = GetCachedItemSearchInfo(itemInfo)
