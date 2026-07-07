@@ -486,7 +486,22 @@ function Settings:BuildGeneral(panel)
         "Displays a small vertical stripe on the left edge of each item slot matching its category color.",
         "showCategoryStripe", false, nil, true)
 
-    y = y - (ROW_H * 5) - SECTION_GAP
+    -- Row 5
+    row = 5
+    self.footerMoneyIconsCb = MakeCb(0, row,
+        "Money icons",
+        "Coin Icons",
+        "Show the footer money as gold, silver, and copper coin icons instead of text (e.g. 12g 34s 56c).",
+        "footerMoneyIcons", false, function()
+            if Omni.Frame then
+                Omni.Frame:UpdateMoney()
+                if Omni.Frame.UpdateFooterCustomButtons then
+                    Omni.Frame:UpdateFooterCustomButtons()
+                end
+            end
+        end, true)
+
+    y = y - (ROW_H * 6) - SECTION_GAP
 
     local resetHeader = OpsTheme.CreateSectionHeader(panel, "[+]  Frame Position", SECTION_COLORS.footer)
     resetHeader:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
@@ -992,6 +1007,9 @@ function Settings:UpdateValues()
     end
     if self.footerMoneyEmphasisCb and Omni.Data then
         self.footerMoneyEmphasisCb:SetChecked(Omni.Data:Get("footerMoneyEmphasis") == true)
+    end
+    if self.footerMoneyIconsCb and Omni.Data then
+        self.footerMoneyIconsCb:SetChecked(Omni.Data:Get("footerMoneyIcons") == true)
     end
     if self.enableBoundCategoriesCb and Omni.Data then
         self.enableBoundCategoriesCb:SetChecked(Omni.Data:Get("enableBoundCategories") ~= false)

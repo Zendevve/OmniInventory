@@ -2922,6 +2922,31 @@ function Frame:CreateFooter()
     end)
     footer.moneyHitBox._moneyText = footer.money:GetText() or "0"
 
+    -- Money display as gold/silver/copper coin icons (toggleable in settings).
+    -- Built manually: a container frame holding direct coin textures + number texts,
+    -- right-anchored so they're always flush to the footer's right edge.
+    local coinTextures = {
+        gold   = "Interface\\MoneyFrame\\UI-GoldIcon",
+        silver = "Interface\\MoneyFrame\\UI-SilverIcon",
+        copper = "Interface\\MoneyFrame\\UI-CopperIcon",
+    }
+    footer.moneyIcons = CreateFrame("Frame", nil, footer)
+    footer.moneyIcons:SetHeight(DIM.FOOTER_HEIGHT)
+    footer.moneyIcons:SetPoint("RIGHT", -6, 0)
+    footer.moneyIcons:SetFrameLevel(footer:GetFrameLevel() + 2)
+    footer.moneyIcons:Hide()
+    footer.moneyIcons.tex = {}
+    footer.moneyIcons.txt = {}
+    for _, key in ipairs({ "gold", "silver", "copper" }) do
+        local tex = footer.moneyIcons:CreateTexture(nil, "ARTWORK")
+        tex:SetTexture(coinTextures[key])
+        tex:SetSize(13, 13)
+        local txt = footer.moneyIcons:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        txt:SetJustifyH("RIGHT")
+        footer.moneyIcons.tex[key] = tex
+        footer.moneyIcons.txt[key] = txt
+    end
+
     -- Overflow flyout: when ribbon + money can't fit, extra buttons
     -- are re-parented here and revealed above the footer on demand
     footer.overflowPopup = CreateFrame("Frame", nil, footer)
@@ -2974,16 +2999,82 @@ local function SyncBagFullAlertHitBox(footer)
     b:SetWidth(math.max(14, lw + 6))
 end
 
+local function GetMoneyIconWidth(frame)
+    if not frame or not frame.tex then return 0 end
+    -- Sum visible (text right-edge to icon left-edge) widths.
+    local w = 0
+    for _, key in ipairs({ "gold", "silver", "copper" }) do
+        local txt = frame.txt[key]
+        local tex = frame.tex[key]
+        if txt and txt:IsShown() and tex and tex:IsShown() then
+            w = w + (txt:GetStringWidth() or 0) + 13 + 1 + 4 -- icon + gap + spacing
+        end
+    end
+    if w > 0 then w = w - 4 end -- trim trailing spacing
+    return w
+end
+
+local function LayoutMoneyIcons(footer, gold, silver, copper)
+    local icons = footer and footer.moneyIcons
+    if not icons or not icons:IsShown() then return end
+    local show = {
+        gold   = gold > 0,
+        silver = gold > 0 or silver > 0,
+        copper = true,
+    }
+    -- Build left-to-right groups, then place from right edge inward.
+    local groups = {}
+    if show.copper then
+        table.insert(groups, { tex = icons.tex.copper, txt = icons.txt.copper, val = copper })
+    end
+    if show.silver then
+        table.insert(groups, { tex = icons.tex.silver, txt = icons.txt.silver, val = silver })
+    end
+    if show.gold then
+        table.insert(groups, { tex = icons.tex.gold, txt = icons.txt.gold, val = gold })
+    end
+
+    -- Hide all first, then show only groups.
+    for _, key in ipairs({ "gold", "silver", "copper" }) do
+        icons.tex[key]:Hide()
+        icons.txt[key]:Hide()
+    end
+
+    local offset = 0
+    for _, g in ipairs(groups) do
+        g.txt:SetText(tostring(g.val))
+        g.txt:Show()
+        g.tex:Show()
+        g.txt:ClearAllPoints()
+        g.txt:SetPoint("RIGHT", icons, "RIGHT", -offset, 0)
+        g.tex:ClearAllPoints()
+        g.tex:SetPoint("RIGHT", g.txt, "LEFT", -1, 0)
+        local tw = g.txt:GetStringWidth() or 0
+        offset = offset + tw + 13 + 1 + 4
+    end
+    icons:SetWidth(math.max(0, offset - 4))
+end
+
+local function GetMoneyDisplayWidth(footer)
+    if footer.moneyIcons and footer.moneyIcons:IsShown() then
+        return GetMoneyIconWidth(footer.moneyIcons)
+    end
+    return footer.money:GetStringWidth() or 0
+end
+
 local function SyncFooterMoneyHitBox(footer)
     local hitBox = footer and footer.moneyHitBox
-    local money = footer and footer.money
-    if not hitBox or not money then
+    if not hitBox then
         return
     end
-    local width = (money:GetStringWidth() or 0) + 10
+    local active = (footer.moneyIcons and footer.moneyIcons:IsShown() and footer.moneyIcons) or footer.money
+    if not active then
+        return
+    end
+    local width = ((active == footer.moneyIcons) and GetMoneyIconWidth(active) or (active:GetStringWidth() or 0)) + 10
     hitBox:SetWidth(math.max(45, width))
     hitBox:ClearAllPoints()
-    hitBox:SetPoint("RIGHT", money, "RIGHT", 2, 0)
+    hitBox:SetPoint("RIGHT", active, "RIGHT", 2, 0)
 end
 
 local function GetFooterSlotsBlockWidth(footer)
@@ -3003,7 +3094,7 @@ local function ComputeRibbonAvailableWidth(footer)
     local slotsBlock = GetFooterSlotsBlockWidth(footer)
     local leftEdge = 6 + slotsBlock
 
-    local moneyReserve = (footer.money:GetStringWidth() or 0) + 6 + DIM.MONEY_SAFETY_GAP
+    local moneyReserve = GetMoneyDisplayWidth(footer) + 6 + DIM.MONEY_SAFETY_GAP
     return footerWidth - leftEdge - moneyReserve
 end
 
@@ -5998,24 +6089,35 @@ function Frame:UpdateMoney()
         money = GetMoney() or 0
     end
 
+    local footer = mainFrame.footer
+    local useIcons = Omni.Data and Omni.Data:Get("footerMoneyIcons") == true
+
+    local text
     if Omni.Utils and Omni.Utils.FormatMoney then
-        local text = Omni.Utils:FormatMoney(money)
-        mainFrame.footer.money:SetText(text)
-        if mainFrame.footer.moneyHitBox then
-            mainFrame.footer.moneyHitBox._moneyText = text
-            SyncFooterMoneyHitBox(mainFrame.footer)
-        end
-        return
+        text = Omni.Utils:FormatMoney(money)
+    else
+        local gold = math.floor(money / 10000)
+        local silver = math.floor((money % 10000) / 100)
+        local copper = money % 100
+        text = string.format("%dg %ds %dc", gold, silver, copper)
     end
 
-    local gold = math.floor(money / 10000)
-    local silver = math.floor((money % 10000) / 100)
-    local copper = money % 100
-    local text = string.format("%dg %ds %dc", gold, silver, copper)
-    mainFrame.footer.money:SetText(text)
-    if mainFrame.footer.moneyHitBox then
-        mainFrame.footer.moneyHitBox._moneyText = text
-        SyncFooterMoneyHitBox(mainFrame.footer)
+    if useIcons and footer.moneyIcons then
+        footer.money:Hide()
+        footer.moneyIcons:Show()
+        local gold = math.floor(money / 10000)
+        local silver = math.floor((money % 10000) / 100)
+        local copper = money % 100
+        LayoutMoneyIcons(footer, gold, silver, copper)
+    else
+        if footer.moneyIcons then footer.moneyIcons:Hide() end
+        footer.money:Show()
+        footer.money:SetText(text)
+    end
+
+    if footer.moneyHitBox then
+        footer.moneyHitBox._moneyText = text
+        SyncFooterMoneyHitBox(footer)
     end
 end
 

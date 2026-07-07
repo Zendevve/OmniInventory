@@ -40,6 +40,8 @@ local defaults = {
         autoRepairGuild = false,
         -- Footer: larger outlined gold + slot count; slots tint blue→red by fill
         footerMoneyEmphasis = true,
+        -- Footer money: render gold/silver/copper as coin icons instead of text
+        footerMoneyIcons = false,
         -- Custom footer launcher buttons (mini-mode themed)
         footerButtons = {
             resetInstances = false,
