@@ -1632,28 +1632,30 @@ function Frame:CreateSearchBar()
         historyIndex = nil
     end)
 
-    searchBar.editBox:SetScript("OnArrowPressed", function(self, key)
-        if not OmniInventoryDB or not OmniInventoryDB.global or not OmniInventoryDB.global.searchHistory then return end
-        local history = OmniInventoryDB.global.searchHistory
-        if #history == 0 then return end
+    searchBar.editBox:SetScript("OnKeyDown", function(self, key)
+        if key == "UP" or key == "DOWN" then
+            if not OmniInventoryDB or not OmniInventoryDB.global or not OmniInventoryDB.global.searchHistory then return end
+            local history = OmniInventoryDB.global.searchHistory
+            if #history == 0 then return end
 
-        if key == "UP" then
-            if not historyIndex then
-                historyIndex = #history
-            else
-                historyIndex = math.max(1, historyIndex - 1)
-            end
-            self:SetText(history[historyIndex])
-            self:HighlightText()
-        elseif key == "DOWN" then
-            if historyIndex then
-                if historyIndex < #history then
-                    historyIndex = historyIndex + 1
-                    self:SetText(history[historyIndex])
-                    self:HighlightText()
+            if key == "UP" then
+                if not historyIndex then
+                    historyIndex = #history
                 else
-                    historyIndex = nil
-                    self:SetText("")
+                    historyIndex = math.max(1, historyIndex - 1)
+                end
+                self:SetText(history[historyIndex])
+                self:HighlightText()
+            elseif key == "DOWN" then
+                if historyIndex then
+                    if historyIndex < #history then
+                        historyIndex = historyIndex + 1
+                        self:SetText(history[historyIndex])
+                        self:HighlightText()
+                    else
+                        historyIndex = nil
+                        self:SetText("")
+                    end
                 end
             end
         end
