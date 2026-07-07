@@ -7049,6 +7049,15 @@ function Frame:Init()
                 local sourceBagID, sourceSlotID, targetBagID = Frame.FindLockedSwappingBags()
                 if sourceBagID and sourceSlotID and targetBagID then
                     if type(targetBagID) == "number" and targetBagID >= 1 and targetBagID <= 4 then
+                        Frame:StartBagSwap(sourceBagID, sourceSlotID, targetBagID)
+                    elseif type(targetBagID) == "number" and targetBagID >= 5 and targetBagID <= 11 then
+                        if BankFrame and BankFrame.StartBankBagSwap then
+                            BankFrame:StartBankBagSwap(sourceBagID, sourceSlotID, targetBagID)
+                        end
+                    end
+                end
+            end
+        end
     end)
 end
 
