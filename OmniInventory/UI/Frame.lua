@@ -5923,8 +5923,12 @@ local function OpenCharacterSelectMenu(anchorFrame)
             end
         end
         local isCurrent = (Omni.Data.currentViewedChar == char.name) or (not Omni.Data.currentViewedChar and char.name == Omni.Data.playerName)
+        local displayName = char.name
+        if char.name == Omni.Data.playerName then
+            displayName = "You"
+        end
         table.insert(menuList, {
-            text = string.format("|c%s%s|r", colorStr, char.name),
+            text = string.format("|c%s%s|r", colorStr, displayName),
             checked = isCurrent,
             func = function()
                 if char.name == Omni.Data.playerName then
