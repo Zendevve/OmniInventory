@@ -501,6 +501,11 @@ function Settings:BuildGeneral(panel)
                 end
             end
         end, true)
+    self.vendorCtrlRightClickCb = MakeCb(1, row,
+        "Ctrl right-click bypass",
+        "Ctrl+Right-Click Sell Bypass",
+        "Allows holding the Ctrl key while right-clicking a protected item to instantly sell it, bypassing the double-click warning.",
+        "vendorCtrlRightClick", true)
 
     y = y - (ROW_H * 6) - SECTION_GAP
 
@@ -1023,6 +1028,9 @@ function Settings:UpdateValues()
     end
     if self.vendorDoubleRightClickCb and Omni.Data then
         self.vendorDoubleRightClickCb:SetChecked(Omni.Data:Get("vendorDoubleRightClick") ~= false)
+    end
+    if self.vendorCtrlRightClickCb and Omni.Data then
+        self.vendorCtrlRightClickCb:SetChecked(Omni.Data:Get("vendorCtrlRightClick") ~= false)
     end
     if self.collapseEmptySlotsCb and Omni.Data then
         self.collapseEmptySlotsCb:SetChecked(Omni.Data:Get("collapseEmptySlots") == true)

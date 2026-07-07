@@ -1242,6 +1242,16 @@ function ItemButton:OnPreClick(button, mouseButton)
         local bagID = button.bagID
         local slotID = button.slotID
         if bagID and slotID and bagID >= 0 and bagID <= 4 and slotID >= 1 then
+            if IsControlKeyDown() then
+                local ctrlBypassEnabled = true
+                if Omni.Data and Omni.Data.Get then
+                    ctrlBypassEnabled = (Omni.Data:Get("vendorCtrlRightClick") ~= false)
+                end
+                if ctrlBypassEnabled then
+                    return
+                end
+            end
+
             local protectionEnabled = true
             if Omni.Data and Omni.Data.Get then
                 protectionEnabled = (Omni.Data:Get("vendorDoubleRightClick") ~= false)

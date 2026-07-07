@@ -35,6 +35,7 @@ local defaults = {
         enableUnusableOverlay = true,
         autoSellJunk = true,
         vendorDoubleRightClick = true,
+        vendorCtrlRightClick = true,
         collapseEmptySlots = false,
         autoRepair = false,
         autoRepairGuild = false,
