@@ -13,7 +13,7 @@ local addonName, Omni = ...
 
 _G.OmniInventory = Omni
 
-Omni.version = "2.0.0"
+Omni.version = "2.1.0"
 Omni.author = "Zendevve"
 
 -- Convenience top-level Toggle. DIRECT call (no pcall) is critical
