@@ -2621,14 +2621,16 @@ local function CreateFooterMiniButton(parent, def)
     btn:SetSize(DIM.FOOTER_BTN_SIZE, DIM.FOOTER_BTN_SIZE)
 
     local trim = def.trimIcon ~= false
-    btn:SetNormalTexture(def.icon)
-    local normal = btn:GetNormalTexture()
-    if normal and normal.SetTexCoord and trim then
-        normal:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    local iconTex = btn:CreateTexture(nil, "ARTWORK")
+    iconTex:SetAllPoints(btn)
+    iconTex:SetTexture(def.icon)
+    if trim then
+        iconTex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
+    btn.icon = iconTex
 
     local hl = btn:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetAllPoints()
+    hl:SetAllPoints(btn)
     hl:SetTexture(def.icon)
     if trim then
         hl:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -2649,12 +2651,10 @@ local function CreateFooterMiniButton(parent, def)
     end
 
     btn:SetScript("OnMouseDown", function(self)
-        local tex = self:GetNormalTexture()
-        if tex then tex:SetVertexColor(0.75, 0.75, 0.75) end
+        if self.icon then self.icon:SetVertexColor(0.75, 0.75, 0.75) end
     end)
     btn:SetScript("OnMouseUp", function(self)
-        local tex = self:GetNormalTexture()
-        if tex then tex:SetVertexColor(1, 1, 1) end
+        if self.icon then self.icon:SetVertexColor(1, 1, 1) end
     end)
 
     if type(def.onClick) == "function" then
