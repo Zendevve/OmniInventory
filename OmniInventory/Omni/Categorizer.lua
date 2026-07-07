@@ -634,4 +634,65 @@ function Categorizer:Init()
     OmniInventoryDB = OmniInventoryDB or {}
     OmniInventoryDB.categoryOverrides = OmniInventoryDB.categoryOverrides or {}
     OmniInventoryDB.perishableItems = OmniInventoryDB.perishableItems or {}
+    OmniInventoryDB.global = OmniInventoryDB.global or {}
+    OmniInventoryDB.global.categoryCustoms = OmniInventoryDB.global.categoryCustoms or {}
+    OmniInventoryDB.global.categoryRenames = OmniInventoryDB.global.categoryRenames or {}
+end
+
+-- =============================================================================
+-- Category Customization and Rename Support
+-- =============================================================================
+
+local function GetOriginalCategoryName(name)
+    if OmniInventoryDB and OmniInventoryDB.global and OmniInventoryDB.global.categoryRenames then
+        for orig, renamed in pairs(OmniInventoryDB.global.categoryRenames) do
+            if renamed == name then
+                return orig
+            end
+        end
+    end
+    return name
+end
+Omni.Categorizer.GetOriginalCategoryName = GetOriginalCategoryName
+
+local orig_GetCategoryInfo = Categorizer.GetCategoryInfo
+function Categorizer:GetCategoryInfo(name)
+    if name and (name == "Free Space" or string.match(name, "^Free Space")) then
+        return {
+            name = name,
+            priority = 150,
+            color = { r = 0.5, g = 0.5, b = 0.5 },
+        }
+    end
+
+    local origName = GetOriginalCategoryName(name)
+    local defaultInfo = categories[origName] or {
+        name = name,
+        priority = 99,
+        color = CATEGORY_COLORS[origName] or CATEGORY_COLORS[name] or { r = 0.5, g = 0.5, b = 0.5 },
+    }
+
+    local custom = OmniInventoryDB and OmniInventoryDB.global and OmniInventoryDB.global.categoryCustoms and OmniInventoryDB.global.categoryCustoms[name]
+    if custom then
+        return {
+            name = name,
+            priority = custom.priority or defaultInfo.priority,
+            color = custom.color or defaultInfo.color,
+            icon = defaultInfo.icon,
+            filter = defaultInfo.filter,
+        }
+    end
+    return defaultInfo
+end
+
+local orig_GetCategory = Categorizer.GetCategory
+function Categorizer:GetCategory(itemInfo)
+    local cat = orig_GetCategory(self, itemInfo)
+    if cat and OmniInventoryDB and OmniInventoryDB.global and OmniInventoryDB.global.categoryRenames then
+        local newName = OmniInventoryDB.global.categoryRenames[cat]
+        if newName then
+            return newName
+        end
+    end
+    return cat
 end

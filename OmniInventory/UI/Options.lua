@@ -117,6 +117,7 @@ local SECTION_COLORS = {
 }
 
 local FOOTER_BUTTON_OPTIONS = {
+    { key = "clearGlow",      label = "Mark All Read" },
     { key = "resetInstances", label = "Reset Instances" },
     { key = "hearthstone",    label = "Hearthstone" },
     { key = "openables",      label = "Clam Opener" },

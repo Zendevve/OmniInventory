@@ -1607,6 +1607,58 @@ function Frame:CreateSearchBar()
         self:ClearFocus()
     end)
 
+    searchBar.editBox:SetScript("OnEnterPressed", function(self)
+        local text = self:GetText() or ""
+        if text ~= "" then
+            if OmniInventoryDB and OmniInventoryDB.global then
+                OmniInventoryDB.global.searchHistory = OmniInventoryDB.global.searchHistory or {}
+                local history = OmniInventoryDB.global.searchHistory
+                for i = #history, 1, -1 do
+                    if history[i] == text then
+                        table.remove(history, i)
+                    end
+                end
+                table.insert(history, text)
+                while #history > 10 do
+                    table.remove(history, 1)
+                end
+            end
+        end
+        self:ClearFocus()
+    end)
+
+    local historyIndex = nil
+    searchBar.editBox:SetScript("OnEditFocusGained", function(self)
+        historyIndex = nil
+    end)
+
+    searchBar.editBox:SetScript("OnArrowPressed", function(self, key)
+        if not OmniInventoryDB or not OmniInventoryDB.global or not OmniInventoryDB.global.searchHistory then return end
+        local history = OmniInventoryDB.global.searchHistory
+        if #history == 0 then return end
+
+        if key == "UP" then
+            if not historyIndex then
+                historyIndex = #history
+            else
+                historyIndex = math.max(1, historyIndex - 1)
+            end
+            self:SetText(history[historyIndex])
+            self:HighlightText()
+        elseif key == "DOWN" then
+            if historyIndex then
+                if historyIndex < #history then
+                    historyIndex = historyIndex + 1
+                    self:SetText(history[historyIndex])
+                    self:HighlightText()
+                else
+                    historyIndex = nil
+                    self:SetText("")
+                end
+            end
+        end
+    end)
+
     mainFrame.searchBar = searchBar
     mainFrame.searchBox = searchBar.editBox
     mainFrame.searchClearBtn = clearBtn
@@ -2298,6 +2350,36 @@ end
 
 -- Footer custom launcher buttons
 local FOOTER_CUSTOM_BUTTONS = {
+    {
+        key     = "clearGlow",
+        icon    = "Interface\\Icons\\Spell_Holy_Purify",
+        title   = "Mark All Read",
+        sub     = "Clears the golden new item glow from all items in your bags.",
+        onClick = function()
+            if Omni.NewItems then
+                wipe(Omni.NewItems)
+            end
+            if Omni.Categorizer and Omni.Categorizer.ClearAllNewItems then
+                Omni.Categorizer:ClearAllNewItems()
+            end
+            for _, byBag in pairs(slotButtons) do
+                for _, btn in pairs(byBag) do
+                    if btn and btn.newGlow then
+                        if btn.newGlow.pulse then btn.newGlow.pulse:Stop() end
+                        btn.newGlow:Hide()
+                    end
+                end
+            end
+            if Omni.Frame and Omni.Frame.UpdateLayout then
+                Omni.Frame:InvalidateRenderCaches({ clearLayout = true })
+                Omni.Frame:UpdateLayout()
+            end
+            if Omni.BankFrame and Omni.BankFrame.UpdateLayout then
+                Omni.BankFrame:UpdateLayout()
+            end
+            print("|cFF00FF00Omni|r: All new items marked as read.")
+        end,
+    },
     {
         key     = "resetInstances",
         icon    = "Interface\\Icons\\Achievement_Boss_Murmur",
@@ -4874,15 +4956,25 @@ function Frame:RenderFlowView(items, layoutOpts)
                         end
 
                         header:RegisterForClicks("LeftButtonUp")
+                        local lastClick = 0
                         header:SetScript("OnClick", function(self)
-                            local cat = self.catName
-                            if cat and OmniInventoryDB and OmniInventoryDB.char then
-                                OmniInventoryDB.char.collapsedCategories = OmniInventoryDB.char.collapsedCategories or {}
-                                local current = OmniInventoryDB.char.collapsedCategories[cat]
-                                OmniInventoryDB.char.collapsedCategories[cat] = not current
-                                if Frame.UpdateLayout then
-                                    Frame:InvalidateRenderCaches()
-                                    Frame:UpdateLayout(nil, { reason = "category_collapse" })
+                            local now = GetTime()
+                            if (now - lastClick) <= 0.35 then
+                                lastClick = 0
+                                if Frame.OpenCategoryEditDialog then
+                                    Frame:OpenCategoryEditDialog(self.catName)
+                                end
+                            else
+                                lastClick = now
+                                local cat = self.catName
+                                if cat and OmniInventoryDB and OmniInventoryDB.char then
+                                    OmniInventoryDB.char.collapsedCategories = OmniInventoryDB.char.collapsedCategories or {}
+                                    local current = OmniInventoryDB.char.collapsedCategories[cat]
+                                    OmniInventoryDB.char.collapsedCategories[cat] = not current
+                                    if Frame.UpdateLayout then
+                                        Frame:InvalidateRenderCaches()
+                                        Frame:UpdateLayout(nil, { reason = "category_collapse" })
+                                    end
                                 end
                             end
                         end)
@@ -6957,14 +7049,229 @@ function Frame:Init()
                 local sourceBagID, sourceSlotID, targetBagID = Frame.FindLockedSwappingBags()
                 if sourceBagID and sourceSlotID and targetBagID then
                     if type(targetBagID) == "number" and targetBagID >= 1 and targetBagID <= 4 then
-                        Frame:StartBagSwap(sourceBagID, sourceSlotID, targetBagID)
-                    elseif type(targetBagID) == "number" and targetBagID >= 5 and targetBagID <= 11 then
-                        if BankFrame and BankFrame.StartBankBagSwap then
-                            BankFrame:StartBankBagSwap(sourceBagID, sourceSlotID, targetBagID)
-                        end
-                    end
-                end
-            end
-        end
     end)
 end
+
+function Frame:OpenCategoryEditDialog(catName)
+    if not catName or catName == "BoE" or string.match(catName, "^Free Space") or catName == "Free Space" then
+        return
+    end
+
+    if not self.categoryEditDialog then
+        local dialog = CreateFrame("Frame", "OmniCategoryEditDialog", mainFrame)
+        dialog:SetFrameStrata("DIALOG")
+        dialog:SetFrameLevel(mainFrame:GetFrameLevel() + 15)
+        dialog:SetSize(280, 260)
+        dialog:SetPoint("CENTER", mainFrame, "CENTER", 0, 20)
+        dialog:EnableMouse(true)
+        dialog:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 14,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        })
+        dialog:SetBackdropColor(0.08, 0.08, 0.08, 0.95)
+        dialog:SetBackdropBorderColor(0.45, 0.38, 0.15, 1)
+
+        -- Close button
+        dialog.closeBtn = CreateFrame("Button", nil, dialog, "UIPanelCloseButton")
+        dialog.closeBtn:SetSize(18, 18)
+        dialog.closeBtn:SetPoint("TOPRIGHT", -4, -4)
+        dialog.closeBtn:SetScript("OnClick", function() dialog:Hide() end)
+
+        -- Title
+        dialog.title = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        dialog.title:SetPoint("TOPLEFT", 12, -12)
+        dialog.title:SetText("Edit Category")
+
+        -- Name EditBox
+        dialog.nameLabel = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        dialog.nameLabel:SetPoint("TOPLEFT", 12, -35)
+        dialog.nameLabel:SetText("Display Name:")
+
+        dialog.nameBg = CreateFrame("Frame", nil, dialog)
+        dialog.nameBg:SetPoint("TOPLEFT", 12, -50)
+        dialog.nameBg:SetSize(256, 20)
+        dialog.nameBg:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Buttons\\WHITE8X8",
+            edgeSize = 1,
+        })
+        dialog.nameBg:SetBackdropColor(0.02, 0.02, 0.02, 0.8)
+        dialog.nameBg:SetBackdropBorderColor(0.2, 0.2, 0.2, 1)
+
+        dialog.nameBox = CreateFrame("EditBox", nil, dialog.nameBg)
+        dialog.nameBox:SetAllPoints(dialog.nameBg)
+        dialog.nameBox:SetFontObject(ChatFontNormal)
+        dialog.nameBox:SetTextColor(1, 1, 1)
+        dialog.nameBox:SetTextInsets(4, 4, 0, 0)
+        dialog.nameBox:SetAutoFocus(false)
+        dialog.nameBox:SetScript("OnEscapePressed", function() dialog:Hide() end)
+
+        -- Priority Slider
+        dialog.prioLabel = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        dialog.prioLabel:SetPoint("TOPLEFT", 12, -80)
+        dialog.prioLabel:SetText("Priority (Sort Order): 50")
+
+        dialog.prioSlider = CreateFrame("Slider", "OmniCategoryPrioSlider", dialog, "OptionsSliderTemplate")
+        dialog.prioSlider:SetPoint("TOPLEFT", 12, -95)
+        dialog.prioSlider:SetWidth(256)
+        dialog.prioSlider:SetMinMaxValues(1, 99)
+        dialog.prioSlider:SetValueStep(1)
+        dialog.prioSlider:SetScript("OnValueChanged", function(self, val)
+            dialog.prioLabel:SetText("Priority (Sort Order): " .. math.floor(val))
+        end)
+        _G[dialog.prioSlider:GetName() .. 'Text']:SetText("")
+        _G[dialog.prioSlider:GetName() .. 'Low']:SetText("1 (High)")
+        _G[dialog.prioSlider:GetName() .. 'High']:SetText("99 (Low)")
+
+        -- Color Swatch
+        dialog.colorLabel = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        dialog.colorLabel:SetPoint("TOPLEFT", 12, -125)
+        dialog.colorLabel:SetText("Category Color:")
+
+        dialog.swatch = dialog:CreateTexture(nil, "OVERLAY")
+        dialog.swatch:SetSize(24, 24)
+        dialog.swatch:SetPoint("TOPLEFT", 12, -140)
+        dialog.swatch:SetTexture("Interface\\Buttons\\WHITE8X8")
+
+        -- RGB Sliders
+        local function UpdateSwatch()
+            local r = dialog.rSlider:GetValue()
+            local g = dialog.gSlider:GetValue()
+            local b = dialog.bSlider:GetValue()
+            dialog.swatch:SetVertexColor(r, g, b)
+        end
+
+        local function CreateRGBSlider(name, labelText, offset)
+            local lbl = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            lbl:SetPoint("TOPLEFT", 48, offset)
+            lbl:SetText(labelText)
+
+            local s = CreateFrame("Slider", "OmniCategoryColor" .. name, dialog, "OptionsSliderTemplate")
+            s:SetPoint("TOPLEFT", 100, offset + 4)
+            s:SetWidth(168)
+            s:SetMinMaxValues(0, 1)
+            s:SetValueStep(0.01)
+            s:SetScript("OnValueChanged", function()
+                UpdateSwatch()
+            end)
+            _G[s:GetName() .. 'Text']:SetText("")
+            _G[s:GetName() .. 'Low']:SetText("")
+            _G[s:GetName() .. 'High']:SetText("")
+            return s
+        end
+
+        dialog.rSlider = CreateRGBSlider("Red", "Red:", -130)
+        dialog.gSlider = CreateRGBSlider("Green", "Green:", -150)
+        dialog.bSlider = CreateRGBSlider("Blue", "Blue:", -170)
+
+        -- Buttons: Save, Reset, Cancel
+        dialog.saveBtn = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+        dialog.saveBtn:SetSize(70, 22)
+        dialog.saveBtn:SetPoint("BOTTOMLEFT", 12, 12)
+        dialog.saveBtn:SetText("Save")
+        dialog.saveBtn:SetScript("OnClick", function()
+            local currentCat = dialog.currentCatName
+            local newName = dialog.nameBox:GetText() or ""
+            newName = string.gsub(newName, "^%s*(.-)%s*$", "%1") -- trim
+
+            if newName ~= "" and currentCat then
+                OmniInventoryDB.global.categoryRenames = OmniInventoryDB.global.categoryRenames or {}
+                OmniInventoryDB.global.categoryCustoms = OmniInventoryDB.global.categoryCustoms or {}
+
+                local origName = Omni.Categorizer.GetOriginalCategoryName(currentCat)
+                if newName ~= origName then
+                    OmniInventoryDB.global.categoryRenames[origName] = newName
+                else
+                    OmniInventoryDB.global.categoryRenames[origName] = nil
+                end
+
+                local r = dialog.rSlider:GetValue()
+                local g = dialog.gSlider:GetValue()
+                local b = dialog.bSlider:GetValue()
+                local p = math.floor(dialog.prioSlider:GetValue())
+
+                OmniInventoryDB.global.categoryCustoms[newName] = {
+                    priority = p,
+                    color = { r = r, g = g, b = b },
+                }
+
+                -- Refresh layouts
+                if Omni.Frame and Omni.Frame.UpdateLayout then
+                    Omni.Frame:InvalidateRenderCaches()
+                    Omni.Frame:UpdateLayout()
+                end
+                if Omni.BankFrame and Omni.BankFrame.UpdateLayout then
+                    Omni.BankFrame:UpdateLayout()
+                end
+                if Omni.GuildBankFrame and Omni.GuildBankFrame.UpdateLayout then
+                    Omni.GuildBankFrame:UpdateLayout()
+                end
+            end
+            dialog:Hide()
+        end)
+
+        dialog.resetBtn = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+        dialog.resetBtn:SetSize(70, 22)
+        dialog.resetBtn:SetPoint("BOTTOMLEFT", dialog.saveBtn, "BOTTOMRIGHT", 8, 0)
+        dialog.resetBtn:SetText("Reset")
+        dialog.resetBtn:SetScript("OnClick", function()
+            local currentCat = dialog.currentCatName
+            if currentCat then
+                local origName = Omni.Categorizer.GetOriginalCategoryName(currentCat)
+                if OmniInventoryDB and OmniInventoryDB.global then
+                    if OmniInventoryDB.global.categoryRenames then
+                        OmniInventoryDB.global.categoryRenames[origName] = nil
+                    end
+                    if OmniInventoryDB.global.categoryCustoms then
+                        OmniInventoryDB.global.categoryCustoms[currentCat] = nil
+                        OmniInventoryDB.global.categoryCustoms[origName] = nil
+                    end
+                end
+
+                -- Refresh layouts
+                if Omni.Frame and Omni.Frame.UpdateLayout then
+                    Omni.Frame:InvalidateRenderCaches()
+                    Omni.Frame:UpdateLayout()
+                end
+                if Omni.BankFrame and Omni.BankFrame.UpdateLayout then
+                    Omni.BankFrame:UpdateLayout()
+                end
+                if Omni.GuildBankFrame and Omni.GuildBankFrame.UpdateLayout then
+                    Omni.GuildBankFrame:UpdateLayout()
+                end
+            end
+            dialog:Hide()
+        end)
+
+        dialog.cancelBtn = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+        dialog.cancelBtn:SetSize(70, 22)
+        dialog.cancelBtn:SetPoint("BOTTOMRIGHT", -12, 12)
+        dialog.cancelBtn:SetText("Cancel")
+        dialog.cancelBtn:SetScript("OnClick", function()
+            dialog:Hide()
+        end)
+
+        self.categoryEditDialog = dialog
+        tinsert(UISpecialFrames, "OmniCategoryEditDialog")
+    end
+
+    local dialog = self.categoryEditDialog
+    dialog.currentCatName = catName
+
+    -- Load current values
+    local info = Omni.Categorizer:GetCategoryInfo(catName)
+    dialog.title:SetText("Edit Category: |cffffd700" .. catName .. "|r")
+    dialog.nameBox:SetText(catName)
+    dialog.prioSlider:SetValue(info.priority or 50)
+    dialog.rSlider:SetValue(info.color.r or 0.5)
+    dialog.gSlider:SetValue(info.color.g or 0.5)
+    dialog.bSlider:SetValue(info.color.b or 0.5)
+    dialog.swatch:SetVertexColor(info.color.r or 0.5, info.color.g or 0.5, info.color.b or 0.5)
+
+    dialog:Show()
+end
+
+Omni.Frame.OpenCategoryEditDialog = function(self, catName) Frame:OpenCategoryEditDialog(catName) end
+

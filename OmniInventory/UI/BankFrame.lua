@@ -1806,9 +1806,33 @@ function BankFrame:RenderFlowView(items)
             headerIndex = headerIndex + 1
             local header = categoryHeaders[headerIndex]
             if not header then
-                header = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                header = CreateFrame("Button", nil, scrollChild)
+                header:SetHeight(16)
+                header.textLabel = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                header.textLabel:SetPoint("LEFT", header, "LEFT", 0, 0)
+                header.SetText = function(self, val)
+                    self.textLabel:SetText(val)
+                    self:SetWidth(math.max(self.textLabel:GetStringWidth() or 0, 40))
+                end
+                header.SetTextColor = function(self, r, g, b)
+                    self.textLabel:SetTextColor(r, g, b)
+                end
+                header:RegisterForClicks("LeftButtonUp")
+                local lastClick = 0
+                header:SetScript("OnClick", function(self)
+                    local now = GetTime()
+                    if (now - lastClick) <= 0.35 then
+                        lastClick = 0
+                        if Omni.Frame and Omni.Frame.OpenCategoryEditDialog then
+                            Omni.Frame:OpenCategoryEditDialog(self.catName)
+                        end
+                    else
+                        lastClick = now
+                    end
+                end)
                 categoryHeaders[headerIndex] = header
             end
+            header.catName = catName
 
             header:ClearAllPoints()
             header:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", laneX, laneY)
