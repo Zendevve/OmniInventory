@@ -1270,8 +1270,6 @@ function ItemButton:OnPreClick(button, mouseButton)
                 else
                     lastClickedItem = itemLink
                     lastClickTime = now
-
-                    PlaySound("igQuestLogAbandonQuest")
                     print(string.format("|cFFFF4040OmniInventory|r: Double right-click to sell valuable item: %s", itemLink))
 
                     if UIErrorsFrame then
