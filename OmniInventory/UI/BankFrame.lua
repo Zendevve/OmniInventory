@@ -2113,9 +2113,7 @@ function BankFrame:UpdateLayout()
             Omni.Perf:End("bank.UpdateLayout.renderGrid", perfRender, { itemCount = #items })
         end
         self:UpdateSlotCount()
-        if searchText and searchText ~= "" then
-            self:ApplySearch(searchText)
-        end
+        self:ApplySearch(searchText or "")
         if Omni._perfEnabled and Omni.Perf then
             Omni.Perf:End("bank.UpdateLayout.total", perfTotal, { itemCount = #items, view = "grid" })
         end
@@ -2128,9 +2126,7 @@ function BankFrame:UpdateLayout()
             Omni.Perf:End("bank.UpdateLayout.renderList", perfRender, { itemCount = #items })
         end
         self:UpdateSlotCount()
-        if searchText and searchText ~= "" then
-            self:ApplySearch(searchText)
-        end
+        self:ApplySearch(searchText or "")
         if Omni._perfEnabled and Omni.Perf then
             Omni.Perf:End("bank.UpdateLayout.total", perfTotal, { itemCount = #items, view = "list" })
         end
@@ -2147,12 +2143,10 @@ function BankFrame:UpdateLayout()
     end
     self:UpdateSlotCount()
 
-    if searchText and searchText ~= "" then
-        local perfSearch = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("bank.UpdateLayout.search")
-        self:ApplySearch(searchText)
-        if Omni._perfEnabled and Omni.Perf then
-            Omni.Perf:End("bank.UpdateLayout.search", perfSearch)
-        end
+    local perfSearch = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("bank.UpdateLayout.search")
+    self:ApplySearch(searchText or "")
+    if Omni._perfEnabled and Omni.Perf then
+        Omni.Perf:End("bank.UpdateLayout.search", perfSearch)
     end
     if Omni._perfEnabled and Omni.Perf then
         Omni.Perf:End("bank.UpdateLayout.total", perfTotal, { itemCount = #items, view = "flow" })

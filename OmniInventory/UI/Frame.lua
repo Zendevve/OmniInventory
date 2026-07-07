@@ -4135,13 +4135,11 @@ function Frame:UpdateLayout(changedBags, opts)
     self:UpdateSlotCount()
     self:UpdateMoney()
 
-    -- Apply search if active
-    if searchText and searchText ~= "" then
-        local perfSearch = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("frame.UpdateLayout.search")
-        self:ApplySearch(searchText)
-        if Omni._perfEnabled and Omni.Perf then
-            Omni.Perf:End("frame.UpdateLayout.search", perfSearch, { reason = updateReason })
-        end
+    -- Apply search
+    local perfSearch = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("frame.UpdateLayout.search")
+    self:ApplySearch(searchText or "")
+    if Omni._perfEnabled and Omni.Perf then
+        Omni.Perf:End("frame.UpdateLayout.search", perfSearch, { reason = updateReason })
     end
 
     hasRenderedOnce = true
