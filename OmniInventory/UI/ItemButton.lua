@@ -1421,13 +1421,17 @@ function ItemButton:OnEnter(button)
 
     local shown = false
     if not info.__offline and IsLiveContainerFrameSlot(bagID, slotID) and slotID then
-        local ok = pcall(GameTooltip.SetBagItem, GameTooltip, bagID, slotID)
-        if ok then
-            if GameTooltip.NumLines then
-                shown = GameTooltip:NumLines() > 0
-            else
-                shown = true
+        local ok
+        if bagID == -1 then
+            if BankButtonIDToInvSlotID then
+                local invID = BankButtonIDToInvSlotID(slotID, nil)
+                ok = pcall(GameTooltip.SetInventoryItem, GameTooltip, "player", invID)
             end
+        else
+            ok = pcall(GameTooltip.SetBagItem, GameTooltip, bagID, slotID)
+        end
+        if ok then
+            shown = true
         end
     end
 

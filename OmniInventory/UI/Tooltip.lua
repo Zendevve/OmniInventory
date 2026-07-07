@@ -14,7 +14,7 @@ Omni.Tooltip = Tooltip
 local COLOR_TEAL = "|cff00ff9a"
 local COLOR_SILVER = "|cffc7c7cf"
 local COLOR_GOLD = "|cffffd700"
-local COLOR_WHITE = "|cfffffffff"
+local COLOR_WHITE = "|cffffffff"
 local COLOR_END = "|r"
 
 -- Helper to extract item ID from link

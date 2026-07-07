@@ -2442,7 +2442,15 @@ function BankFrame:RenderListView(items)
                         local locationStr = self.itemInfo.__location and (self.itemInfo.__location:gsub("^%l", string.upper)) or "Bags"
                         GameTooltip:AddLine("Held by: " .. ownerName .. " (" .. locationStr .. ")", 0.9, 0.8, 0.4)
                     else
-                        local ok = pcall(GameTooltip.SetBagItem, GameTooltip, self.itemInfo.bagID, self.itemInfo.slotID)
+                        local ok
+                        if self.itemInfo.bagID == -1 then
+                            if BankButtonIDToInvSlotID then
+                                local invID = BankButtonIDToInvSlotID(self.itemInfo.slotID, nil)
+                                ok = pcall(GameTooltip.SetInventoryItem, GameTooltip, "player", invID)
+                            end
+                        else
+                            ok = pcall(GameTooltip.SetBagItem, GameTooltip, self.itemInfo.bagID, self.itemInfo.slotID)
+                        end
                         if not ok and self.itemInfo.hyperlink then
                             pcall(GameTooltip.SetHyperlink, GameTooltip, self.itemInfo.hyperlink)
                             if self.itemInfo.__offline then
