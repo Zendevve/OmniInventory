@@ -939,7 +939,9 @@ function Frame:CreateMainFrame()
         mainFrame.secureAnchor:SetSize(w, h)
     end
     anchorRepositionFrame:SetScript("OnUpdate", function(self, elapsed)
-        if self.waiting or (mainFrame and mainFrame.isMoving) then
+        if mainFrame and mainFrame.isMoving then
+            RepositionSecureAnchor()
+        elseif self.waiting then
             self.elapsed = self.elapsed + elapsed
             if self.elapsed < self.debounce then return end
             self.elapsed = 0
