@@ -2528,43 +2528,6 @@ local FOOTER_CUSTOM_BUTTONS = {
     },
 }
 
--- Third-party addon launcher ribbon (each entry owns its click).
--- isAvailable gates visibility so we never show a broken tile.
-local FOOTER_ADDON_BUTTONS = {
-    {
-        key         = "atlasLoot",
-        icon        = "Interface\\AddOns\\AtlasLoot\\Images\\AtlasImages\\AtlasIcon",
-        title       = "AtlasLoot",
-        sub         = "Toggle the AtlasLoot browser",
-        trimIcon    = false,
-        isAvailable = function()
-            if _G.AtlasLootDefaultFrame then return true end
-            if type(_G.AtlasLoot) == "table" and type(_G.AtlasLoot.SlashCommand) == "function" then
-                return true
-            end
-            return SlashCmdList ~= nil and type(SlashCmdList["ATLASLOOT"]) == "function"
-        end,
-        -- Toggle pattern: hide the live frame if up, otherwise fall back
-        -- to the slash command so AtlasLoot lazy-loads its modules on first open.
-        onClick = function()
-            local frame = _G.AtlasLootDefaultFrame
-            if frame and frame:IsShown() then
-                frame:Hide()
-                return
-            end
-            if type(_G.AtlasLoot) == "table" and type(_G.AtlasLoot.SlashCommand) == "function" then
-                pcall(_G.AtlasLoot.SlashCommand, _G.AtlasLoot, "")
-                return
-            end
-            if SlashCmdList and type(SlashCmdList["ATLASLOOT"]) == "function" then
-                SlashCmdList["ATLASLOOT"]("")
-                return
-            end
-            print("|cFF00FF00OmniInventory|r: AtlasLoot is not installed.")
-        end,
-    },
-}
-
 local function IsFooterCustomButtonEnabled(key)
     local global = OmniInventoryDB and OmniInventoryDB.global
     if not global then return true end
@@ -2573,16 +2536,6 @@ local function IsFooterCustomButtonEnabled(key)
         global.footerButtons[key] = true
     end
     return global.footerButtons[key] ~= false
-end
-
-local function IsFooterAddonButtonEnabled(key)
-    local global = OmniInventoryDB and OmniInventoryDB.global
-    if not global then return true end
-    global.addonButtons = global.addonButtons or {}
-    if global.addonButtons[key] == nil then
-        global.addonButtons[key] = true
-    end
-    return global.addonButtons[key] ~= false
 end
 
 local function StyleFooterMiniButton(btn)
@@ -3025,20 +2978,7 @@ function Frame:CreateFooter()
     end
     footer.customButtonOrder = FOOTER_CUSTOM_BUTTONS
 
-    footer.addonSep = footer:CreateTexture(nil, "OVERLAY")
-    footer.addonSep:SetTexture("Interface\\Buttons\\WHITE8X8")
-    footer.addonSep:SetVertexColor(0.35, 0.35, 0.35, 1)
-    footer.addonSep:SetSize(1, 14)
-    footer.addonSep:Hide()
 
-    footer.addonButtons = {}
-    for _, def in ipairs(FOOTER_ADDON_BUTTONS) do
-        local btn = CreateFooterMiniButton(footer, def)
-        btn:Hide()
-        btn.__def = def
-        footer.addonButtons[def.key] = btn
-    end
-    footer.addonButtonOrder = FOOTER_ADDON_BUTTONS
 
     footer.money = footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     footer.money:SetPoint("RIGHT", -6, 0)
@@ -3272,7 +3212,6 @@ local function CollectRibbonItems(footer)
     end
 
     appendGroup(footer.customButtonOrder, footer.customButtons, IsFooterCustomButtonEnabled, footer.customSep)
-    appendGroup(footer.addonButtonOrder, footer.addonButtons, IsFooterAddonButtonEnabled, footer.addonSep)
     return items
 end
 
@@ -3287,7 +3226,7 @@ Frame._pendingFooterUpdate = false
 function Frame:UpdateFooterCustomButtons()
     if not mainFrame or not mainFrame.footer then return end
     local footer = mainFrame.footer
-    if not footer.customButtons or not footer.addonButtons then return end
+    if not footer.customButtons then return end
 
     -- Secure buttons can't be repositioned in combat; defer and retry
     -- once combat ends (Events.lua PLAYER_REGEN_ENABLED -> UpdateLayout

@@ -142,19 +142,6 @@ local function IsFooterButtonEnabled(key)
     return db[key] == true
 end
 
-local function GetAddonButtonsDB()
-    OmniInventoryDB = OmniInventoryDB or {}
-    OmniInventoryDB.global = OmniInventoryDB.global or {}
-    OmniInventoryDB.global.addonButtons = OmniInventoryDB.global.addonButtons or {}
-    return OmniInventoryDB.global.addonButtons
-end
-
-local function IsAddonButtonEnabled(key)
-    local db = GetAddonButtonsDB()
-    if db[key] == nil then db[key] = true end
-    return db[key] == true
-end
-
 -- =============================================================================
 -- Layout Constants
 -- =============================================================================
@@ -182,7 +169,6 @@ local TAB_CATALOG = {
     { label = "View & Sort",        key = "viewsort" },
     { label = "Tooltips",           key = "tooltip" },
     { label = "Footer Buttons",     key = "footer"  },
-    { label = "Addon Buttons",      key = "addons"  },
     { label = "Auto-Display",       key = "autodisplay" },
     { label = "Features",           key = "features" },
     { label = "Rules",              key = "rules"   },
@@ -376,11 +362,10 @@ function Settings:CreateControls()
     self:BuildViewSort(self.tabPanels[3])
     self:BuildTooltips(self.tabPanels[4])
     self:BuildFooterButtons(self.tabPanels[5])
-    self:BuildAddonButtons(self.tabPanels[6])
-    self:BuildAutoDisplay(self.tabPanels[7])
-    self:BuildFeatures(self.tabPanels[8])
-    if self.tabPanels[9] then
-        self:BuildRules(self.tabPanels[9])
+    self:BuildAutoDisplay(self.tabPanels[6])
+    self:BuildFeatures(self.tabPanels[7])
+    if self.tabPanels[8] then
+        self:BuildRules(self.tabPanels[8])
     end
 end
 
@@ -835,41 +820,7 @@ function Settings:BuildFooterButtons(panel)
 end
 
 -- =============================================================================
--- Tab 6: Addon Buttons
--- =============================================================================
-
-function Settings:BuildAddonButtons(panel)
-    local y = -15
-
-    local addonHeader = OpsTheme.CreateSectionHeader(panel, "[+]  Addon Buttons", SECTION_COLORS.addon)
-    addonHeader:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
-    y = y - HEADER_GAP
-
-    self.addonButtonCbs = {}
-    for i, def in ipairs(ADDON_BUTTON_OPTIONS) do
-        local column = (i - 1) % 2
-        local rowIdx = math.floor((i - 1) / 2)
-        local xoff = column == 0 and COL_LEFT or COL_RIGHT
-        local rowY = y - (rowIdx * ROW_H)
-
-        local cb = OpsTheme.CreateCheckButton(panel, def.label, def.tipTitle, def.tipSub, IsAddonButtonEnabled(def.key), function(self, checked)
-            local db = GetAddonButtonsDB()
-            db[def.key] = checked
-            if Omni.Frame and Omni.Frame.UpdateFooterCustomButtons then
-                Omni.Frame:UpdateFooterCustomButtons()
-            end
-        end)
-        cb:SetPoint("TOPLEFT", xoff, rowY)
-        self.addonButtonCbs[def.key] = cb
-    end
-    local addonRowCount = math.ceil(#ADDON_BUTTON_OPTIONS / 2)
-    y = y - (addonRowCount * ROW_H) - SECTION_GAP
-
-    panel._contentHeight = math.abs(y) + 40
-end
-
--- =============================================================================
--- Tab 7: Auto-Display
+-- Tab 6: Auto-Display
 -- =============================================================================
 
 function Settings:BuildAutoDisplay(panel)
@@ -1123,14 +1074,6 @@ function Settings:UpdateValues()
             if cb then cb:SetChecked(IsFooterButtonEnabled(def.key)) end
         end
     end
-    -- Addon buttons
-    if self.addonButtonCbs then
-        for _, def in ipairs(ADDON_BUTTON_OPTIONS) do
-            local cb = self.addonButtonCbs[def.key]
-            if cb then cb:SetChecked(IsAddonButtonEnabled(def.key)) end
-        end
-    end
-
     -- Auto-display checkboxes (Bank/Vendor/Mail/AH/Trade/Craft)
     local ad = Omni.Data and Omni.Data:Get("autoDisplay") or {}
     if self.autoDisplayBankCb then self.autoDisplayBankCb:SetChecked(ad.bank == true) end

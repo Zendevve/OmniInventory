@@ -47,10 +47,6 @@ local defaults = {
         footerButtons = {
             resetInstances = false,
         },
-        -- Third-party addon launchers (auto-hidden when the addon isn't loaded)
-        addonButtons = {
-            atlasLoot   = true,
-        },
         -- Configurable auto-display: per-event open/close of the
         -- main inventory frame. Mirrors Bagnon's per-frame/per-event model
         -- but scoped to the single Omni main bag window.
