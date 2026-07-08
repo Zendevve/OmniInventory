@@ -117,16 +117,16 @@ local SECTION_COLORS = {
 }
 
 local FOOTER_BUTTON_OPTIONS = {
-    { key = "clearGlow",      label = "Mark All Read" },
-    { key = "resetInstances", label = "Reset Instances" },
-    { key = "hearthstone",    label = "Hearthstone" },
-    { key = "openables",      label = "Clam Opener" },
-    { key = "disenchant",     label = "Disenchant" },
-    { key = "picklock",       label = "Pick Lock" },
+    { key = "clearGlow",      label = "Mark All Read",   tipTitle = "Mark All Read",   tipSub = "Marks all new items in your bags as read/seen." },
+    { key = "resetInstances", label = "Reset Instances", tipTitle = "Reset Instances", tipSub = "Resets all your dungeons and raid instances." },
+    { key = "hearthstone",    label = "Hearthstone",    tipTitle = "Hearthstone",    tipSub = "Uses your Hearthstone if it is in your bags." },
+    { key = "openables",      label = "Clam Opener",      tipTitle = "Clam Opener",      tipSub = "Automatically opens clams, lockboxes, or other containers in your bags." },
+    { key = "disenchant",     label = "Disenchant",     tipTitle = "Disenchant",     tipSub = "Casts Disenchant (requires Enchanting profession)." },
+    { key = "picklock",       label = "Pick Lock",       tipTitle = "Pick Lock",       tipSub = "Casts Pick Lock (requires Rogue class)." },
 }
 
 local ADDON_BUTTON_OPTIONS = {
-    { key = "atlasLoot",   label = "AtlasLoot"   },
+    { key = "atlasLoot",   label = "AtlasLoot",   tipTitle = "AtlasLoot Integration", tipSub = "Enables AtlasLoot integration button in the footer."   },
 }
 
 local function GetFooterButtonsDB()
@@ -534,6 +534,19 @@ function Settings:BuildGeneral(panel)
     end)
     resetBtn:SetSize(220, OpsTheme.PAL.BTN_HEIGHT)
     resetBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    resetBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Reset Position & Scale", 1, 0.82, 0)
+        GameTooltip:AddLine("Resets the selected target's (Bag or Bank) window position, scale, item size, and padding back to defaults.", 0.75, 0.75, 0.75, true)
+        GameTooltip:Show()
+    end)
+    resetBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+        GameTooltip:Hide()
+    end)
     y = y - SPACING
 
     panel._contentHeight = math.abs(y) + 40
@@ -562,7 +575,7 @@ function Settings:BuildScales(panel)
         elseif Omni.Frame then
             Omni.Frame:SetScale(value)
         end
-    end)
+    end, "Frame Scale", "Adjust the scale of the bag or bank frame (50% to 200%).")
     scaleSlider:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
     self.scaleSlider = scaleSlider
     y = y - SPACING
@@ -579,7 +592,7 @@ function Settings:BuildScales(panel)
         elseif Omni.Frame and Omni.Frame.SetItemScale then
             Omni.Frame:SetItemScale(value)
         end
-    end)
+    end, "Item Scale", "Adjust the size/scale of individual item buttons (50% to 200%).")
     itemScaleSlider:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
     self.itemScaleSlider = itemScaleSlider
     y = y - SPACING
@@ -596,7 +609,7 @@ function Settings:BuildScales(panel)
         elseif Omni.Frame and Omni.Frame.SetItemGap then
             Omni.Frame:SetItemGap(value)
         end
-    end)
+    end, "Item Gap", "Adjust the spacing between item buttons (0 to 20 pixels).")
     itemGapSlider:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
     self.itemGapSlider = itemGapSlider
     y = y - SPACING
@@ -631,6 +644,19 @@ function Settings:BuildViewSort(panel)
     end)
     viewBtn:SetSize(160, OpsTheme.PAL.BTN_HEIGHT)
     viewBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    viewBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("View Mode", 1, 0.82, 0)
+        GameTooltip:AddLine("Choose how items are laid out: Grid, Flow (categorized grid), List, or Bag (classic view).", 0.75, 0.75, 0.75, true)
+        GameTooltip:Show()
+    end)
+    viewBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+        GameTooltip:Hide()
+    end)
     self.viewBtn = viewBtn
     y = y - SPACING
 
@@ -646,6 +672,19 @@ function Settings:BuildViewSort(panel)
     end)
     sortBtn:SetSize(160, OpsTheme.PAL.BTN_HEIGHT)
     sortBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    sortBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Sort Mode", 1, 0.82, 0)
+        GameTooltip:AddLine("Choose how items are sorted: Category, Quality, Name, Item Level, or Usage.", 0.75, 0.75, 0.75, true)
+        GameTooltip:Show()
+    end)
+    sortBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+        GameTooltip:Hide()
+    end)
     self.sortBtn = sortBtn
     y = y - SPACING
 
@@ -737,7 +776,7 @@ function Settings:BuildTooltips(panel)
         if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
             Omni.ItemButton.FinalizeOmniItemTooltipLayout()
         end
-    end)
+    end, "Fixed X Offset", "Inset of the fixed tooltip from the left/right screen edge.")
     tipFixedXSlider:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
     self.tooltipFixedXSlider = tipFixedXSlider
     y = y - SPACING
@@ -751,7 +790,7 @@ function Settings:BuildTooltips(panel)
         if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
             Omni.ItemButton.FinalizeOmniItemTooltipLayout()
         end
-    end)
+    end, "Fixed Y Offset", "Inset of the fixed tooltip from the top/bottom screen edge.")
     tipFixedYSlider:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
     self.tooltipFixedYSlider = tipFixedYSlider
     y = y - SPACING
@@ -779,7 +818,7 @@ function Settings:BuildFooterButtons(panel)
         local xoff = column == 0 and COL_LEFT or COL_RIGHT
         local rowY = y - (rowIdx * ROW_H)
 
-        local cb = OpsTheme.CreateCheckButton(panel, def.label, nil, nil, IsFooterButtonEnabled(def.key), function(self, checked)
+        local cb = OpsTheme.CreateCheckButton(panel, def.label, def.tipTitle, def.tipSub, IsFooterButtonEnabled(def.key), function(self, checked)
             local db = GetFooterButtonsDB()
             db[def.key] = checked
             if Omni.Frame and Omni.Frame.UpdateFooterCustomButtons then
@@ -813,7 +852,7 @@ function Settings:BuildAddonButtons(panel)
         local xoff = column == 0 and COL_LEFT or COL_RIGHT
         local rowY = y - (rowIdx * ROW_H)
 
-        local cb = OpsTheme.CreateCheckButton(panel, def.label, nil, nil, IsAddonButtonEnabled(def.key), function(self, checked)
+        local cb = OpsTheme.CreateCheckButton(panel, def.label, def.tipTitle, def.tipSub, IsAddonButtonEnabled(def.key), function(self, checked)
             local db = GetAddonButtonsDB()
             db[def.key] = checked
             if Omni.Frame and Omni.Frame.UpdateFooterCustomButtons then
@@ -855,14 +894,14 @@ function Settings:BuildAutoDisplay(panel)
     end
 
     -- Row 0
-    self.autoDisplayBankCb   = MakeAd(0, 0, "Auto-open at Bank",   nil, nil, "bank")
-    self.autoDisplayVendorCb = MakeAd(0, 1, "Auto-open at Vendor", nil, nil, "vendor")
+    self.autoDisplayBankCb   = MakeAd(0, 0, "Auto-open at Bank",   "Auto-open at Bank", "Automatically opens the bag window when you interact with a banker.", "bank")
+    self.autoDisplayVendorCb = MakeAd(0, 1, "Auto-open at Vendor", "Auto-open at Vendor", "Automatically opens the bag window when you interact with a merchant.", "vendor")
     -- Row 1
-    self.autoDisplayMailCb = MakeAd(1, 0, "Auto-open at Mail", nil, nil, "mail")
-    self.autoDisplayAhCb   = MakeAd(1, 1, "Auto-open at AH",   nil, nil, "ah")
+    self.autoDisplayMailCb = MakeAd(1, 0, "Auto-open at Mail", "Auto-open at Mail", "Automatically opens the bag window when you open your mailbox.", "mail")
+    self.autoDisplayAhCb   = MakeAd(1, 1, "Auto-open at AH",   "Auto-open at AH", "Automatically opens the bag window when you interact with an Auctioneer.", "ah")
     -- Row 2
-    self.autoDisplayTradeCb = MakeAd(2, 0, "Auto-open at Trade", nil, nil, "trade")
-    self.autoDisplayCraftCb = MakeAd(2, 1, "Auto-open at Craft", nil, nil, "craft")
+    self.autoDisplayTradeCb = MakeAd(2, 0, "Auto-open at Trade", "Auto-open at Trade", "Automatically opens the bag window when trading with another player.", "trade")
+    self.autoDisplayCraftCb = MakeAd(2, 1, "Auto-open at Craft", "Auto-open at Craft", "Automatically opens the bag window when viewing a profession/crafting pane.", "craft")
 
     y = y - (ROW_H * 3) - SECTION_GAP
 
@@ -1347,12 +1386,38 @@ function Settings:BuildRules(panel)
                 RefreshAllInventory()
             end)
             saveBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            saveBtn:SetScript("OnEnter", function(self)
+                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText("Save Rule", 1, 0.82, 0)
+                GameTooltip:AddLine("Compile and save this custom rule.", 0.75, 0.75, 0.75, true)
+                GameTooltip:Show()
+            end)
+            saveBtn:SetScript("OnLeave", function(self)
+                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+                GameTooltip:Hide()
+            end)
 
             local cancelBtn = OpsTheme.CreateButton(container, "Cancel", 80, function()
                 panel.editingCategoryName = nil
                 RefreshPanel()
             end)
             cancelBtn:SetPoint("TOPLEFT", saveBtn, "TOPRIGHT", 10, 0)
+            cancelBtn:SetScript("OnEnter", function(self)
+                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText("Cancel", 1, 0.82, 0)
+                GameTooltip:AddLine("Discard changes and return to the list.", 0.75, 0.75, 0.75, true)
+                GameTooltip:Show()
+            end)
+            cancelBtn:SetScript("OnLeave", function(self)
+                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+                GameTooltip:Hide()
+            end)
             y = y - 30
 
         else
@@ -1364,6 +1429,19 @@ function Settings:BuildRules(panel)
                 RefreshPanel()
             end)
             addBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+            addBtn:SetScript("OnEnter", function(self)
+                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText("Add New Rule", 1, 0.82, 0)
+                GameTooltip:AddLine("Create a new custom sorting rule.", 0.75, 0.75, 0.75, true)
+                GameTooltip:Show()
+            end)
+            addBtn:SetScript("OnLeave", function(self)
+                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+                GameTooltip:Hide()
+            end)
             y = y - 30
 
             local cats = Omni.Categories and Omni.Categories:GetAll() or {}
@@ -1411,6 +1489,19 @@ function Settings:BuildRules(panel)
                     end)
                     editBtn:SetPoint("RIGHT", -50, 0)
                     editBtn:SetHeight(18)
+                    editBtn:SetScript("OnEnter", function(self)
+                        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+                        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        GameTooltip:SetText("Edit Rule", 1, 0.82, 0)
+                        GameTooltip:AddLine("Edit this custom rule's priority and formula.", 0.75, 0.75, 0.75, true)
+                        GameTooltip:Show()
+                    end)
+                    editBtn:SetScript("OnLeave", function(self)
+                        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+                        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+                        GameTooltip:Hide()
+                    end)
 
                     local deleteBtn = OpsTheme.CreateButton(rowFrame, "Del", 36, function()
                         if Omni.Categories then
@@ -1421,6 +1512,19 @@ function Settings:BuildRules(panel)
                     end)
                     deleteBtn:SetPoint("RIGHT", -8, 0)
                     deleteBtn:SetHeight(18)
+                    deleteBtn:SetScript("OnEnter", function(self)
+                        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+                        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        GameTooltip:SetText("Delete Rule", 1, 0.82, 0)
+                        GameTooltip:AddLine("Delete this custom rule.", 0.75, 0.75, 0.75, true)
+                        GameTooltip:Show()
+                    end)
+                    deleteBtn:SetScript("OnLeave", function(self)
+                        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+                        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+                        GameTooltip:Hide()
+                    end)
                     deleteBtn.text:SetTextColor(1, 0.3, 0.3)
 
                     y = y - 42

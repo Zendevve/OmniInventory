@@ -740,7 +740,7 @@ end
 -- Factory: Slider (custom, no OptionsSliderTemplate)
 -- =============================================================================
 
-function OpsTheme.CreateSlider(parent, label, minVal, maxVal, stepVal, formatFn, onChange)
+function OpsTheme.CreateSlider(parent, label, minVal, maxVal, stepVal, formatFn, onChange, tooltipTitle, tooltipSub)
     local PAL = OpsTheme.PAL
     local sliderW = PAL.SLIDER_WIDTH
     local thumbW = PAL.SLIDER_THUMB_W
@@ -928,6 +928,27 @@ function OpsTheme.CreateSlider(parent, label, minVal, maxVal, stepVal, formatFn,
 
     -- Initial display
     UpdateDisplay(minVal)
+
+    -- Hover Tooltips
+    local function ShowTooltip(self)
+        if tooltipTitle then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(tooltipTitle, 1, 0.82, 0)
+            if tooltipSub then
+                GameTooltip:AddLine(tooltipSub, 1, 1, 1, true)
+            end
+            GameTooltip:Show()
+        end
+    end
+    local function HideTooltip(self)
+        GameTooltip:Hide()
+    end
+
+    container:EnableMouse(true)
+    container:SetScript("OnEnter", ShowTooltip)
+    container:SetScript("OnLeave", HideTooltip)
+    container.thumb:SetScript("OnEnter", ShowTooltip)
+    container.thumb:SetScript("OnLeave", HideTooltip)
 
     return container
 end
