@@ -1215,12 +1215,21 @@ function Frame:CreateHeader()
         function() Frame:ToggleKeyring() end)
     header.keyBtn:SetPoint("RIGHT", header.optBtn, "LEFT", -DIM.RIBBON_GAP, 0)
 
+    header.bankBtn = CreateRibbonIconButton(header, "Interface\\Icons\\INV_Misc_Bag_10_Blue",
+        "Bank", "Open bank window (offline/cached)",
+        function()
+            if Omni.BankFrame then
+                Omni.BankFrame:Toggle()
+            end
+        end)
+    header.bankBtn:SetPoint("RIGHT", header.keyBtn, "LEFT", -DIM.RIBBON_GAP, 0)
+
     -- Separator line between ribbon actions and bag slot icons
     header.ribbonSep = header:CreateTexture(nil, "OVERLAY")
     header.ribbonSep:SetTexture("Interface\\Buttons\\WHITE8X8")
     header.ribbonSep:SetVertexColor(0.35, 0.35, 0.35, 1)
     header.ribbonSep:SetSize(1, 14)
-    header.ribbonSep:SetPoint("RIGHT", header.keyBtn, "LEFT", -DIM.RIBBON_SEP_GAP, 0)
+    header.ribbonSep:SetPoint("RIGHT", header.bankBtn, "LEFT", -DIM.RIBBON_SEP_GAP, 0)
 
     header.bagButtons = {}
     header.bagBar = CreateFrame("Frame", nil, header)

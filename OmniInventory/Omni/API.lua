@@ -285,10 +285,13 @@ OmniC_Container = {}
 ---@return table|nil info Item info structure or nil if slot is empty
 function OmniC_Container.GetContainerItemInfo(bagID, slotID)
     local viewedChar = Omni.Data and Omni.Data.currentViewedChar
-    if viewedChar and viewedChar ~= Omni.Data.playerName then
+    local isOfflineBank = (bagID == -1 or (bagID >= 5 and bagID <= 11)) and not (Omni.Features and Omni.Features:IsAtBank())
+    local isOfflineChar = viewedChar and viewedChar ~= Omni.Data.playerName
+    if isOfflineChar or isOfflineBank then
+        local targetChar = isOfflineChar and viewedChar or Omni.Data.playerName
         local realmName = GetRealmName()
         local realm = OmniInventoryDB and OmniInventoryDB.realm and OmniInventoryDB.realm[realmName]
-        local charData = realm and realm[viewedChar]
+        local charData = realm and realm[targetChar]
         local items = (bagID == -1 or (bagID >= 5 and bagID <= 11)) and charData and charData.bank or charData and charData.bags
         if items then
             for _, item in ipairs(items) do
@@ -370,10 +373,13 @@ end
 ---@return number numSlots
 function OmniC_Container.GetContainerNumSlots(bagID)
     local viewedChar = Omni.Data and Omni.Data.currentViewedChar
-    if viewedChar and viewedChar ~= Omni.Data.playerName then
+    local isOfflineBank = (bagID == -1 or (bagID >= 5 and bagID <= 11)) and not (Omni.Features and Omni.Features:IsAtBank())
+    local isOfflineChar = viewedChar and viewedChar ~= Omni.Data.playerName
+    if isOfflineChar or isOfflineBank then
+        local targetChar = isOfflineChar and viewedChar or Omni.Data.playerName
         local realmName = GetRealmName()
         local realm = OmniInventoryDB and OmniInventoryDB.realm and OmniInventoryDB.realm[realmName]
-        local charData = realm and realm[viewedChar]
+        local charData = realm and realm[targetChar]
         if charData and charData.bagSizes then
             local size = charData.bagSizes[tostring(bagID)]
             if size then return size end
@@ -392,12 +398,15 @@ end
 ---@return number bagType
 function OmniC_Container.GetContainerFreeSlots(bagID)
     local viewedChar = Omni.Data and Omni.Data.currentViewedChar
-    if viewedChar and viewedChar ~= Omni.Data.playerName then
+    local isOfflineBank = (bagID == -1 or (bagID >= 5 and bagID <= 11)) and not (Omni.Features and Omni.Features:IsAtBank())
+    local isOfflineChar = viewedChar and viewedChar ~= Omni.Data.playerName
+    if isOfflineChar or isOfflineBank then
+        local targetChar = isOfflineChar and viewedChar or Omni.Data.playerName
         local totalSlots = OmniC_Container.GetContainerNumSlots(bagID)
         local used = 0
         local realmName = GetRealmName()
         local realm = OmniInventoryDB and OmniInventoryDB.realm and OmniInventoryDB.realm[realmName]
-        local charData = realm and realm[viewedChar]
+        local charData = realm and realm[targetChar]
         local items = (bagID == -1 or (bagID >= 5 and bagID <= 11)) and charData and charData.bank or charData and charData.bags
         if items then
             for _, item in ipairs(items) do

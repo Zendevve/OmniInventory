@@ -327,6 +327,13 @@ function OmniInventory_ToggleBags()
     SafeToggle("binding_toggle")
 end
 
+-- Toggle bank (key binding). Safe in combat.
+function OmniInventory_ToggleBank()
+    if Omni.BankFrame then
+        Omni.BankFrame:Toggle()
+    end
+end
+
 -- Open bags (key binding). Safe in combat when binding is clean.
 function OmniInventory_OpenBags()
     SafeShow("binding_show")
@@ -640,6 +647,11 @@ local function HandleSlashCommand(msg)
             Omni.Features:ToggleCurrencyFrame()
         end
 
+    elseif msg == "bank" then
+        if Omni.BankFrame then
+            Omni.BankFrame:Toggle()
+        end
+
     elseif msg == "bankswitch" or msg == "switchbank" then
         if Omni.Features and Omni.Features.CycleBankBagView then
             Omni.Features:CycleBankBagView()
@@ -720,6 +732,7 @@ local function HandleSlashCommand(msg)
         print("  |cFFFFFF00/oi perf dump|r - Print JSON snapshot markers")
         print("  |cFFFFFF00/oi reapply|r - Re-apply bag function overrides")
         print("  |cFFFFFF00/oi currency|r - Toggle currency frame")
+        print("  |cFFFFFF00/oi bank|r - Toggle bank window (offline/cached)")
         print("  |cFFFFFF00/oi bankswitch|r - Cycle bank bag view")
         print("  |cFFFFFF00/oi tidy|r - Run auto-tidy (sort + compact)")
         print("  |cFFFFFF00/oi sort|r - Physical bag sort (move items)")

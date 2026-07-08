@@ -870,7 +870,7 @@ function ItemButton:SetItem(button, itemInfo)
     -- deferring the change is safe since the render path is combat-gated.
     if not (InCombatLockdown and InCombatLockdown()) then
         if itemInfo.__offline then
-            button:RegisterForClicks()
+            button:RegisterForClicks("LeftButtonUp")
         else
             button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         end
@@ -1306,6 +1306,13 @@ function ItemButton:OnClick(button, mouseButton)
     if not button then return end
 
     mouseButton = NormalizeMouseButton(mouseButton) or mouseButton
+
+    if button.itemInfo and button.itemInfo.__offline then
+        if mouseButton == "LeftButton" and IsModifiedClick() then
+            HandleModifiedItemClick(button.itemInfo.hyperlink)
+        end
+        return
+    end
 
     if mouseButton == "RightButton" and IsShiftKeyDown()
             and button.itemInfo and button.itemInfo.itemID then

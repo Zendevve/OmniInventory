@@ -8,4 +8,7 @@
 	<Binding name="OMNIINVENTORY_CLOSE" description="Close OmniInventory Bags">
 		OmniInventory_CloseBags()
 	</Binding>
+	<Binding name="OMNIINVENTORY_TOGGLE_BANK" description="Toggle OmniInventory Bank">
+		OmniInventory_ToggleBank()
+	</Binding>
 </Bindings>

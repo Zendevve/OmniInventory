@@ -406,10 +406,14 @@ function Data:SaveBankItems()
     local char = realm and realm[self.playerName]
     if not char then return end
 
+    local numSlots = GetContainerNumSlots(-1) or 0
+    if numSlots <= 0 then
+        return -- Bank is closed/not available, don't wipe the cached data!
+    end
+
     char.bank = {}
     char.bagSizes = char.bagSizes or {}
 
-    local numSlots = GetContainerNumSlots(-1) or 0
     char.bagSizes["-1"] = numSlots
     for slot = 1, numSlots do
         local link = FetchLink(-1, slot)
@@ -494,6 +498,11 @@ function Data:SaveBankSlotCount()
     local realm = OmniInventoryDB.realm[self.realmName]
     local char = realm and realm[self.playerName]
     if not char then return end
+
+    local mainSlots = GetContainerNumSlots(-1) or 0
+    if mainSlots <= 0 then
+        return -- Bank is not open
+    end
 
     char.bankSlots = GetNumBankSlots and GetNumBankSlots() or 0
 end

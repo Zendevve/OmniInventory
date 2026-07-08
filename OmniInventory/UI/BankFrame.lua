@@ -19,7 +19,8 @@ end
 local orig_GetContainerItemInfo = GetContainerItemInfo
 local GetContainerItemInfo = function(bagID, slotID)
     local viewedChar = Omni.Data and Omni.Data.currentViewedChar
-    if viewedChar and viewedChar ~= Omni.Data.playerName then
+    local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
+    if (viewedChar and viewedChar ~= Omni.Data.playerName) or isOfflineBank then
         local info = OmniC_Container.GetContainerItemInfo(bagID, slotID)
         if info then
             return info.iconFileID, info.stackCount, false, info.quality, false, false, info.hyperlink
@@ -32,7 +33,8 @@ end
 local orig_GetContainerItemLink = GetContainerItemLink
 local GetContainerItemLink = function(bagID, slotID)
     local viewedChar = Omni.Data and Omni.Data.currentViewedChar
-    if viewedChar and viewedChar ~= Omni.Data.playerName then
+    local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
+    if (viewedChar and viewedChar ~= Omni.Data.playerName) or isOfflineBank then
         local info = OmniC_Container.GetContainerItemInfo(bagID, slotID)
         return info and info.hyperlink
     end
@@ -162,12 +164,25 @@ local function GetFreeSpaceCategoryName(bagID)
     return "Free Space"
 end
 
+local function GetPurchasedBankSlotsCount()
+    local viewedChar = Omni.Data and Omni.Data.currentViewedChar
+    local targetChar = (viewedChar and viewedChar ~= Omni.Data.playerName) and viewedChar or Omni.Data.playerName
+    local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
+    if (viewedChar and viewedChar ~= Omni.Data.playerName) or isOfflineBank then
+        local realmName = GetRealmName()
+        local realm = OmniInventoryDB and OmniInventoryDB.realm and OmniInventoryDB.realm[realmName]
+        local charData = realm and realm[targetChar]
+        return charData and charData.bankSlots or 0
+    end
+    return (GetNumBankSlots and GetNumBankSlots()) or 0
+end
+
 local function IsValidBankBagID(bagID)
     if bagID == nil then return false end
     if bagID == -1 then return true end
     if type(bagID) == "number" and bagID >= 5 and bagID <= 11 then
         local idx = bagID - 4
-        local numPurchased = (GetNumBankSlots and GetNumBankSlots()) or 0
+        local numPurchased = GetPurchasedBankSlotsCount()
         return idx <= numPurchased
     end
     return false
@@ -227,6 +242,16 @@ function BankFrame:UpdateViewButton()
 end
 
 local function GetBankBagIconTexture(bagID)
+    local viewedChar = Omni.Data and Omni.Data.currentViewedChar
+    local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
+    if (viewedChar and viewedChar ~= Omni.Data.playerName) or isOfflineBank then
+        if not (viewedChar and viewedChar ~= Omni.Data.playerName) then
+            local inv = ContainerIDToInventoryID and ContainerIDToInventoryID(bagID)
+            local tex = inv and GetInventoryItemTexture("player", inv)
+            if tex then return tex end
+        end
+        return "Interface\\Icons\\INV_Misc_Bag_10_Blue"
+    end
     local inv = ContainerIDToInventoryID and ContainerIDToInventoryID(bagID)
     local tex = inv and GetInventoryItemTexture("player", inv)
     return tex or "Interface\\Icons\\INV_Misc_Bag_10_Blue"
@@ -301,6 +326,11 @@ local function BankBagSlotsMax()
 end
 
 local function HandleUnpurchasedBankBagClick(bagID)
+    local viewedChar = Omni.Data and Omni.Data.currentViewedChar
+    local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
+    if (viewedChar and viewedChar ~= Omni.Data.playerName) or isOfflineBank then
+        return true
+    end
     local slotIndex = BankBagSlotIndex(bagID)
     local numSlots, full = GetNumBankSlots()
     numSlots = numSlots or 0
@@ -522,14 +552,26 @@ local function CreateHeader(parent)
         end)
         bagBtn:SetScript("OnEnter", function(self)
             local slotIndex = BankBagSlotIndex(self.bagID)
-            local numPurchased, bankBagsFull = GetNumBankSlots()
+            local viewedChar = Omni.Data and Omni.Data.currentViewedChar
+            local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
+            local isOffline = (viewedChar and viewedChar ~= Omni.Data.playerName) or isOfflineBank
+
+            local numPurchased, bankBagsFull
+            if isOffline then
+                numPurchased = GetPurchasedBankSlotsCount()
+                bankBagsFull = numPurchased >= BankBagSlotsMax()
+            else
+                numPurchased, bankBagsFull = GetNumBankSlots()
+            end
             numPurchased = numPurchased or 0
-            local nextToBuy = (not bankBagsFull) and numPurchased < BankBagSlotsMax()
+            local nextToBuy = (not isOffline) and (not bankBagsFull) and numPurchased < BankBagSlotsMax()
                 and (slotIndex == numPurchased + 1)
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
             if slotIndex > numPurchased then
                 GameTooltip:AddLine(BANK_BAG_PURCHASE or "Purchase this bank slot", 1, 0.2, 0.2)
-                if nextToBuy then
+                if isOffline then
+                    GameTooltip:AddLine("Not purchased (Offline View)", 0.75, 0.75, 0.75)
+                elseif nextToBuy then
                     GameTooltip:AddLine("Left-click: Purchase this slot (gold confirmation)", 0.8, 0.8, 0.8)
                 elseif not bankBagsFull then
                     GameTooltip:AddLine("Buy earlier bank bag slots first.", 0.75, 0.75, 0.75)
@@ -542,10 +584,15 @@ local function CreateHeader(parent)
                 else
                     GameTooltip:AddLine("Empty bank bag slot " .. tostring(slotIndex), 1, 1, 1)
                 end
-                GameTooltip:AddLine("Left-click: Show only this bank section", 0.8, 0.8, 0.8)
-                GameTooltip:AddLine("Left-click (again): Show all bank slots", 0.8, 0.8, 0.8)
-                GameTooltip:AddLine("Drag a bag here to equip in this slot", 0.6, 0.9, 0.6)
-                GameTooltip:AddLine("Right-click: Move items to other bank space", 0.8, 0.8, 0.8)
+                if isOffline then
+                    GameTooltip:AddLine("Left-click: Show only this bank section", 0.8, 0.8, 0.8)
+                    GameTooltip:AddLine("Left-click (again): Show all bank slots", 0.8, 0.8, 0.8)
+                else
+                    GameTooltip:AddLine("Left-click: Show only this bank section", 0.8, 0.8, 0.8)
+                    GameTooltip:AddLine("Left-click (again): Show all bank slots", 0.8, 0.8, 0.8)
+                    GameTooltip:AddLine("Drag a bag here to equip in this slot", 0.6, 0.9, 0.6)
+                    GameTooltip:AddLine("Right-click: Move items to other bank space", 0.8, 0.8, 0.8)
+                end
             end
             GameTooltip:Show()
         end)
@@ -1003,7 +1050,7 @@ function BankFrame:UpdateBankBagButtonIcons()
     if not bankFrame or not bankFrame.header or not bankFrame.header.bagButtons then
         return
     end
-    local numPurchased = (GetNumBankSlots and GetNumBankSlots()) or 0
+    local numPurchased = GetPurchasedBankSlotsCount()
     for _, bagID in ipairs(BANK_BAG_IDS) do
         local btn = bankFrame.header.bagButtons[bagID]
         if btn and btn.icon then
@@ -1055,6 +1102,12 @@ function BankFrame:EquipBankBagFromCursor(bagID)
         return
     end
     if not IsValidBankBagID(bagID) then
+        if ClearCursor then ClearCursor() end
+        return
+    end
+    local viewedChar = Omni.Data and Omni.Data.currentViewedChar
+    local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
+    if (viewedChar and viewedChar ~= Omni.Data.playerName) or isOfflineBank then
         if ClearCursor then ClearCursor() end
         return
     end
@@ -1479,6 +1532,11 @@ end
 
 function BankFrame:ForceEmptyBankBag(sourceBagID)
     if not IsValidBankBagID(sourceBagID) then return end
+    local viewedChar = Omni.Data and Omni.Data.currentViewedChar
+    local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
+    if (viewedChar and viewedChar ~= Omni.Data.playerName) or isOfflineBank then
+        return
+    end
     if CursorHasItem and CursorHasItem() then
         print("|cFF00FF00OmniInventory|r: Clear cursor before force-empty.")
         return
@@ -1520,6 +1578,11 @@ end
 
 function BankFrame:StartBankBagSwap(sourceBagID, sourceSlotID, targetBagID)
     if not IsValidBankBagID(targetBagID) or not IsValidBankBagID(sourceBagID) then return end
+    local viewedChar = Omni.Data and Omni.Data.currentViewedChar
+    local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
+    if (viewedChar and viewedChar ~= Omni.Data.playerName) or isOfflineBank then
+        return
+    end
 
     if InCombat() then
         print("|cFF00FF00OmniInventory|r: Cannot swap bank bags during combat.")
@@ -2277,6 +2340,7 @@ end
 function BankFrame:UpdateTitle()
     if not bankFrame or not bankFrame.header or not bankFrame.header.title then return end
     local viewedChar = Omni.Data and Omni.Data.currentViewedChar
+    local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
     if viewedChar and viewedChar ~= Omni.Data.playerName then
         local colorStr = "FFFFFFFF"
         local realm = OmniInventoryDB.realm[Omni.Data.realmName]
@@ -2289,7 +2353,11 @@ function BankFrame:UpdateTitle()
         end
         bankFrame.header.title.text:SetText(string.format("|c%s%s|r's Bank", colorStr, viewedChar))
     else
-        bankFrame.header.title.text:SetText("|cFF00FF00Omni|r Bank")
+        if isOfflineBank then
+            bankFrame.header.title.text:SetText("|cFF00FF00Omni|r Bank (Offline)")
+        else
+            bankFrame.header.title.text:SetText("|cFF00FF00Omni|r Bank")
+        end
     end
 end
 
