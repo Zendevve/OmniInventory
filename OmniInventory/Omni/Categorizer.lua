@@ -28,6 +28,9 @@ local CATEGORY_COLORS = {
     ["Ammo"]             = { r = 0.75, g = 0.60, b = 0.40 },  -- Leather
     ["Glyphs"]           = { r = 0.45, g = 0.80, b = 0.80 },  -- Teal
     ["Junk"]             = { r = 0.45, g = 0.45, b = 0.45 },  -- Dark grey
+    ["Mounts"]           = { r = 0.95, g = 0.75, b = 0.25 },  -- Amber/gold
+    ["Companions"]       = { r = 0.85, g = 0.50, b = 0.75 },  -- Magenta/pink
+    ["Holiday"]          = { r = 0.95, g = 0.60, b = 0.60 },  -- Warm rose
     ["Miscellaneous"]    = { r = 0.55, g = 0.55, b = 0.55 },  -- Medium grey
 }
 
@@ -334,25 +337,37 @@ local TYPE_TO_CATEGORY = {
     ["Glyph"]         = "Glyphs",
 
     -- Subtypes (for more specific matching)
-    ["Potion"]        = "Consumables",
-    ["Elixir"]        = "Consumables",
-    ["Flask"]         = "Consumables",
-    ["Food & Drink"]  = "Consumables",
-    ["Bandage"]       = "Consumables",
-    ["Scroll"]        = "Consumables",
-    ["Other"]         = "Consumables",  -- Consumable subtype
-    ["Leather"]       = "Trade Goods",
-    ["Metal & Stone"] = "Trade Goods",
-    ["Cloth"]         = "Trade Goods",
-    ["Herb"]          = "Trade Goods",
-    ["Enchanting"]    = "Trade Goods",
-    ["Jewelcrafting"] = "Trade Goods",
-    ["Parts"]         = "Trade Goods",
-    ["Devices"]       = "Trade Goods",
-    ["Explosives"]    = "Trade Goods",
-    ["Mount"]         = "Miscellaneous",
-    ["Companion Pets"] = "Miscellaneous",
-    ["Holiday"]       = "Miscellaneous",
+    ["Potion"]              = "Consumables",
+    ["Elixir"]              = "Consumables",
+    ["Flask"]               = "Consumables",
+    ["Food & Drink"]        = "Consumables",
+    ["Food"]                = "Consumables",
+    ["Drink"]               = "Consumables",
+    ["Bandage"]             = "Consumables",
+    ["Scroll"]              = "Consumables",
+    ["Other"]               = "Consumables",  -- Consumable subtype
+    ["Item Enhancement"]    = "Consumables",
+    ["Item Enchantment"]    = "Consumables",
+    ["Leather"]             = "Trade Goods",
+    ["Metal & Stone"]       = "Trade Goods",
+    ["Cloth"]               = "Trade Goods",
+    ["Herb"]                = "Trade Goods",
+    ["Elemental"]           = "Trade Goods",
+    ["Enchanting"]          = "Trade Goods",
+    ["Jewelcrafting"]       = "Trade Goods",
+    ["Parts"]               = "Trade Goods",
+    ["Devices"]             = "Trade Goods",
+    ["Explosives"]          = "Trade Goods",
+    ["Materials"]           = "Trade Goods",
+    ["Meat"]                = "Trade Goods",
+    -- Subclasses of "Miscellaneous" that lift out into their own categories
+    -- (ArkInventory / AdiBags / GudaBags all do this).
+    ["Mount"]               = "Mounts",
+    ["Mounts"]              = "Mounts",
+    ["Companion"]           = "Companions",
+    ["Companion Pets"]      = "Companions",
+    ["Pet"]                 = "Companions",
+    ["Holiday"]             = "Holiday",
 }
 
 local function ClassifyByItemType(itemInfo)
@@ -665,6 +680,9 @@ function Categorizer:Init()
     self:RegisterCategory("Bags", 16, nil, CATEGORY_COLORS["Bags"])
     self:RegisterCategory("Ammo", 17, nil, CATEGORY_COLORS["Ammo"])
     self:RegisterCategory("Glyphs", 18, nil, CATEGORY_COLORS["Glyphs"])
+    self:RegisterCategory("Mounts", 19, nil, CATEGORY_COLORS["Mounts"])
+    self:RegisterCategory("Companions", 20, nil, CATEGORY_COLORS["Companions"])
+    self:RegisterCategory("Holiday", 21, nil, CATEGORY_COLORS["Holiday"])
     self:RegisterCategory("Junk", 90, nil, CATEGORY_COLORS["Junk"])
     self:RegisterCategory("Miscellaneous", 99, nil, CATEGORY_COLORS["Miscellaneous"])
     self:RegisterCategory("Free Space", 150, nil, CATEGORY_COLORS["Free Space"] or { r = 0.5, g = 0.5, b = 0.5 })
@@ -676,6 +694,12 @@ function Categorizer:Init()
     OmniInventoryDB.global = OmniInventoryDB.global or {}
     OmniInventoryDB.global.categoryCustoms = OmniInventoryDB.global.categoryCustoms or {}
     OmniInventoryDB.global.categoryRenames = OmniInventoryDB.global.categoryRenames or {}
+
+    -- Invalidate cached item -> category lookups so this session's
+    -- upgraded rules apply immediately instead of relying on stale
+    -- entries from before new categories/Mount/Companion/Holiday
+    -- mappings were wired up.
+    self:ClearCategoryCache()
 end
 
 -- =============================================================================
