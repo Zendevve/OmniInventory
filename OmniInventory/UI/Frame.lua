@@ -2459,6 +2459,9 @@ local FOOTER_CUSTOM_BUTTONS = {
             self:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.6)
             GameTooltip:Hide()
         end,
+        isAvailable = function()
+            return FindHearthstone() ~= nil
+        end,
     },
     {
         key     = "openables",
@@ -2596,7 +2599,7 @@ local function CreateFooterMiniButton(parent, def)
     btn:SetSize(DIM.FOOTER_BTN_SIZE, DIM.FOOTER_BTN_SIZE)
 
     local trim = def.trimIcon ~= false
-    local iconTex = btn:CreateTexture(nil, "ARTWORK")
+    local iconTex = btn:CreateTexture(nil, "OVERLAY")
     iconTex:SetAllPoints(btn)
     iconTex:SetTexture(def.icon)
     if trim then
@@ -3183,8 +3186,7 @@ local function CollectRibbonItems(footer)
             local btn = buttonsMap[def.key]
             if btn then
                 local enabled = isEnabledFn(def.key)
-                local available = (type(def.isAvailable) ~= "function") or def.isAvailable()
-                if enabled and available then
+                if enabled then
                     if not groupHasMember then
                         groupHasMember = true
                         table.insert(items, { kind = "sep", obj = sep })
@@ -3264,6 +3266,31 @@ function Frame:UpdateFooterCustomButtons()
             else
                 btn:SetAttribute("type2", nil)
                 btn:SetAttribute("item2", nil)
+            end
+        end
+        if btn.icon then
+            local bagID2, slotID2 = FindFirstOpenableContainer()
+            if bagID2 and slotID2 then
+                btn.icon:SetVertexColor(1, 1, 1, 1)
+            else
+                btn.icon:SetVertexColor(0.45, 0.45, 0.45, 0.75)
+            end
+        end
+    end
+
+    -- Dim icon on gated-footer buttons (hearthstone / disenchant / picklock)
+    -- when their runtime availability check fails. The button stays visible
+    -- so the user sees their settings toggle has effect; icon color tells
+    -- them whether the action is currently usable.
+    for _, def in ipairs(footer.customButtonOrder) do
+        if type(def.isAvailable) == "function" then
+            local btn = footer.customButtons[def.key]
+            if btn and btn.icon then
+                if def.isAvailable() then
+                    btn.icon:SetVertexColor(1, 1, 1, 1)
+                else
+                    btn.icon:SetVertexColor(0.45, 0.45, 0.45, 0.75)
+                end
             end
         end
     end
