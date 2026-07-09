@@ -947,7 +947,38 @@ function Settings:BuildFeatures(panel)
             end
         end)
 
-    y = y - (ROW_H * 4) - SECTION_GAP
+    row = 4
+    -- Account-wide toggle -- separate from per-character Omni.Data so it
+    -- can't reuse MakeDataCheckbox. Wired through the Categorizer setter
+    -- which also invalidates the per-item cache.
+    OmniInventoryDB = OmniInventoryDB or {}
+    OmniInventoryDB.global = OmniInventoryDB.global or {}
+    OmniInventoryDB.global.detailedCategories = OmniInventoryDB.global.detailedCategories or false
+    self.detailedCategoriesCb = OpsTheme.CreateCheckButton(panel,
+        "Detailed categories",
+        "Detailed Categories",
+        "Opt-in extra buckets inspired by ArkInventory, AdiBags, and GudaBags: Soul Shards (id 6265), Hearthstone (id 6948), Recipes (itemType), Gems, Trinkets (INVTYPE_TRINKET), and Food vs Drink split. Toggling reclassifies items on next refresh.",
+        OmniInventoryDB.global.detailedCategories == true,
+        function(_, checked)
+            if Omni.Categorizer and Omni.Categorizer.SetDetailedCategories then
+                Omni.Categorizer:SetDetailedCategories(checked)
+            else
+                OmniInventoryDB.global.detailedCategories = checked and true or false
+            end
+            if Omni.Frame and Omni.Frame.InvalidateRenderCaches then
+                Omni.Frame:InvalidateRenderCaches({ clearLayout = true })
+                Omni.Frame:UpdateLayout()
+            end
+            if Omni.BankFrame and Omni.BankFrame.UpdateLayout then
+                Omni.BankFrame:UpdateLayout()
+            end
+            if Omni.GuildBankFrame and Omni.GuildBankFrame.UpdateLayout then
+                Omni.GuildBankFrame:UpdateLayout()
+            end
+        end)
+    self.detailedCategoriesCb:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y - (row * ROW_H))
+
+    y = y - (ROW_H * 5) - SECTION_GAP
 
     panel._contentHeight = math.abs(y) + 40
 end
@@ -1112,6 +1143,11 @@ function Settings:UpdateValues()
     end
     if self.resortButtonCb and Omni.Data then
         self.resortButtonCb:SetChecked(Omni.Data:Get("showResortButton") == true)
+    end
+    if self.detailedCategoriesCb then
+        self.detailedCategoriesCb:SetChecked(
+            OmniInventoryDB and OmniInventoryDB.global
+                and OmniInventoryDB.global.detailedCategories == true)
     end
 
     -- Theme + view + sort + target labels

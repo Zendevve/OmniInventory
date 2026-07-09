@@ -31,6 +31,14 @@ local CATEGORY_COLORS = {
     ["Mounts"]           = { r = 0.95, g = 0.75, b = 0.25 },  -- Amber/gold
     ["Companions"]       = { r = 0.85, g = 0.50, b = 0.75 },  -- Magenta/pink
     ["Holiday"]          = { r = 0.95, g = 0.60, b = 0.60 },  -- Warm rose
+    -- Detailed-mode buckets (hidden unless OmniInventoryDB.global.detailedCategories == true)
+    ["Soul Shards"]      = { r = 0.55, g = 0.20, b = 0.65 },  -- Deep violet (ArkInventory + GudaBags)
+    ["Hearthstone"]      = { r = 0.95, g = 0.50, b = 0.20 },  -- Orange (GudaBags itemID 6948 carveout)
+    ["Recipes"]          = { r = 0.75, g = 0.55, b = 0.30 },  -- Tan/copper (Recipe own bucket, Ark/Adi/Guda)
+    ["Gems"]             = { r = 0.30, g = 0.45, b = 0.85 },  -- Cobalt (Gem own bucket, Ark/Adi)
+    ["Trinkets"]         = { r = 0.95, g = 0.80, b = 0.20 },  -- Gold (INVTYPE_TRINKET own bucket, GudaBags)
+    ["Food"]             = { r = 0.35, g = 0.75, b = 0.40 },  -- Forest green (Food vs Drink split, Ark/Guda)
+    ["Drink"]            = { r = 0.40, g = 0.65, b = 0.95 },  -- Sky blue (Drink vs Food split, Ark/Guda)
     ["Miscellaneous"]    = { r = 0.55, g = 0.55, b = 0.55 },  -- Medium grey
 }
 
@@ -404,6 +412,93 @@ local function ClassifyByItemType(itemInfo)
 end
 
 -- =============================================================================
+-- Detailed Categories Mode (opt-in)
+-- =============================================================================
+-- Each reference addon does something slightly different here. We borrow the
+-- pieces that overlap and gate them behind a single DB toggle so the default
+-- behavior stays unchanged for existing users.
+--
+--   * Soul Shards id 6265 + Hearthstone id 6948   -- ArkInventory / GudaBags
+--     carve specific items out of generic buckets into their own.
+--   * Recipes own bucket                          -- ArkInventory / AdiBags /
+--     GudaBags all separate Recipe itemType from Trade Goods.
+--   * Gems own bucket                            -- ArkInventory / AdiBags.
+--   * Trinkets own bucket                        -- GudaBags' INVTYPE_TRINKET
+--     carve-out (bound tiers such as Soulbound/BoA still take priority).
+--   * Food vs Drink split                        -- ArkInventory / GudaBags
+--     restoreTag + spell text heuristic.
+--
+-- Toggle lives in OmniInventoryDB.global.detailedCategories (bool).
+
+local DETAILED_ITEM_OVERRIDES = {
+    [6265] = "Soul Shards",
+    [6948] = "Hearthstone",
+}
+
+local function IsDetailedCategoriesEnabled()
+    if not OmniInventoryDB or not OmniInventoryDB.global then return false end
+    return OmniInventoryDB.global.detailedCategories == true
+end
+
+local function IsEquipmentTrinket(itemInfo)
+    local _, _, equipSlot = GetItemTypeInfo(itemInfo)
+    return equipSlot == "INVTYPE_TRINKET"
+end
+
+local function GetFoodOrDrinkCategory(itemInfo)
+    if not IsDetailedCategoriesEnabled() then return nil end
+    local itemType, itemSubType = GetItemTypeInfo(itemInfo)
+    if itemType ~= "Consumable" then return nil end
+    if itemSubType ~= "Food & Drink" and itemSubType ~= "Food" and itemSubType ~= "Drink" then
+        return nil
+    end
+    if not itemInfo.hyperlink then return "Food & Drink" end
+    local _, _, _, _, _, _, _, _, _, _, _, spellDesc = GetItemInfo(itemInfo.hyperlink)
+    if not spellDesc then
+        -- Item cache not warm yet; keep the umbrella bucket so a fresh item
+        -- doesn't get misclassified on first open.
+        return "Food & Drink"
+    end
+    local lower = string.lower(spellDesc)
+    -- Drinks restore mana while drinking; foods restore health while eating.
+    if string.find(lower, "mana") and string.find(lower, "drink") then return "Drink" end
+    if string.find(lower, "health") and string.find(lower, "eat") then return "Food" end
+    if string.find(lower, "drink") then return "Drink" end
+    if string.find(lower, "eat") then return "Food" end
+    return "Food & Drink"
+end
+
+local function ApplyDetailedOverrides(category, itemInfo)
+    if not IsDetailedCategoriesEnabled() then return category end
+    if not itemInfo then return category end
+
+    -- itemID-specific carve-outs always win (Soul Shards, Hearthstone).
+    local itemID = GetItemID(itemInfo)
+    if itemID then
+        local det = DETAILED_ITEM_OVERRIDES[itemID]
+        if det then return det end
+    end
+
+    local itemType = itemInfo.itemType
+    if itemType == "Recipe" then return "Recipes" end
+    if itemType == "Gem" then return "Gems" end
+
+    -- Promote Trinkets out of the generic "Equipment" bucket, but only when
+    -- bound tiers (Soulbound / Account Bound / BoE) did not already win.
+    if category == "Equipment" and IsEquipmentTrinket(itemInfo) then
+        return "Trinkets"
+    end
+
+    -- Food vs Drink split operates within the Consumables bucket.
+    if category == "Consumables" then
+        local fd = GetFoodOrDrinkCategory(itemInfo)
+        if fd then return fd end
+    end
+
+    return category
+end
+
+-- =============================================================================
 -- Priority Pipeline
 -- =============================================================================
 
@@ -560,6 +655,14 @@ function Categorizer:GetCategoryInternal(itemInfo)
 
     -- Priority 10+: Heuristic classification
     local out = ClassifyByItemType(itemInfo)
+
+    -- Detailed-mode reroutes (Soul Shards id 6265, Hearthstone id 6948,
+    -- Recipe itemType, Gem itemType, Trinkets INVTYPE_TRINKET, Food/Drink
+    -- split for Consumables). Bound tier labels (Soulbound/BoE/BoA) win
+    -- over the Trinkets promotion since they take priority higher up the
+    -- pipeline -- only untouched "Equipment" items get promoted.
+    out = ApplyDetailedOverrides(out, itemInfo)
+
     if Omni._perfEnabled and Omni.Perf then
         Omni.Perf:End("categorizer.GetCategory", perfToken, { result = out })
     end
@@ -585,6 +688,19 @@ function Categorizer:ClearManualOverride(itemID)
         OmniInventoryDB.categoryOverrides[itemID] = nil
     end
     self:ClearCategoryCache()
+end
+
+-- Detailed-categories toggle: flips OmniInventoryDB.global.detailedCategories
+-- and invalidates the per-item cache so the new routing takes effect on the
+-- next pass.
+function Categorizer:SetDetailedCategories(enabled)
+    if not OmniInventoryDB or not OmniInventoryDB.global then return end
+    OmniInventoryDB.global.detailedCategories = enabled and true or false
+    self:ClearCategoryCache()
+end
+
+function Categorizer:IsDetailedCategoriesEnabled()
+    return IsDetailedCategoriesEnabled()
 end
 
 -- =============================================================================
@@ -683,6 +799,14 @@ function Categorizer:Init()
     self:RegisterCategory("Mounts", 19, nil, CATEGORY_COLORS["Mounts"])
     self:RegisterCategory("Companions", 20, nil, CATEGORY_COLORS["Companions"])
     self:RegisterCategory("Holiday", 21, nil, CATEGORY_COLORS["Holiday"])
+    -- Detailed-mode buckets (only surface when detailedCategories is enabled).
+    self:RegisterCategory("Soul Shards", 22, nil, CATEGORY_COLORS["Soul Shards"])
+    self:RegisterCategory("Hearthstone", 23, nil, CATEGORY_COLORS["Hearthstone"])
+    self:RegisterCategory("Recipes", 24, nil, CATEGORY_COLORS["Recipes"])
+    self:RegisterCategory("Gems", 25, nil, CATEGORY_COLORS["Gems"])
+    self:RegisterCategory("Trinkets", 26, nil, CATEGORY_COLORS["Trinkets"])
+    self:RegisterCategory("Food", 27, nil, CATEGORY_COLORS["Food"])
+    self:RegisterCategory("Drink", 28, nil, CATEGORY_COLORS["Drink"])
     self:RegisterCategory("Junk", 90, nil, CATEGORY_COLORS["Junk"])
     self:RegisterCategory("Miscellaneous", 99, nil, CATEGORY_COLORS["Miscellaneous"])
     self:RegisterCategory("Free Space", 150, nil, CATEGORY_COLORS["Free Space"] or { r = 0.5, g = 0.5, b = 0.5 })
@@ -694,6 +818,7 @@ function Categorizer:Init()
     OmniInventoryDB.global = OmniInventoryDB.global or {}
     OmniInventoryDB.global.categoryCustoms = OmniInventoryDB.global.categoryCustoms or {}
     OmniInventoryDB.global.categoryRenames = OmniInventoryDB.global.categoryRenames or {}
+    OmniInventoryDB.global.detailedCategories = OmniInventoryDB.global.detailedCategories or false
 
     -- Invalidate cached item -> category lookups so this session's
     -- upgraded rules apply immediately instead of relying on stale
