@@ -106,7 +106,6 @@ See [Search Syntax](#search-syntax) for the full reference.
 - **Bold Footer** -- Larger outlined gold and bag count. Slot count text shifts from light blue to red as bags fill.
 - **Custom Tooltip Placement** -- Right, Left, or Fixed screen corners (Bottom-Right, Bottom-Left, Top-Left, Top-Right) with adjustable X/Y insets (0--400 px each).
 - **Footer Buttons** -- Toggleable quick-access buttons in the footer: Reset Instances, Hearthstone, Clam Opener, Disenchant, Pick Lock.
-- **Third-Party Addon Launcher** -- Ribbon integration for AtlasLoot and other addons.
 - **Resort Button** -- Optional button that appears when a dry-run detects the layout could be reorganized.
 - **Global Lock** -- Pause all layout updates during sort/swap operations.
 - **Combat Safety** -- Full combat-lockdown awareness. The addon remaps default bag keybinds (B / Shift-B) to its own secure binding (`OMNIINVENTORY_TOGGLE`) so toggling works in combat. Layout updates defer automatically and replay when combat ends.
@@ -198,7 +197,6 @@ Open the settings panel with `/oi config`. The panel provides tabbed controls fo
 | **Auto-Tidy on Close** | Compact and sort bags when the window closes |
 | **Resort Button** | Show a button when layout could be reorganized |
 | **Footer Buttons** | Toggle Reset Instances, Hearthstone, Clam Opener, Disenchant, Pick Lock |
-| **Addon Buttons** | Toggle AtlasLoot launcher |
 
 All settings persist in `OmniInventoryDB` and survive logout/relog.
 

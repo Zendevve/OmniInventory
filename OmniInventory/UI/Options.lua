@@ -125,9 +125,6 @@ local FOOTER_BUTTON_OPTIONS = {
     { key = "picklock",       label = "Pick Lock",       tipTitle = "Pick Lock",       tipSub = "Casts Pick Lock (requires Rogue class)." },
 }
 
-local ADDON_BUTTON_OPTIONS = {
-    { key = "atlasLoot",   label = "AtlasLoot",   tipTitle = "AtlasLoot Integration", tipSub = "Enables AtlasLoot integration button in the footer."   },
-}
 
 local function GetFooterButtonsDB()
     OmniInventoryDB = OmniInventoryDB or {}
