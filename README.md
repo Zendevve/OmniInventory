@@ -111,7 +111,7 @@ See [Search Syntax](#search-syntax) for the full reference.
 - **Global Lock** -- Pause all layout updates during sort/swap operations.
 - **Combat Safety** -- Full combat-lockdown awareness. The addon remaps default bag keybinds (B / Shift-B) to its own secure binding (`OMNIINVENTORY_TOGGLE`) so toggling works in combat. Layout updates defer automatically and replay when combat ends.
 - **Cache Warmer** -- Pre-loads `GetItemInfo` for known item IDs on login and zone-in to avoid tooltip delays.
-- **LibDataBroker (LDB) Support** -- Registers a data source for broker display addons. Left-click toggles bags; right-click opens settings.
+
 
 ### Auto-Display
 
@@ -134,7 +134,7 @@ Each trigger is individually configurable in the settings panel.
 ### Prerequisites
 
 - **World of Warcraft 3.3.5a** (Wrath of the Lich King) client -- any stock private server build.
-- No additional library dependencies are required. Optional integrations with **Masque** (icon skinning) and **LibDataBroker** (broker displays) are auto-detected at runtime.
+- No additional library dependencies are required.
 
 ### Steps
 
@@ -166,7 +166,7 @@ Each trigger is individually configurable in the settings panel.
 
 ## Configuration
 
-Open the settings panel with `/oi config` or by right-clicking the LibDataBroker icon. The panel provides tabbed controls for **Bag Frame** and **Bank Frame** settings independently.
+Open the settings panel with `/oi config`. The panel provides tabbed controls for **Bag Frame** and **Bank Frame** settings independently.
 
 ### Settings Overview
 
@@ -252,10 +252,7 @@ OmniInventory supports prefix-based search operators in the filter bar:
 
 - **Target client**: World of Warcraft 3.3.5a (Interface version `30300`).
 - **Server requirements**: None. Works on any stock 3.3.5a server.
-- **Optional integrations** (auto-detected at runtime):
-  - [Masque](https://www.curseforge.com/wow/addons/masque) -- full icon skin override.
-  - [LibDataBroker-1.1](https://www.curseforge.com/wow/addons/libdatabroker-1-1) -- broker display data source.
-  - [AtlasLoot](https://www.curseforge.com/wow/addons/atlasloot) -- footer launcher button (auto-hidden when AtlasLoot is not loaded).
+- **Optional integrations**: None.
 
 ---
 

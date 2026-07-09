@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- OmniInventory Consolidated Small Features
 -- =============================================================================
 -- Implements the small-effort gap-analysis items in one module so the
@@ -597,75 +597,9 @@ function Features:CycleBankBagView()
 end
 
 -- =============================================================================
--- LDB Data Source/Launcher (A10)
--- =============================================================================
--- Registers a LibDataBroker data object if LibDataBroker is available.
-
-function Features:InitLDB()
-    if Features._ldbInitialized then return end
-    Features._ldbInitialized = true
-
-    local LibDataBroker
-    if type(_G.LibStub) == "function" then
-        local ok, lib = pcall(_G.LibStub, "LibDataBroker-1.1", true)
-        if ok then
-            LibDataBroker = lib
-        end
-    end
-
-    if not LibDataBroker then
-        return
-    end
-
-    local function getBagUsageText()
-        local free, total = 0, 0
-        for bagID = 0, 4 do
-            total = total + (GetContainerNumSlots(bagID) or 0)
-            free = free + (GetContainerNumFreeSlots(bagID) or 0)
-        end
-        local used = total - free
-        return string.format("%d/%d slots", used, total)
-    end
-
-    local dataObject = LibDataBroker:NewDataObject("OmniInventory", {
-        type = "data source",
-        text = "OmniInventory",
-        label = "OmniInventory",
-        icon = "Interface\\Icons\\INV_Misc_Bag_07",
-        OnClick = function(self, button)
-            if button == "LeftButton" then
-                if Omni.Frame then Omni.Frame:Toggle() end
-            elseif button == "RightButton" then
-                if Omni.Settings then Omni.Settings:Toggle() end
-            end
-        end,
-        OnTooltipShow = function(tooltip)
-            tooltip:SetText("|cFF00FF00Omni|rInventory")
-            tooltip:AddLine(getBagUsageText(), 1, 1, 1)
-            tooltip:AddLine(" ")
-            tooltip:AddLine("Left-click: Toggle Bags", 0.7, 0.7, 0.7)
-            tooltip:AddLine("Right-click: Settings", 0.7, 0.7, 0.7)
-        end,
-    })
-
-    Features._ldbObject = dataObject
-
-    -- Update text periodically
-    local updateFrame = CreateFrame("Frame")
-    updateFrame:SetScript("OnEvent", function()
-        if dataObject then
-            dataObject.text = getBagUsageText()
-        end
-    end)
-    updateFrame:RegisterEvent("BAG_UPDATE")
-    updateFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-end
-
--- =============================================================================
 -- Initialization
 -- =============================================================================
 
 function Features:Init()
-    self:InitLDB()
     self:InitAutoLoot()
 end
