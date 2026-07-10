@@ -406,12 +406,12 @@ function Settings:BuildGeneral(panel)
         "New items",
         "Highlight new items",
         "Visually emphasize items that count as new in your bags.",
-        "highlightNewItems", false, nil, true)
+        "highlightNewItems", true, nil, true)
     self.footerMoneyEmphasisCb = MakeCb(1, row,
         "Bold footer",
         "Bold footer",
         "Larger outlined gold and bag count. Slot text shifts from light blue to red as bags fill.",
-        "footerMoneyEmphasis", false, function()
+        "footerMoneyEmphasis", true, function()
             if Omni.Frame and Omni.Frame.RefreshFooterMoneyStyle then
                 Omni.Frame:RefreshFooterMoneyStyle()
             end
@@ -1190,7 +1190,7 @@ function Settings:RefreshViewLabel()
     if Omni.Frame and Omni.Frame.GetView then
         view = Omni.Frame:GetView()
     elseif OmniInventoryDB and OmniInventoryDB.char and OmniInventoryDB.char.settings then
-        view = OmniInventoryDB.char.settings.viewMode or "grid"
+        view = OmniInventoryDB.char.settings.viewMode or "flow"
     end
     -- Capitalize first letter
     view = view:gsub("^%l", string.upper)

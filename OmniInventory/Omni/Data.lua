@@ -15,7 +15,7 @@ local Data = Omni.Data
 
 local defaults = {
     global = {
-        dbVersion = 2,
+        dbVersion = 3,
         viewMode = "flow",      -- "grid", "flow", "list"
         sortMode = "category",  -- "category", "quality", "name", "ilvl", "usage"
         columns = 10,
@@ -45,8 +45,16 @@ local defaults = {
         footerMoneyIcons = false,
         -- Custom footer launcher buttons (mini-mode themed)
         footerButtons = {
-            resetInstances = false,
+            clearGlow       = true,   -- Mark All Read
+            resetInstances  = false,
+            hearthstone     = true,
+            openables       = true,   -- Clam/container opener
+            disenchant      = true,   -- Only shows for enchanters
+            picklock        = true,    -- Only shows for rogues
         },
+        -- Detailed categories: opt-in extra buckets (Soul Shards,
+        -- Hearthstone, Recipes, Gems, Trinkets, Food vs Drink split).
+        detailedCategories = false,
         -- Configurable auto-display: per-event open/close of the
         -- main inventory frame. Mirrors Bagnon's per-frame/per-event model
         -- but scoped to the single Omni main bag window.
@@ -96,6 +104,23 @@ local defaults = {
         position = nil,         -- { point, x, y }
         customRules = {},
         collapsedCategories = {},
+        -- Per-character UI settings (view mode, scale, bag filter, etc.)
+        settings = {
+            viewMode = "flow",  -- "grid", "flow", "list", "bag"
+            scale = 1.0,
+            itemScale = 1.0,
+            itemGap = 4,
+            selectedBagID = nil,
+            selectedBankBagID = nil,
+            bankViewMode = "flow",
+        },
+        -- Per-character guild bank settings
+        guildBank = {
+            viewMode = "flow",  -- "grid" or "flow"
+            tabMappings = {},
+        },
+        -- Per-frame layout settings (bag/bank/keys)
+        frameSettings = {},
     },
     realm = {},  -- Cross-character data stored here
 }
@@ -140,7 +165,20 @@ local migrations = {
             end
             db.global.tooltipAddonCompatibility = nil
         end
-    end
+    end,
+    -- v3: Ensure char.settings and char.guildBank sub-tables exist so
+    -- MergeDefaults can recursively populate their keys. Also ensures
+    -- detailedCategories has an explicit default for existing users.
+    [3] = function(db)
+        if db.char then
+            db.char.settings   = db.char.settings   or {}
+            db.char.guildBank  = db.char.guildBank  or { tabMappings = {} }
+            db.char.frameSettings = db.char.frameSettings or {}
+        end
+        if db.global then
+            db.global.detailedCategories = db.global.detailedCategories or false
+        end
+    end,
 }
 
 local function MigrateDB()
