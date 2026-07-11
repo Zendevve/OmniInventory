@@ -6069,8 +6069,13 @@ function Frame:ApplySearch(text)
         -- Show all list rows (they'll be rebuilt on next update anyway)
         for _, row in ipairs(listRows) do
             if row.itemInfo then
-                row:SetAlpha(1)
-                if row.icon then row.icon:SetDesaturated(false) end
+                if row.itemInfo.isQuickFiltered then
+                    row:SetAlpha(0.28)
+                    if row.icon then row.icon:SetDesaturated(true) end
+                else
+                    row:SetAlpha(1)
+                    if row.icon then row.icon:SetDesaturated(false) end
+                end
             end
         end
         return

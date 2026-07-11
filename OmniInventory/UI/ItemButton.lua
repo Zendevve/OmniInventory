@@ -1124,6 +1124,15 @@ end
 function ItemButton:ClearSearch(button)
     if not button then return end
 
+    local info = button.itemInfo
+    if info and info.isQuickFiltered then
+        button.dimOverlay:Show()
+        button.icon:SetDesaturated(true)
+        button.icon:SetAlpha(0.4)
+        button.icon:SetVertexColor(1, 1, 1)
+        return
+    end
+
     button.dimOverlay:Hide()
     button.icon:SetDesaturated(false)
     button.icon:SetAlpha(1)
