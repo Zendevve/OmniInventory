@@ -2324,33 +2324,12 @@ local function FindHearthstone()
 end
 
 local function FindFirstOpenableContainer()
-    local tooltip = CreateFrame("GameTooltip", "OmniOpenableScanTooltip", nil, "GameTooltipTemplate")
-    tooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
-
-    local RIGHT_CLICK_TO_OPEN = ITEM_OPENABLE or "Right Click to Open"
-    local lowerOpenPattern = string.lower(RIGHT_CLICK_TO_OPEN)
-    local fallbackPattern = "right click to open"
-    local fallbackPattern2 = "right-click to open"
-
     for bagID = 0, 4 do
         local slots = GetContainerNumSlots(bagID) or 0
         for slotID = 1, slots do
-            local link = GetContainerItemLink(bagID, slotID)
-            if link then
-                tooltip:ClearLines()
-                tooltip:SetBagItem(bagID, slotID)
-                for i = 2, tooltip:NumLines() do
-                    local leftText = _G["OmniOpenableScanTooltipTextLeft" .. i]
-                    if leftText then
-                        local text = leftText:GetText()
-                        if text then
-                            local textLower = string.lower(text)
-                            if string.find(textLower, lowerOpenPattern) or string.find(textLower, fallbackPattern) or string.find(textLower, fallbackPattern2) then
-                                return bagID, slotID, link
-                            end
-                        end
-                    end
-                end
+            local info = OmniC_Container.GetContainerItemInfo(bagID, slotID)
+            if info and info.hasLoot and info.hyperlink then
+                return bagID, slotID, info.hyperlink
             end
         end
     end
