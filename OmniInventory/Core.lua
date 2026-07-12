@@ -641,6 +641,11 @@ local function HandleSlashCommand(msg)
             Omni.BankFrame:Toggle()
         end
 
+    elseif msg == "guildbank" or msg == "gb" then
+        if Omni.GuildBankFrame then
+            Omni.GuildBankFrame:Toggle()
+        end
+
     elseif msg == "bankswitch" or msg == "switchbank" then
         if Omni.Features and Omni.Features.CycleBankBagView then
             Omni.Features:CycleBankBagView()
@@ -722,6 +727,7 @@ local function HandleSlashCommand(msg)
         print("  |cFFFFFF00/oi reapply|r - Re-apply bag function overrides")
         print("  |cFFFFFF00/oi currency|r - Toggle currency frame")
         print("  |cFFFFFF00/oi bank|r - Toggle bank window (offline/cached)")
+        print("  |cFFFFFF00/oi guildbank|r - Toggle guild bank window (offline/cached)")
         print("  |cFFFFFF00/oi bankswitch|r - Cycle bank bag view")
         print("  |cFFFFFF00/oi tidy|r - Run auto-tidy (sort + compact)")
         print("  |cFFFFFF00/oi sort|r - Physical bag sort (move items)")

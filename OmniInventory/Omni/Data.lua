@@ -15,7 +15,7 @@ local Data = Omni.Data
 
 local defaults = {
     global = {
-        dbVersion = 3,
+        dbVersion = 4,
         viewMode = "flow",      -- "grid", "flow", "list"
         sortMode = "category",  -- "category", "quality", "name", "ilvl", "usage"
         columns = 10,
@@ -179,6 +179,13 @@ local migrations = {
             db.global.detailedCategories = db.global.detailedCategories or false
         end
     end,
+    [4] = function(db)
+        if db.realm then
+            for realmName, realmData in pairs(db.realm) do
+                realmData.guilds = realmData.guilds or {}
+            end
+        end
+    end,
 }
 
 local function MigrateDB()
@@ -229,6 +236,7 @@ function Data:Init()
     local charKey = realmName .. "-" .. playerName
 
     OmniInventoryDB.realm[realmName] = OmniInventoryDB.realm[realmName] or {}
+    OmniInventoryDB.realm[realmName].guilds = OmniInventoryDB.realm[realmName].guilds or {}
     OmniInventoryDB.realm[realmName][playerName] = OmniInventoryDB.realm[realmName][playerName] or {
         class = select(2, UnitClass("player")),
         lastSeen = time(),
@@ -589,4 +597,106 @@ function Data:TogglePin(itemID)
         self:PinItem(itemID)
         return true
     end
+end
+
+-- =============================================================================
+-- Guild Bank Caching System
+-- =============================================================================
+
+function Data:SaveGuildBank(guildName, tabIndex)
+    if not guildName then
+        guildName = GetGuildInfo("player")
+    end
+    if not guildName or guildName == "" then return end
+
+    OmniInventoryDB.char = OmniInventoryDB.char or {}
+    OmniInventoryDB.char.guildName = guildName
+
+    local numTabs = GetNumGuildBankTabs() or 0
+    if numTabs <= 0 then return end
+
+    local realm = OmniInventoryDB.realm[self.realmName]
+    if not realm then return end
+    realm.guilds = realm.guilds or {}
+    realm.guilds[guildName] = realm.guilds[guildName] or { tabs = {} }
+
+    local tabs = realm.guilds[guildName].tabs
+
+    local activeTab = tabIndex or (GetCurrentGuildBankTab and GetCurrentGuildBankTab()) or 1
+    if activeTab < 1 or activeTab > numTabs then return end
+
+    local name, icon, isViewable, canDeposit, numWithdrawals, remainingWithdrawals = GetGuildBankTabInfo(activeTab)
+    if not name or name == "" then
+        return
+    end
+
+    tabs[activeTab] = tabs[activeTab] or {}
+    tabs[activeTab].name = name
+    tabs[activeTab].icon = icon
+    tabs[activeTab].isViewable = isViewable and true or false
+    tabs[activeTab].canDeposit = canDeposit and true or false
+    tabs[activeTab].numWithdrawals = numWithdrawals or 0
+    tabs[activeTab].remainingWithdrawals = remainingWithdrawals or 0
+    tabs[activeTab].items = {}
+
+    if isViewable then
+        -- 98 slots per tab in WotLK
+        for slot = 1, 98 do
+            local link = GetGuildBankItemLink(activeTab, slot)
+            if link then
+                local _, count = GetGuildBankItemInfo(activeTab, slot)
+                local _, _, quality = GetItemInfo(link)
+                table.insert(tabs[activeTab].items, {
+                    slotID = slot,
+                    link = link,
+                    count = count or 1,
+                    quality = quality or 0
+                })
+            end
+        end
+    end
+end
+
+function Data:SaveGuildBankHeaders(guildName)
+    if not guildName then
+        guildName = GetGuildInfo("player")
+    end
+    if not guildName or guildName == "" then return end
+
+    OmniInventoryDB.char = OmniInventoryDB.char or {}
+    OmniInventoryDB.char.guildName = guildName
+
+    local numTabs = GetNumGuildBankTabs() or 0
+    if numTabs <= 0 then return end
+
+    local realm = OmniInventoryDB.realm[self.realmName]
+    if not realm then return end
+    realm.guilds = realm.guilds or {}
+    realm.guilds[guildName] = realm.guilds[guildName] or { tabs = {} }
+    realm.guilds[guildName].money = GetGuildBankMoney and GetGuildBankMoney() or 0
+
+    local tabs = realm.guilds[guildName].tabs
+
+    for i = 1, numTabs do
+        local name, icon, isViewable, canDeposit, numWithdrawals, remainingWithdrawals = GetGuildBankTabInfo(i)
+        if name and name ~= "" then
+            tabs[i] = tabs[i] or {}
+            tabs[i].name = name
+            tabs[i].icon = icon
+            tabs[i].isViewable = isViewable and true or false
+            tabs[i].canDeposit = canDeposit and true or false
+            tabs[i].numWithdrawals = numWithdrawals or 0
+            tabs[i].remainingWithdrawals = remainingWithdrawals or 0
+            tabs[i].items = tabs[i].items or {}
+        end
+    end
+end
+
+function Data:GetGuildBankCache(guildName)
+    if not guildName then
+        guildName = GetGuildInfo("player")
+    end
+    if not guildName or guildName == "" then return nil end
+    local realm = OmniInventoryDB and OmniInventoryDB.realm and OmniInventoryDB.realm[self.realmName]
+    return realm and realm.guilds and realm.guilds[guildName]
 end

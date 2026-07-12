@@ -100,6 +100,122 @@ local VIEW_GRID = "grid"
 
 local tabMappingStringsCoerced = false
 
+-- =============================================================================
+-- Offline Detection & Caching Wrapper Polyfills
+-- =============================================================================
+
+local function IsOffline()
+    return not (Omni.Features and Omni.Features:GetInteractingWindow() == "guildbank")
+end
+
+local function GetActiveGuildName()
+    local guildName = GetGuildInfo("player")
+    if not guildName or guildName == "" then
+        guildName = OmniInventoryDB and OmniInventoryDB.char and OmniInventoryDB.char.guildName
+    end
+    return guildName
+end
+
+local function Offline_GetGuildBankCache()
+    local name = GetActiveGuildName()
+    return Omni.Data and Omni.Data:GetGuildBankCache(name)
+end
+
+local function Offline_GetNumGuildBankTabs()
+    local cache = Offline_GetGuildBankCache()
+    if not cache or not cache.tabs then return 0 end
+    local count = 0
+    for i = 1, 8 do
+        if cache.tabs[i] then count = i end
+    end
+    return count
+end
+
+local function Offline_GetGuildBankTabInfo(tabIndex)
+    local cache = Offline_GetGuildBankCache()
+    local tab = cache and cache.tabs and cache.tabs[tabIndex]
+    if tab then
+        return tab.name, tab.icon, tab.isViewable and 1 or 0, tab.canDeposit and 1 or 0, tab.numWithdrawals, tab.remainingWithdrawals
+    end
+    return nil, nil, 0, 0, 0, 0
+end
+
+local function Offline_GetGuildBankItemInfo(tabIndex, slotIndex)
+    local cache = Offline_GetGuildBankCache()
+    local tab = cache and cache.tabs and cache.tabs[tabIndex]
+    if tab and tab.items then
+        for _, item in ipairs(tab.items) do
+            if item.slotID == slotIndex then
+                local texture = GetItemIcon(item.link) or "Interface\\Icons\\INV_Misc_QuestionMark"
+                return texture, item.count or 1, false
+            end
+        end
+    end
+    return nil, 0, false
+end
+
+local function Offline_GetGuildBankItemLink(tabIndex, slotIndex)
+    local cache = Offline_GetGuildBankCache()
+    local tab = cache and cache.tabs and cache.tabs[tabIndex]
+    if tab and tab.items then
+        for _, item in ipairs(tab.items) do
+            if item.slotID == slotIndex then
+                return item.link
+            end
+        end
+    end
+    return nil
+end
+
+local orig_GetNumGuildBankTabs = GetNumGuildBankTabs
+local GetNumGuildBankTabs = function()
+    if IsOffline() then
+        return Offline_GetNumGuildBankTabs()
+    end
+    return orig_GetNumGuildBankTabs and orig_GetNumGuildBankTabs() or 0
+end
+
+local orig_GetGuildBankTabInfo = GetGuildBankTabInfo
+local GetGuildBankTabInfo = function(tabIndex)
+    if IsOffline() then
+        return Offline_GetGuildBankTabInfo(tabIndex)
+    end
+    return orig_GetGuildBankTabInfo and orig_GetGuildBankTabInfo(tabIndex)
+end
+
+local orig_GetGuildBankItemInfo = GetGuildBankItemInfo
+local GetGuildBankItemInfo = function(tabIndex, slotIndex)
+    if IsOffline() then
+        return Offline_GetGuildBankItemInfo(tabIndex, slotIndex)
+    end
+    return orig_GetGuildBankItemInfo and orig_GetGuildBankItemInfo(tabIndex, slotIndex)
+end
+
+local orig_GetGuildBankItemLink = GetGuildBankItemLink
+local GetGuildBankItemLink = function(tabIndex, slotIndex)
+    if IsOffline() then
+        return Offline_GetGuildBankItemLink(tabIndex, slotIndex)
+    end
+    return orig_GetGuildBankItemLink and orig_GetGuildBankItemLink(tabIndex, slotIndex)
+end
+
+local orig_GetCurrentGuildBankTab = GetCurrentGuildBankTab
+local GetCurrentGuildBankTab = function()
+    if IsOffline() then
+        return currentTab
+    end
+    return orig_GetCurrentGuildBankTab and orig_GetCurrentGuildBankTab() or currentTab
+end
+
+local orig_GetGuildBankMoney = GetGuildBankMoney
+local GetGuildBankMoney = function()
+    if IsOffline() then
+        local cache = Offline_GetGuildBankCache()
+        return cache and cache.money or 0
+    end
+    return orig_GetGuildBankMoney and orig_GetGuildBankMoney() or 0
+end
+
 local function GetDB()
     OmniInventoryDB = OmniInventoryDB or {}
     OmniInventoryDB.char = OmniInventoryDB.char or {}
@@ -743,6 +859,10 @@ local function GuildBankSlotOnClick(self, mouseButton)
         return
     end
 
+    if IsOffline() then
+        return
+    end
+
     if IsModifiedClick and IsModifiedClick("SPLITSTACK") then
         local _tex, count, locked = GetGuildBankItemInfo(bankTab, bankSlot)
         if count and count > 1 and not locked then
@@ -851,7 +971,14 @@ local function CreateSlotButton(parent, slotIndex)
         end
         local t = self.gbTab or currentTab
         local s = self.gbSlot or self.slotIndex
-        GameTooltip:SetGuildBankItem(t, s)
+        if IsOffline() then
+            local link = GetGuildBankItemLink(t, s)
+            if link then
+                GameTooltip:SetHyperlink(link)
+            end
+        else
+            GameTooltip:SetGuildBankItem(t, s)
+        end
         GameTooltip:Show()
         if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
             Omni.ItemButton.FinalizeOmniItemTooltipLayout()
@@ -868,6 +995,7 @@ local function CreateSlotButton(parent, slotIndex)
     end)
 
     btn:SetScript("OnReceiveDrag", function(self)
+        if IsOffline() then return end
         local t = self.gbTab or currentTab
         local s = self.gbSlot or self.slotIndex
         if PickupGuildBankItem then
@@ -876,6 +1004,7 @@ local function CreateSlotButton(parent, slotIndex)
     end)
 
     btn:SetScript("OnDragStart", function(self)
+        if IsOffline() then return end
         local t = self.gbTab or currentTab
         local s = self.gbSlot or self.slotIndex
         if PickupGuildBankItem then
@@ -1161,6 +1290,9 @@ local function CreateFooter(parent)
     StyleFooterRibbonButton(footer.moneyBtn)
     footer.moneyBtn._tooltipTitle = "Guild Funds"
     footer.moneyBtn:SetScript("OnClick", function(self, mouseButton)
+        if IsOffline() then
+            return
+        end
         if mouseButton == "RightButton" then
             StaticPopup_Show("OMNI_GUILDBANK_DEPOSIT_MONEY")
         else
@@ -1171,6 +1303,12 @@ local function CreateFooter(parent)
         self:SetBackdropColor(0.22, 0.22, 0.22, 1)
         self:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+        if IsOffline() then
+            GameTooltip:AddLine("Guild Funds (Offline)", 1, 0.5, 0.5)
+            GameTooltip:AddLine((self._moneyText and self._moneyText ~= "") and self._moneyText or "0", 1, 0.85, 0.25)
+            GameTooltip:Show()
+            return
+        end
         GameTooltip:AddLine("Guild Funds", 1, 1, 1)
         GameTooltip:AddLine((self._moneyText and self._moneyText ~= "") and self._moneyText or "0", 1, 0.85, 0.25)
         if self._withdrawText and self._withdrawText ~= "" then
@@ -1774,7 +1912,19 @@ end
 function GuildBankFrame:UpdateBuyButton()
     if not frame or not frame.footer then return end
     local btn = frame.footer.buyTabBtn
+    local sdBtn = frame.footer.smartDepositBtn
+    if sdBtn then
+        if IsOffline() then
+            sdBtn:Hide()
+        else
+            sdBtn:Show()
+        end
+    end
     if not btn then return end
+    if IsOffline() then
+        btn:Hide()
+        return
+    end
     local numTabs = GetNumGuildBankTabs() or 0
     local isLeader = IsGuildLeader and IsGuildLeader() or false
     if isLeader and numTabs < MAX_TABS then
@@ -1787,8 +1937,12 @@ end
 
 function GuildBankFrame:UpdateGuildName()
     if not frame or not frame.header then return end
-    local name = GetGuildInfo and GetGuildInfo("player") or nil
-    frame.header.guildName:SetText(name and ("<" .. name .. ">") or "")
+    local name = GetActiveGuildName()
+    local text = name and ("<" .. name .. ">") or ""
+    if IsOffline() then
+        text = text .. " |cffff3333[Offline View]|r"
+    end
+    frame.header.guildName:SetText(text)
 end
 
 function GuildBankFrame:UpdateLayout()
@@ -1900,7 +2054,7 @@ function GuildBankFrame:RunSmartDeposit()
     depositFrame.elapsed = 0
     depositFrame:SetScript("OnUpdate", function(self, elapsed)
         self.elapsed = self.elapsed + (elapsed or 0)
-        if self.elapsed < 0.12 then return end
+        if self.elapsed < 0.15 then return end
         self.elapsed = 0
 
         if CursorHasItem and CursorHasItem() then return end
@@ -1915,6 +2069,13 @@ function GuildBankFrame:RunSmartDeposit()
             print(string.format("|cFF00FFAAOmni Guild Bank:|r Smart deposit finished (%d items moved).", depositCount))
             return
         end
+
+        local _, _, locked = GetContainerItemInfo(entry.bag, entry.slot)
+        if locked then
+            -- Wait for item to unlock, check in next frame tick
+            return
+        end
+
         index = index + 1
 
         if not GetContainerItemLink(entry.bag, entry.slot) then
@@ -1962,6 +2123,24 @@ local function EnsureContextMenu()
 end
 
 function GuildBankFrame:ShowTabContextMenu(tabIndex)
+    if IsOffline() then
+        EnsureContextMenu()
+        local menu = {
+            {
+                text = "Tab " .. tabIndex .. " (Offline)",
+                isTitle = true,
+                notCheckable = true,
+            },
+            {
+                text = "Actions unavailable offline",
+                disabled = true,
+                notCheckable = true,
+            }
+        }
+        EasyMenu(menu, contextMenu, "cursor", 0, 0, "MENU")
+        return
+    end
+
     EnsureContextMenu()
 
     local isLeader = IsGuildLeader and IsGuildLeader() and true or false
@@ -2327,12 +2506,14 @@ StaticPopupDialogs["OMNI_GUILDBANK_BUY_TAB"] = {
 -- =============================================================================
 
 function GuildBankFrame:SyncBlizzardGuildBankProxy()
+    if IsOffline() then return end
     local gb = _G.GuildBankFrame
     if not gb then return end
     pcall(gb.Show, gb)
 end
 
 function GuildBankFrame:QueryAllTabs()
+    if IsOffline() then return end
     local numTabs = GetNumGuildBankTabs() or 0
     if not QueryGuildBankTab or numTabs <= 0 then return end
     for tab = 1, numTabs do

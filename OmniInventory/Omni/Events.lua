@@ -187,6 +187,8 @@ local saveDeferred = false
 local saveTimerFrame = nil
 local bankSaveDeferred = false
 local bankSaveTimerFrame = nil
+local guildBankSaveDeferred = false
+local guildBankSaveTimerFrame = nil
 
 function Events:RequestDeferredInventorySave()
     if not saveTimerFrame then
@@ -230,6 +232,28 @@ function Events:RequestDeferredBankSave()
     end)
 end
 
+function Events:RequestDeferredGuildBankSave()
+    if not guildBankSaveTimerFrame then
+        guildBankSaveTimerFrame = CreateFrame("Frame")
+    end
+    guildBankSaveTimerFrame.elapsed = 0
+    if guildBankSaveDeferred then return end
+    guildBankSaveDeferred = true
+    guildBankSaveTimerFrame:SetScript("OnUpdate", function(self, elapsed)
+        self.elapsed = self.elapsed + elapsed
+        if self.elapsed >= 0.5 then
+            self:SetScript("OnUpdate", nil)
+            guildBankSaveDeferred = false
+            if Omni.Data and Omni.Data.SaveGuildBank then
+                local guildName = GetGuildInfo("player")
+                if guildName and guildName ~= "" then
+                    Omni.Data:SaveGuildBank(guildName)
+                end
+            end
+        end
+    end)
+end
+
 function Events:FlushDeferredSaves()
     if saveDeferred then
         if saveTimerFrame then saveTimerFrame:SetScript("OnUpdate", nil) end
@@ -243,6 +267,16 @@ function Events:FlushDeferredSaves()
         bankSaveDeferred = false
         if Omni.Data and Omni.Data.SaveBankItems then
             Omni.Data:SaveBankItems()
+        end
+    end
+    if guildBankSaveDeferred then
+        if guildBankSaveTimerFrame then guildBankSaveTimerFrame:SetScript("OnUpdate", nil) end
+        guildBankSaveDeferred = false
+        if Omni.Data and Omni.Data.SaveGuildBank then
+            local guildName = GetGuildInfo("player")
+            if guildName and guildName ~= "" then
+                Omni.Data:SaveGuildBank(guildName)
+            end
         end
     end
 end
@@ -399,12 +433,29 @@ function Events:Init()
         if Omni.GuildBankFrame then
             Omni.GuildBankFrame:Show()
         end
+        if Omni.Data and Omni.Data.SaveGuildBankHeaders then
+            local guildName = GetGuildInfo("player")
+            if guildName and guildName ~= "" then
+                Omni.Data:SaveGuildBankHeaders(guildName)
+                Omni.Data:SaveGuildBank(guildName)
+            end
+        end
     end)
 
     self:RegisterEvent("GUILDBANKFRAME_CLOSED", function()
         if Omni.Features and Omni.Features.SetInteractingWindow then
             if Omni.Features:GetInteractingWindow() == "guildbank" then
                 Omni.Features:SetInteractingWindow(nil)
+            end
+        end
+        if guildBankSaveDeferred then
+            if guildBankSaveTimerFrame then guildBankSaveTimerFrame:SetScript("OnUpdate", nil) end
+            guildBankSaveDeferred = false
+            if Omni.Data and Omni.Data.SaveGuildBank then
+                local guildName = GetGuildInfo("player")
+                if guildName and guildName ~= "" then
+                    Omni.Data:SaveGuildBank(guildName)
+                end
             end
         end
         if Omni.GuildBankFrame then
@@ -416,6 +467,9 @@ function Events:Init()
         if Omni.GuildBankFrame and Omni.GuildBankFrame:IsShown() then
             Omni.GuildBankFrame:UpdateLayout()
         end
+        if Omni.Features and Omni.Features:GetInteractingWindow() == "guildbank" then
+            self:RequestDeferredGuildBankSave()
+        end
     end)
 
     self:RegisterEvent("GUILDBANK_UPDATE_TABS", function()
@@ -424,6 +478,15 @@ function Events:Init()
                 Omni.GuildBankFrame:QueryAllTabs()
             end
             Omni.GuildBankFrame:UpdateLayout()
+        end
+        if Omni.Features and Omni.Features:GetInteractingWindow() == "guildbank" then
+            if Omni.Data and Omni.Data.SaveGuildBankHeaders then
+                local guildName = GetGuildInfo("player")
+                if guildName and guildName ~= "" then
+                    Omni.Data:SaveGuildBankHeaders(guildName)
+                end
+            end
+            self:RequestDeferredGuildBankSave()
         end
     end)
 
@@ -448,6 +511,9 @@ function Events:Init()
     self:RegisterEvent("GUILDBANK_ITEM_LOCK_CHANGED", function()
         if Omni.GuildBankFrame and Omni.GuildBankFrame:IsShown() then
             Omni.GuildBankFrame:UpdateLayout()
+        end
+        if Omni.Features and Omni.Features:GetInteractingWindow() == "guildbank" then
+            self:RequestDeferredGuildBankSave()
         end
     end)
 

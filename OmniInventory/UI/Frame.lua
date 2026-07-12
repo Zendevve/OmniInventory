@@ -4922,9 +4922,15 @@ function Frame:RenderFlowView(items, layoutOpts)
                             self.textLabel:SetTextColor(r, g, b)
                         end
 
-                        header:RegisterForClicks("LeftButtonUp")
+                        header:RegisterForClicks("LeftButtonUp", "RightButtonUp")
                         local lastClick = 0
-                        header:SetScript("OnClick", function(self)
+                        header:SetScript("OnClick", function(self, button)
+                            if button == "RightButton" then
+                                if Omni.Features and Omni.Features.IsAtBank and Omni.Features:IsAtBank() then
+                                    Frame:TransferCategoryItems(self.catName, true)
+                                end
+                                return
+                            end
                             local now = GetTime()
                             if (now - lastClick) <= 0.35 then
                                 lastClick = 0
@@ -4947,6 +4953,12 @@ function Frame:RenderFlowView(items, layoutOpts)
                         end)
                         header:SetScript("OnEnter", function(self)
                             self.textLabel:SetTextColor(1, 1, 1)
+                            if Omni.Features and Omni.Features.IsAtBank and Omni.Features:IsAtBank() then
+                                GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+                                GameTooltip:AddLine(self.catName, 1, 1, 1)
+                                GameTooltip:AddLine("Right-click to deposit all items in this category", 0.3, 0.9, 0.3)
+                                GameTooltip:Show()
+                            end
                         end)
                         header:SetScript("OnLeave", function(self)
                             local r, g, b = 1, 1, 1
@@ -4956,6 +4968,7 @@ function Frame:RenderFlowView(items, layoutOpts)
                                 r, g, b = Omni.Categorizer:GetCategoryColor(self.catName)
                             end
                             self.textLabel:SetTextColor(r, g, b)
+                            GameTooltip:Hide()
                         end)
 
                         categoryHeaders[headerIndex] = header
@@ -7255,4 +7268,57 @@ function Frame:OpenCategoryEditDialog(catName)
 end
 
 Omni.Frame.OpenCategoryEditDialog = function(self, catName) Frame:OpenCategoryEditDialog(catName) end
+
+function Frame:TransferCategoryItems(catName, toBank)
+    if InCombatLockdown and InCombatLockdown() then return end
+    if not catName or catName == "" then return end
+
+    if toBank then
+        for bagID = 0, 4 do
+            local numSlots = GetContainerNumSlots(bagID) or 0
+            for slotID = 1, numSlots do
+                local info = OmniC_Container.GetContainerItemInfo(bagID, slotID)
+                if info then
+                    local category = Omni.Categorizer:GetCategory(info)
+                    if category == catName then
+                        UseContainerItem(bagID, slotID)
+                    end
+                end
+            end
+        end
+        local keyringSlots = GetContainerNumSlots(-2) or 0
+        for slotID = 1, keyringSlots do
+            local info = OmniC_Container.GetContainerItemInfo(-2, slotID)
+            if info then
+                local category = Omni.Categorizer:GetCategory(info)
+                if category == catName then
+                    UseContainerItem(-2, slotID)
+                end
+            end
+        end
+    else
+        local mainSlots = GetContainerNumSlots(-1) or 0
+        for slotID = 1, mainSlots do
+            local info = OmniC_Container.GetContainerItemInfo(-1, slotID)
+            if info then
+                local category = Omni.Categorizer:GetCategory(info)
+                if category == catName then
+                    UseContainerItem(-1, slotID)
+                end
+            end
+        end
+        for bagID = 5, 11 do
+            local numSlots = GetContainerNumSlots(bagID) or 0
+            for slotID = 1, numSlots do
+                local info = OmniC_Container.GetContainerItemInfo(bagID, slotID)
+                if info then
+                    local category = Omni.Categorizer:GetCategory(info)
+                    if category == catName then
+                        UseContainerItem(bagID, slotID)
+                    end
+                end
+            end
+        end
+    end
+end
 

@@ -70,6 +70,39 @@ local function AddTooltipData(tooltip, targetItemID)
         end
     end
 
+    -- Query Guild Bank cache
+    local guildCounts = {}
+    if realmData.guilds then
+        for guildName, guildData in pairs(realmData.guilds) do
+            local totalGuildCount = 0
+            local tabBreakdown = {}
+            if guildData.tabs then
+                for tabIndex, tabInfo in pairs(guildData.tabs) do
+                    local tabCount = 0
+                    if tabInfo.items then
+                        for _, item in ipairs(tabInfo.items) do
+                            if GetItemIDFromLink(item.link) == targetItemID then
+                                tabCount = tabCount + (item.count or 1)
+                            end
+                        end
+                    end
+                    if tabCount > 0 then
+                        totalGuildCount = totalGuildCount + tabCount
+                        table.insert(tabBreakdown, (tabInfo.name or ("Tab " .. tabIndex)) .. ": " .. tabCount)
+                    end
+                end
+            end
+            if totalGuildCount > 0 then
+                table.insert(guildCounts, {
+                    name = guildName,
+                    total = totalGuildCount,
+                    breakdown = table.concat(tabBreakdown, ", ")
+                })
+                grandTotal = grandTotal + totalGuildCount
+            end
+        end
+    end
+
     -- Check junk include/exclude status
     local hasJunkStatus = false
     local isIncluded = false
@@ -86,7 +119,7 @@ local function AddTooltipData(tooltip, targetItemID)
         end
     end
 
-    if #characterCounts == 0 and not hasJunkStatus then return end
+    if #characterCounts == 0 and #guildCounts == 0 and not hasJunkStatus then return end
 
     -- Sort current player first, then others alphabetically
     if #characterCounts > 0 then
@@ -131,8 +164,20 @@ local function AddTooltipData(tooltip, targetItemID)
         charAdded = true
     end
 
-    -- Add grand total if multiple characters have the item
-    if #characterCounts > 1 and grandTotal > 0 then
+    -- Render guild counts
+    for _, data in ipairs(guildCounts) do
+        local nameStr = COLOR_TEAL .. data.name .. " (Guild)" .. COLOR_END
+        local countStr = COLOR_GOLD .. data.total .. COLOR_END
+        if data.breakdown ~= "" then
+            countStr = countStr .. COLOR_SILVER .. " (" .. data.breakdown .. ")" .. COLOR_END
+        end
+        tooltip:AddDoubleLine(nameStr, countStr)
+        charAdded = true
+    end
+
+    -- Add grand total if multiple characters/guilds have the item
+    local totalSources = #characterCounts + #guildCounts
+    if totalSources > 1 and grandTotal > 0 then
         tooltip:AddDoubleLine(
             COLOR_SILVER .. "Total:" .. COLOR_END,
             COLOR_GOLD .. grandTotal .. COLOR_END

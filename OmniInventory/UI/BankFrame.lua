@@ -1880,9 +1880,17 @@ function BankFrame:RenderFlowView(items)
                 header.SetTextColor = function(self, r, g, b)
                     self.textLabel:SetTextColor(r, g, b)
                 end
-                header:RegisterForClicks("LeftButtonUp")
+                header:RegisterForClicks("LeftButtonUp", "RightButtonUp")
                 local lastClick = 0
-                header:SetScript("OnClick", function(self)
+                header:SetScript("OnClick", function(self, button)
+                    if button == "RightButton" then
+                        if Omni.Features and Omni.Features.IsAtBank and Omni.Features:IsAtBank() then
+                            if Omni.Frame and Omni.Frame.TransferCategoryItems then
+                                Omni.Frame:TransferCategoryItems(self.catName, false)
+                            end
+                        end
+                        return
+                    end
                     local now = GetTime()
                     if (now - lastClick) <= 0.35 then
                         lastClick = 0
@@ -1892,6 +1900,25 @@ function BankFrame:RenderFlowView(items)
                     else
                         lastClick = now
                     end
+                end)
+                header:SetScript("OnEnter", function(self)
+                    self.textLabel:SetTextColor(1, 1, 1)
+                    if Omni.Features and Omni.Features.IsAtBank and Omni.Features:IsAtBank() then
+                        GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+                        GameTooltip:AddLine(self.catName, 1, 1, 1)
+                        GameTooltip:AddLine("Right-click to withdraw all items in this category", 0.3, 0.9, 0.3)
+                        GameTooltip:Show()
+                    end
+                end)
+                header:SetScript("OnLeave", function(self)
+                    local r, g, b = 1, 1, 1
+                    if currentBankView == "bag" then
+                        r, g, b = 0.9, 0.8, 0.4
+                    elseif Omni.Categorizer then
+                        r, g, b = Omni.Categorizer:GetCategoryColor(self.catName)
+                    end
+                    self.textLabel:SetTextColor(r, g, b)
+                    GameTooltip:Hide()
                 end)
                 categoryHeaders[headerIndex] = header
             end
