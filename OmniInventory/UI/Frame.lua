@@ -1092,6 +1092,27 @@ function Frame:EquipBagFromCursor(bagID)
     end
     if not (CursorHasItem and CursorHasItem()) then return end
 
+    if GetCursorInfo then
+        local cursorType, cursorItemID, cursorItemLink = GetCursorInfo()
+        if cursorType ~= "item" then
+            if ClearCursor then ClearCursor() end
+            return
+        end
+        local itemEquipLoc
+        if cursorItemLink then
+            local _, _, _, _, _, _, _, _, eqLoc = GetItemInfo(cursorItemLink)
+            itemEquipLoc = eqLoc
+        elseif cursorItemID then
+            local _, _, _, _, _, _, _, _, eqLoc = GetItemInfo(cursorItemID)
+            itemEquipLoc = eqLoc
+        end
+        if itemEquipLoc and itemEquipLoc ~= "INVTYPE_BAG" then
+            print("|cFF00FF00OmniInventory|r: Only bags can be equipped in bag slots.")
+            if ClearCursor then ClearCursor() end
+            return
+        end
+    end
+
     local inventoryID = ContainerIDToInventoryID and ContainerIDToInventoryID(bagID)
     if not inventoryID then return end
 
@@ -6798,13 +6819,43 @@ do
                         return
                     end
 
+                    -- Find a valid target slot in the new bag
+                    local targetSlots = GetContainerNumSlots(forceEmptyJob.targetBagID) or 0
+                    local actualTargetSlotID = nil
+                    if targetSlotID <= targetSlots then
+                        local targetTexture = GetContainerItemInfo(forceEmptyJob.targetBagID, targetSlotID)
+                        if not targetTexture then
+                            actualTargetSlotID = targetSlotID
+                        end
+                    end
+                    if not actualTargetSlotID then
+                        for sID = 1, targetSlots do
+                            local targetTexture = GetContainerItemInfo(forceEmptyJob.targetBagID, sID)
+                            if not targetTexture then
+                                actualTargetSlotID = sID
+                                break
+                            end
+                        end
+                    end
+
+                    if not actualTargetSlotID then
+                        -- The new bag is full or too small to contain this item. Leave it in the temp slot.
+                        forceEmptyJob.movedCount = forceEmptyJob.movedCount + 1
+                        runForceEmptyStep()
+                        return
+                    end
+
                     PickupContainerItem(tempBagID, tempSlotID)
                     if CursorHasItem and CursorHasItem() then
-                        PickupContainerItem(forceEmptyJob.targetBagID, targetSlotID)
+                        PickupContainerItem(forceEmptyJob.targetBagID, actualTargetSlotID)
                     end
 
                     if CursorHasItem and CursorHasItem() then
-                        ClearCursor()
+                        -- Placement failed. Return the item to the temp slot.
+                        PickupContainerItem(tempBagID, tempSlotID)
+                        if CursorHasItem and CursorHasItem() then
+                            ClearCursor() -- Fallback
+                        end
                         attempts = attempts + 1
                         if attempts >= DIM.FORCE_EMPTY_MAX_MOVE_RETRIES then
                             forceEmptyJob.blockedCount = forceEmptyJob.blockedCount + 1
@@ -6915,6 +6966,12 @@ end
 function Frame:StartBagSwap(sourceBagID, sourceSlotID, targetBagID)
     if not IsValidBagID(targetBagID) or not IsValidBagID(sourceBagID) then return end
     if targetBagID == 0 then return end -- Backpack cannot be swapped
+
+    if sourceBagID == targetBagID then
+        print("|cFF00FF00OmniInventory|r: Cannot swap bag: the new bag is nested inside the bag you are trying to replace. Move the new bag to your backpack or another bag first.")
+        if ClearCursor then ClearCursor() end
+        return
+    end
 
     if InCombat() then
         print("|cFF00FF00OmniInventory|r: Cannot swap bags during combat.")

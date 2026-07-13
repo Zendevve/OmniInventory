@@ -1118,6 +1118,27 @@ function BankFrame:EquipBankBagFromCursor(bagID)
     if not (CursorHasItem and CursorHasItem()) then
         return
     end
+
+    if GetCursorInfo then
+        local cursorType, cursorItemID, cursorItemLink = GetCursorInfo()
+        if cursorType ~= "item" then
+            if ClearCursor then ClearCursor() end
+            return
+        end
+        local itemEquipLoc
+        if cursorItemLink then
+            local _, _, _, _, _, _, _, _, eqLoc = GetItemInfo(cursorItemLink)
+            itemEquipLoc = eqLoc
+        elseif cursorItemID then
+            local _, _, _, _, _, _, _, _, eqLoc = GetItemInfo(cursorItemID)
+            itemEquipLoc = eqLoc
+        end
+        if itemEquipLoc and itemEquipLoc ~= "INVTYPE_BAG" then
+            print("|cFF00FF00OmniInventory|r: Only bags can be equipped in bag slots.")
+            if ClearCursor then ClearCursor() end
+            return
+        end
+    end
     local inv = ContainerIDToInventoryID and ContainerIDToInventoryID(bagID)
     if not inv or not PutItemInBag then
         return
@@ -1455,13 +1476,45 @@ local function RunBankForceEmptyStep()
                     return
                 end
 
-                PickupContainerItem(tempBagID, tempSlotID)
-                if CursorHasItem and CursorHasItem() and PickupContainerItem then
-                    PickupContainerItem(bankForceEmptyJob.targetBagID, targetSlotID)
+                -- Find a valid target slot in the new bag
+                local targetSlots = GetContainerNumSlots(bankForceEmptyJob.targetBagID) or 0
+                local actualTargetSlotID = nil
+                if targetSlotID <= targetSlots then
+                    local targetTexture = GetContainerItemInfo(bankForceEmptyJob.targetBagID, targetSlotID)
+                    if not targetTexture then
+                        actualTargetSlotID = targetSlotID
+                    end
+                end
+                if not actualTargetSlotID then
+                    for sID = 1, targetSlots do
+                        local targetTexture = GetContainerItemInfo(bankForceEmptyJob.targetBagID, sID)
+                        if not targetTexture then
+                            actualTargetSlotID = sID
+                            break
+                        end
+                    end
                 end
 
-                if CursorHasItem and CursorHasItem() and ClearCursor then
-                    ClearCursor()
+                if not actualTargetSlotID then
+                    -- The new bag is full or too small to contain this item. Leave it in the temp slot.
+                    bankForceEmptyJob.movedCount = bankForceEmptyJob.movedCount + 1
+                    RunBankForceEmptyStep()
+                    return
+                end
+
+                PickupContainerItem(tempBagID, tempSlotID)
+                if CursorHasItem and CursorHasItem() and PickupContainerItem then
+                    PickupContainerItem(bankForceEmptyJob.targetBagID, actualTargetSlotID)
+                end
+
+                if CursorHasItem and CursorHasItem() then
+                    -- Placement failed. Return the item to the temp slot.
+                    if PickupContainerItem then
+                        PickupContainerItem(tempBagID, tempSlotID)
+                    end
+                    if CursorHasItem and CursorHasItem() and ClearCursor then
+                        ClearCursor() -- Fallback
+                    end
                     attempts = attempts + 1
                     if attempts >= BANK_FORCE_EMPTY_MAX_MOVE then
                         bankForceEmptyJob.blockedCount = bankForceEmptyJob.blockedCount + 1
@@ -1581,6 +1634,12 @@ function BankFrame:StartBankBagSwap(sourceBagID, sourceSlotID, targetBagID)
     local viewedChar = Omni.Data and Omni.Data.currentViewedChar
     local isOfflineBank = not (Omni.Features and Omni.Features:IsAtBank())
     if (viewedChar and viewedChar ~= Omni.Data.playerName) or isOfflineBank then
+        return
+    end
+
+    if sourceBagID == targetBagID then
+        print("|cFF00FF00OmniInventory|r: Cannot swap bank bag: the new bag is nested inside the bank bag you are trying to replace. Move the new bag to another bank slot or your main bags first.")
+        if ClearCursor then ClearCursor() end
         return
     end
 
