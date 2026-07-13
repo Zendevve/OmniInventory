@@ -36,6 +36,7 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+eventFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 
 -- Track invocations of the bag toggle so /oi debug can confirm
 -- that the keybind is actually reaching addon code in (and out of) combat.
@@ -377,6 +378,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if Omni.GuildBankFrame then Omni.GuildBankFrame:Init() end
         if Omni.Settings then Omni.Settings:Init() end
         if Omni.Features then Omni.Features:Init() end
+        if Omni.RecipeColor then Omni.RecipeColor:Init() end
 
         -- Override the global bag functions so our key bindings
         -- reach Frame:Toggle/Show/Hide. Combat safety relies on the
@@ -408,6 +410,12 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- Combat started. Nothing extra to do; the binding handler's
         -- clean context is what makes Show/Hide safe during lockdown
         -- (see Binding Entry Points section above).
+    end
+
+    if event == "UNIT_SPELLCAST_SUCCEEDED" and arg1 == "player" then
+        if Omni.RecipeColor and Omni.ItemButton and Omni.ItemButton.InvalidateKnownRecipeCache then
+            Omni.ItemButton.InvalidateKnownRecipeCache()
+        end
     end
 end)
 

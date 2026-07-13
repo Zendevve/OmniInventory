@@ -1056,6 +1056,16 @@ local function UpdateGuildBankSlotVisual(btn, tab, slot)
         btn.icon:SetDesaturated(false)
     end
 
+    -- Apply known recipe green overlay for guild bank items
+    if not locked and texture and link and OmniInventoryDB
+            and OmniInventoryDB.global
+            and OmniInventoryDB.global.enableKnownRecipeOverlay ~= false then
+        local RC = Omni.RecipeColor
+        if RC and RC:IsRecipeItemByLink(link) and RC:IsKnownRecipe("GuildBank", {tab, slot}) then
+            btn.icon:SetVertexColor(0, 1, 0)
+        end
+    end
+
     if searchTextLower ~= "" and link then
         local name = btn._cachedSearchName
         local lowerName = btn._cachedSearchNameLower

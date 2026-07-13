@@ -445,20 +445,25 @@ function Settings:BuildGeneral(panel)
 
     -- Row 3
     row = 3
-    self.collapseEmptySlotsCb = MakeCb(0, row,
+    self.enableKnownRecipeOverlayCb = MakeCb(0, row,
+        "Green recipes",
+        "Known Recipe Overlay",
+        "Tints already-learned recipes green in bag, bank, mailbox, inbox, trade, loot, and merchant frames.",
+        "enableKnownRecipeOverlay", true, nil, true)
+    self.collapseEmptySlotsCb = MakeCb(1, row,
         "Collapse empty slots",
         "Collapse Empty Slots",
         "Collapses all empty slots in Grid and Flow views into a single slot button per bag type, displaying a count of the total empty spaces.",
         "collapseEmptySlots", false, nil, true)
-    self.boundIndicatorCb = MakeCb(1, row,
+
+    -- Row 4
+    row = 4
+    self.boundIndicatorCb = MakeCb(0, row,
         "Bound indicator",
         "Bound Item Indicator",
         "Shows a small chain icon on soulbound items in the bag.",
         "showBoundIndicator", false, nil, true)
-
-    -- Row 4
-    row = 4
-    self.bagTypeTagsCb = MakeCb(0, row,
+    self.bagTypeTagsCb = MakeCb(1, row,
         "Bag type tags",
         "Bag Type Tags",
         "Shows family tag text (Ammo, Herb, Mining, etc.) on specialty bag tooltips.",
@@ -1061,6 +1066,9 @@ function Settings:UpdateValues()
     end
     if self.showCategoryStripeCb and Omni.Data then
         self.showCategoryStripeCb:SetChecked(Omni.Data:Get("showCategoryStripe") == true)
+    end
+    if self.enableKnownRecipeOverlayCb and Omni.Data then
+        self.enableKnownRecipeOverlayCb:SetChecked(Omni.Data:Get("enableKnownRecipeOverlay") ~= false)
     end
 
     -- Scales sliders

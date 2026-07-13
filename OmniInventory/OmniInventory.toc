@@ -24,6 +24,7 @@ Omni\Rules.lua
 Omni\Categorizer.lua
 Omni\Sorter.lua
 Omni\PhysicalSort.lua
+Omni\RecipeColor.lua
 
 # =============================================================================
 # UI Components

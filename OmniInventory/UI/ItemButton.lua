@@ -118,6 +118,49 @@ local function CheckIfItemUnusable(bag, slot, itemID)
     return false
 end
 
+local knownRecipeCache = {}
+
+local function CheckIfKnownRecipe(bag, slot, itemID)
+    if not bag or not slot or not itemID then return false end
+    local cacheKey = bag .. ":" .. slot
+    if knownRecipeCache[cacheKey] ~= nil then
+        return knownRecipeCache[cacheKey]
+    end
+    local RC = Omni.RecipeColor
+    if not RC or not RC:IsRecipeItem(itemID) then
+        knownRecipeCache[cacheKey] = false
+        return false
+    end
+    local scanningTooltip = _G["OmniScanningTooltip"]
+    if not scanningTooltip then return false end
+    scanningTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+    scanningTooltip:ClearLines()
+    local ok = pcall(scanningTooltip.SetBagItem, scanningTooltip, bag, slot)
+    if not ok then
+        local link = GetContainerItemLink(bag, slot)
+        if link then
+            pcall(scanningTooltip.SetHyperlink, scanningTooltip, link)
+        end
+    end
+    local numLines = scanningTooltip:NumLines()
+    for i = 2, numLines do
+        local leftFrame = _G["OmniScanningTooltipTextLeft" .. i]
+        if leftFrame then
+            local text = leftFrame:GetText()
+            if text and string.find(text, "Already known") then
+                knownRecipeCache[cacheKey] = true
+                return true
+            end
+        end
+    end
+    knownRecipeCache[cacheKey] = false
+    return false
+end
+
+function ItemButton.InvalidateKnownRecipeCache()
+    wipe(knownRecipeCache)
+end
+
 local function NormalizeMouseButton(mouseButton)
     if mouseButton == "LeftButtonUp" or mouseButton == "LeftButtonDown" then
         return "LeftButton"
@@ -877,6 +920,19 @@ function ItemButton:SetItem(button, itemInfo)
 
     local isPinned = itemInfo.itemID and Omni.Data and Omni.Data:IsPinned(itemInfo.itemID) or false
     local showCategoryStripe = OmniInventoryDB and OmniInventoryDB.global.showCategoryStripe or false
+
+    -- Apply known recipe green overlay
+    local isKnownRecipe = false
+    if not itemInfo.__offline
+            and OmniInventoryDB
+            and OmniInventoryDB.global
+            and OmniInventoryDB.global.enableKnownRecipeOverlay ~= false
+            and itemInfo.bagID
+            and itemInfo.slotID
+            and itemInfo.itemID then
+        isKnownRecipe = CheckIfKnownRecipe(itemInfo.bagID, itemInfo.slotID, itemInfo.itemID)
+    end
+
     local renderKey = button.__lastRenderKey
     local questOverlayKind
     if renderKey
@@ -905,7 +961,8 @@ function ItemButton:SetItem(button, itemInfo)
             and renderKey.slotID == itemInfo.slotID
             and renderKey.isPinned == isPinned
             and renderKey.questOverlayKind == questOverlayKind
-            and renderKey.showCategoryStripe == showCategoryStripe then
+            and renderKey.showCategoryStripe == showCategoryStripe
+            and renderKey.isKnownRecipe == isKnownRecipe then
         UpdateQuestStarterIcon(button, itemInfo)
         self:UpdateCooldown(button)
         return
@@ -998,7 +1055,9 @@ function ItemButton:SetItem(button, itemInfo)
         button.dimOverlay:Hide()
         button.icon:SetDesaturated(false)
         button.icon:SetAlpha(1)
-        if isUnusable then
+        if isKnownRecipe then
+            button.icon:SetVertexColor(0, 1, 0)
+        elseif isUnusable then
             button.icon:SetVertexColor(1, 0.1, 0.1)
         else
             button.icon:SetVertexColor(1, 1, 1)
@@ -1101,6 +1160,7 @@ function ItemButton:SetItem(button, itemInfo)
     rKey.isPinned = isPinned
     rKey.questOverlayKind = questOverlayKind
     rKey.showCategoryStripe = showCategoryStripe
+    rKey.isKnownRecipe = isKnownRecipe
 end
 
 -- =============================================================================

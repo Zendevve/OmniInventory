@@ -33,6 +33,7 @@ local defaults = {
         },
         enableBoundCategories = true,
         enableUnusableOverlay = true,
+        enableKnownRecipeOverlay = true,
         autoSellJunk = true,
         vendorDoubleRightClick = true,
         vendorCtrlRightClick = true,
