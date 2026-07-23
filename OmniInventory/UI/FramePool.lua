@@ -173,6 +173,10 @@ function FramePool:AcquireItemButton(parentFrame, bagID, slotID)
         button = CreateNewItemButton(self.createdButtonCount)
     end
 
+    if Omni.ItemButton and type(Omni.ItemButton.Decorate) == "function" then
+        Omni.ItemButton.Decorate(button)
+    end
+
     if bagID then
         local dummyBag = self:GetDummyBag(parentFrame, bagID)
         if dummyBag and not IsCombat() then

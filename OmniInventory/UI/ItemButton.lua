@@ -540,6 +540,188 @@ end
 
 local buttonCount = 0
 
+function ItemButton.Decorate(button)
+    if not button then return button end
+
+    local name = button:GetName() or ""
+
+    button:SetSize(BUTTON_SIZE, BUTTON_SIZE)
+    button:RegisterForDrag("LeftButton")
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+
+    pcall(button.SetNormalTexture, button, nil)
+    pcall(button.SetPushedTexture, button, nil)
+    pcall(button.SetHighlightTexture, button, nil)
+    pcall(button.SetDisabledTexture, button, nil)
+    if button.SetNormalTexture and name ~= "" and _G[name .. "NormalTexture"] then
+        _G[name .. "NormalTexture"]:SetAlpha(0)
+    end
+
+    if not button.bg then
+        button.bg = button:CreateTexture(nil, "BACKGROUND")
+        button.bg:SetAllPoints()
+        button.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.bg:SetVertexColor(0.1, 0.1, 0.1, 1)
+    end
+
+    if not button.icon then
+        button.icon = (name ~= "" and _G[name .. "IconTexture"]) or button.IconTexture or _G[name .. "Icon"] or button.icon or button:CreateTexture(nil, "ARTWORK")
+    end
+    if button.icon then
+        button.icon:ClearAllPoints()
+        button.icon:SetPoint("TOPLEFT", 2, -2)
+        button.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+        button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    end
+
+    if not button.cooldown then
+        button.cooldown = (name ~= "" and _G[name .. "Cooldown"]) or button.Cooldown or CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
+    end
+    if button.cooldown and button.icon then
+        button.cooldown:ClearAllPoints()
+        button.cooldown:SetPoint("TOPLEFT", button.icon, "TOPLEFT", 0, 0)
+        button.cooldown:SetPoint("BOTTOMRIGHT", button.icon, "BOTTOMRIGHT", 0, 0)
+        button.cooldown:Hide()
+    end
+
+    if not button.borderTop then
+        button.borderTop = button:CreateTexture(nil, "OVERLAY")
+        button.borderTop:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.borderTop:SetHeight(1)
+        button.borderTop:SetPoint("TOPLEFT", 0, 0)
+        button.borderTop:SetPoint("TOPRIGHT", 0, 0)
+        button.borderTop:SetVertexColor(0.3, 0.3, 0.3, 1)
+    end
+
+    if not button.borderBottom then
+        button.borderBottom = button:CreateTexture(nil, "OVERLAY")
+        button.borderBottom:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.borderBottom:SetHeight(1)
+        button.borderBottom:SetPoint("BOTTOMLEFT", 0, 0)
+        button.borderBottom:SetPoint("BOTTOMRIGHT", 0, 0)
+        button.borderBottom:SetVertexColor(0.3, 0.3, 0.3, 1)
+    end
+
+    if not button.borderLeft then
+        button.borderLeft = button:CreateTexture(nil, "OVERLAY")
+        button.borderLeft:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.borderLeft:SetWidth(1)
+        button.borderLeft:SetPoint("TOPLEFT", 0, 0)
+        button.borderLeft:SetPoint("BOTTOMLEFT", 0, 0)
+        button.borderLeft:SetVertexColor(0.3, 0.3, 0.3, 1)
+    end
+
+    if not button.borderRight then
+        button.borderRight = button:CreateTexture(nil, "OVERLAY")
+        button.borderRight:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.borderRight:SetWidth(1)
+        button.borderRight:SetPoint("TOPRIGHT", 0, 0)
+        button.borderRight:SetPoint("BOTTOMRIGHT", 0, 0)
+        button.borderRight:SetVertexColor(0.3, 0.3, 0.3, 1)
+    end
+
+    if not button.border then
+        button.border = button:CreateTexture(nil, "OVERLAY")
+        button.border:Hide()
+    end
+
+    if not button.dimOverlay then
+        button.dimOverlay = button:CreateTexture(nil, "OVERLAY", nil, 7)
+        if button.icon then button.dimOverlay:SetAllPoints(button.icon) else button.dimOverlay:SetAllPoints(button) end
+        button.dimOverlay:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.dimOverlay:SetVertexColor(0, 0, 0, 0.7)
+        button.dimOverlay:Hide()
+    end
+
+    if not button.emptyDropHighlight then
+        button.emptyDropHighlight = button:CreateTexture(nil, "OVERLAY", nil, 8)
+        if button.icon then button.emptyDropHighlight:SetAllPoints(button.icon) else button.emptyDropHighlight:SetAllPoints(button) end
+        button.emptyDropHighlight:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.emptyDropHighlight:SetVertexColor(0.25, 0.85, 1, 0.35)
+        button.emptyDropHighlight:Hide()
+    end
+
+    if not button.pinIcon then
+        button.pinIcon = button:CreateTexture(nil, "OVERLAY")
+        button.pinIcon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_1")
+        button.pinIcon:SetSize(14, 14)
+        button.pinIcon:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
+        button.pinIcon:Hide()
+    end
+
+    if not button.boundIcon then
+        button.boundIcon = button:CreateTexture(nil, "OVERLAY", nil, 4)
+        button.boundIcon:SetTexture("Interface\\Icons\\INV_Misc_Key_03")
+        button.boundIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        button.boundIcon:SetSize(14, 14)
+        button.boundIcon:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 1, 1)
+        button.boundIcon:SetVertexColor(0.6, 0.6, 0.9, 0.9)
+        button.boundIcon:Hide()
+    end
+
+    if not button.questStarterIcon then
+        button.questStarterIcon = button:CreateTexture(nil, "OVERLAY", nil, 3)
+        button.questStarterIcon:SetSize(QUEST_STARTER_ICON_SIZE, QUEST_STARTER_ICON_SIZE)
+        button.questStarterIcon:Hide()
+    end
+
+    if not button.categoryStripe then
+        button.categoryStripe = button:CreateTexture(nil, "OVERLAY", nil, 5)
+        button.categoryStripe:SetWidth(2.5)
+        if button.icon then
+            button.categoryStripe:SetPoint("TOPLEFT", button.icon, "TOPLEFT", 0, 0)
+            button.categoryStripe:SetPoint("BOTTOMLEFT", button.icon, "BOTTOMLEFT", 0, 0)
+        end
+        button.categoryStripe:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.categoryStripe:Hide()
+    end
+
+    if not button.newGlow then
+        button.newGlow = button:CreateTexture(nil, "OVERLAY", nil, 6)
+        button.newGlow:SetPoint("TOPLEFT", -2, 2)
+        button.newGlow:SetPoint("BOTTOMRIGHT", 2, -2)
+        button.newGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+        button.newGlow:SetVertexColor(1, 0.85, 0.0, 1)
+        button.newGlow:SetBlendMode("ADD")
+        button.newGlow:Hide()
+        local ag = button.newGlow:CreateAnimationGroup()
+        local anim1 = ag:CreateAnimation("Alpha")
+        anim1:SetChange(-0.8)
+        anim1:SetDuration(0.8)
+        anim1:SetOrder(1)
+        local anim2 = ag:CreateAnimation("Alpha")
+        anim2:SetChange(0.8)
+        anim2:SetDuration(0.8)
+        anim2:SetOrder(2)
+        ag:SetLooping("REPEAT")
+        button.newGlow.pulse = ag
+    end
+
+    if not button.count then
+        local templateCount = name ~= "" and _G[name .. "Count"]
+        if templateCount then
+            templateCount:SetText("")
+            templateCount:Hide()
+        end
+        button.count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+        button.count:SetPoint("BOTTOMRIGHT", -2, 2)
+        button.count:SetJustifyH("RIGHT")
+        pcall(button.count.SetDrawLayer, button.count, "OVERLAY", 127)
+    end
+
+    if not button.iLevelText then
+        button.iLevelText = button:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+        button.iLevelText:SetPoint("TOPLEFT", 3, -3)
+        button.iLevelText:SetTextColor(1, 0.82, 0)
+        local fontName, _, fontFlags = button.iLevelText:GetFont()
+        button.iLevelText:SetFont(fontName or "Fonts\\FRIZQT__.TTF", 10, fontFlags or "OUTLINE")
+        button.iLevelText:Hide()
+    end
+
+    button.__omniDecorated = true
+    return button
+end
+
 function ItemButton:Create(parent)
     buttonCount = buttonCount + 1
     local name = "OmniItemButton" .. buttonCount
@@ -848,6 +1030,7 @@ end
 
 function ItemButton:SetItem(button, itemInfo)
     if not button then return end
+    ItemButton.Decorate(button)
 
     if not button.__omniSkinType then
         ItemButton.ApplyExternalSkin(button)

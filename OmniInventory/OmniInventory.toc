@@ -38,10 +38,10 @@ Omni\RecipeColor.lua
 # User Interface Components
 # =============================================================================
 UI\OpsTheme.lua
+UI\ItemButton.lua
 UI\FramePool.lua
 UI\VirtualScrollView.lua
 UI\MainContainer.lua
-UI\ItemButton.lua
 UI\GridView.lua
 UI\FlowView.lua
 UI\ListView.lua
