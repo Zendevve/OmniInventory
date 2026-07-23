@@ -13,6 +13,7 @@ local addonName, Omni = ...
 
 Omni.GuildBankFrame = {}
 local GuildBankFrame = Omni.GuildBankFrame
+local VirtualScrollView = Omni.VirtualScrollView
 
 -- =============================================================================
 -- Constants
@@ -246,6 +247,10 @@ end
 
 local function SetViewMode(mode)
     GetDB().viewMode = (mode == VIEW_GRID) and VIEW_GRID or VIEW_FLOW
+    if Omni.LayoutEngine and frame then
+        local modeConst = (mode == VIEW_GRID) and (Omni.LayoutEngine.MODE_GRID or 2) or (Omni.LayoutEngine.MODE_FLOW or 1)
+        Omni.LayoutEngine:SetMode(frame, modeConst)
+    end
 end
 
 local function GetDarkmoonTab()
@@ -906,24 +911,40 @@ local function GuildBankSlotOnClick(self, mouseButton)
     end
 end
 
+local function GetGuildBankDummyBag(parent, tabIndex)
+    tabIndex = tabIndex or currentTab or 1
+    local dummyID = 100 + tabIndex
+    if Omni.FramePool and not (InCombatLockdown and InCombatLockdown()) then
+        return Omni.FramePool:GetDummyBag(parent or frame, dummyID)
+    end
+    return parent
+end
+
 local function CreateSlotButton(parent, slotIndex)
-    local btn = CreateFrame("Button", nil, parent)
-    ApplyGuildSlotMetrics(btn)
-    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    btn.slotIndex = slotIndex
+    local dummyBag = GetGuildBankDummyBag(parent, currentTab)
+    local btn = nil
+    if Omni.FramePool and not (InCombatLockdown and InCombatLockdown()) then
+        btn = Omni.FramePool:AcquireItemButton(dummyBag or parent, 100 + (currentTab or 1), slotIndex)
+    end
+    if not btn then
+        btn = CreateFrame("Button", nil, dummyBag or parent)
+        ApplyGuildSlotMetrics(btn)
+        btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        btn.slotIndex = slotIndex
 
-    btn.bg = btn:CreateTexture(nil, "BACKGROUND")
-    btn.bg:SetAllPoints()
-    btn.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
-    btn.bg:SetVertexColor(0.1, 0.1, 0.1, 1)
+        btn.bg = btn:CreateTexture(nil, "BACKGROUND")
+        btn.bg:SetAllPoints()
+        btn.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+        btn.bg:SetVertexColor(0.1, 0.1, 0.1, 1)
 
-    btn.icon = btn:CreateTexture(nil, "ARTWORK")
-    btn.icon:SetPoint("TOPLEFT", 2, -2)
-    btn.icon:SetPoint("BOTTOMRIGHT", -2, 2)
-    btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        btn.icon = btn:CreateTexture(nil, "ARTWORK")
+        btn.icon:SetPoint("TOPLEFT", 2, -2)
+        btn.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+        btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    btn.count = btn:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
-    btn.count:SetPoint("BOTTOMRIGHT", -2, 2)
+        btn.count = btn:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+        btn.count:SetPoint("BOTTOMRIGHT", -2, 2)
+    end
 
     btn.borderTop = btn:CreateTexture(nil, "OVERLAY")
     btn.borderTop:SetTexture("Interface\\Buttons\\WHITE8X8")
@@ -1019,20 +1040,26 @@ end
 local function UpdateGuildBankSlotVisual(btn, tab, slot)
     local texture, count, locked = GetGuildBankItemInfo(tab, slot)
     local link = GetGuildBankItemLink(tab, slot)
+    local iconTex = btn.icon or _G[btn:GetName() .. "IconTexture"]
+    local countText = btn.count or _G[btn:GetName() .. "Count"]
 
-    if texture and texture ~= "" then
-        btn.icon:SetTexture(texture)
-        btn.icon:Show()
-    else
-        btn.icon:SetTexture(nil)
+    if iconTex then
+        if texture and texture ~= "" then
+            iconTex:SetTexture(texture)
+            iconTex:Show()
+        else
+            iconTex:SetTexture(nil)
+        end
     end
 
-    if count and count > 1 then
-        btn.count:SetText(tostring(count))
-        btn.count:Show()
-    else
-        btn.count:SetText("")
-        btn.count:Hide()
+    if countText then
+        if count and count > 1 then
+            countText:SetText(tostring(count))
+            countText:Show()
+        else
+            countText:SetText("")
+            countText:Hide()
+        end
     end
 
     local quality = 1
@@ -1045,15 +1072,17 @@ local function UpdateGuildBankSlotVisual(btn, tab, slot)
     if not texture or texture == "" then
         r, g, b = 0.3, 0.3, 0.3
     end
-    btn.borderTop:SetVertexColor(r, g, b, 1)
-    btn.borderBottom:SetVertexColor(r, g, b, 1)
-    btn.borderLeft:SetVertexColor(r, g, b, 1)
-    btn.borderRight:SetVertexColor(r, g, b, 1)
+    if btn.borderTop then btn.borderTop:SetVertexColor(r, g, b, 1) end
+    if btn.borderBottom then btn.borderBottom:SetVertexColor(r, g, b, 1) end
+    if btn.borderLeft then btn.borderLeft:SetVertexColor(r, g, b, 1) end
+    if btn.borderRight then btn.borderRight:SetVertexColor(r, g, b, 1) end
 
-    if locked then
-        btn.icon:SetDesaturated(true)
-    else
-        btn.icon:SetDesaturated(false)
+    if iconTex then
+        if locked then
+            iconTex:SetDesaturated(true)
+        else
+            iconTex:SetDesaturated(false)
+        end
     end
 
     -- Apply known recipe green overlay for guild bank items
@@ -1061,8 +1090,8 @@ local function UpdateGuildBankSlotVisual(btn, tab, slot)
             and OmniInventoryDB.global
             and OmniInventoryDB.global.enableKnownRecipeOverlay ~= false then
         local RC = Omni.RecipeColor
-        if RC and RC:IsRecipeItemByLink(link) and RC:IsKnownRecipe("GuildBank", {tab, slot}) then
-            btn.icon:SetVertexColor(0, 1, 0)
+        if RC and RC:IsRecipeItemByLink(link) and RC:IsKnownRecipe("GuildBank", {tab, slot}) and iconTex then
+            iconTex:SetVertexColor(0, 1, 0)
         end
     end
 
@@ -1078,18 +1107,16 @@ local function UpdateGuildBankSlotVisual(btn, tab, slot)
             btn._cachedSearchNameLower = lowerName
         end
         if lowerName and string.find(lowerName, searchTextLower, 1, true) then
-            btn.dimOverlay:Hide()
-            btn.icon:SetAlpha(1)
+            if btn.dimOverlay then btn.dimOverlay:Hide() end
+            if iconTex then iconTex:SetAlpha(1) end
         else
-            btn.dimOverlay:Show()
-            btn.icon:SetAlpha(0.5)
+            if btn.dimOverlay then btn.dimOverlay:Show() end
+            if iconTex then iconTex:SetAlpha(0.5) end
         end
     else
-        btn.dimOverlay:Hide()
-        btn.icon:SetAlpha(1)
+        if btn.dimOverlay then btn.dimOverlay:Hide() end
+        if iconTex then iconTex:SetAlpha(1) end
     end
-
-
 end
 
 local function UpdateSlotButton(btn)
@@ -1735,49 +1762,23 @@ function GuildBankFrame:CreateMainFrame()
     frame.gridContainer:SetPoint("TOPLEFT", frame.rightPanel, "TOPLEFT", 0, 0)
     frame.gridContainer:SetPoint("BOTTOMRIGHT", frame.rightPanelBottom, "TOPRIGHT", 0, 0)
 
-    frame.flowScroll = CreateFrame("ScrollFrame", "OmniGuildBankFlowScroll", frame.rightPanel, "UIPanelScrollFrameTemplate")
-    frame.flowScroll:SetPoint("TOPLEFT", frame.rightPanel, "TOPLEFT", 0, 0)
-    frame.flowScroll:SetPoint("BOTTOMRIGHT", frame.rightPanelBottom, "TOPRIGHT", 0, 0)
-    if frame.flowScroll.EnableMouseWheel then
-        frame.flowScroll:EnableMouseWheel(true)
-    end
-    frame.flowScroll:SetScript("OnMouseWheel", function(self, delta)
-        local bar = _G[self:GetName() .. "ScrollBar"]
-        if not bar then return end
-        local step = 28
-        bar:SetValue(bar:GetValue() - (delta * step))
+    local virtualWidth = FRAME_WIDTH - TAB_COLUMN_WIDTH - (PADDING * 3)
+    local virtualHeight = FRAME_HEIGHT - HEADER_HEIGHT - SEARCH_HEIGHT - FOOTER_HEIGHT - TAB_SUMMARY_HEIGHT - (PADDING * 3)
+    if virtualWidth <= 0 then virtualWidth = 400 end
+    if virtualHeight <= 0 then virtualHeight = 300 end
+
+    local virtualView = Omni.VirtualScrollView:Create(frame.rightPanel, "OmniGuildBankVirtualScrollView", virtualWidth, virtualHeight)
+    virtualView.container:SetPoint("TOPLEFT", frame.rightPanel, "TOPLEFT", 0, 0)
+    virtualView.container:SetPoint("BOTTOMRIGHT", frame.rightPanelBottom, "TOPRIGHT", 0, 0)
+
+    frame.virtualView = virtualView
+    frame.flowScroll = virtualView.scrollFrame
+    frame.flowChild = virtualView.scrollChild
+
+    -- Wire OnVerticalScroll handler
+    virtualView.scrollFrame:SetScript("OnVerticalScroll", function(self, offset)
+        virtualView:UpdateViewport(offset)
     end)
-
-    local flowSb = _G["OmniGuildBankFlowScrollScrollBar"]
-    if flowSb then
-        flowSb:ClearAllPoints()
-        flowSb:SetPoint("TOPRIGHT", frame.flowScroll, "TOPRIGHT", 0, -16)
-        flowSb:SetPoint("BOTTOMRIGHT", frame.flowScroll, "BOTTOMRIGHT", 0, 16)
-        flowSb:SetAlpha(0)
-        flowSb:SetWidth(1)
-        flowSb:EnableMouse(false)
-        local flowSbUp = _G["OmniGuildBankFlowScrollScrollBarScrollUpButton"]
-        local flowSbDown = _G["OmniGuildBankFlowScrollScrollBarScrollDownButton"]
-        if flowSbUp then
-            flowSbUp:SetAlpha(0)
-            flowSbUp:EnableMouse(false)
-        end
-        if flowSbDown then
-            flowSbDown:SetAlpha(0)
-            flowSbDown:EnableMouse(false)
-        end
-        local flowThumb = flowSb:GetThumbTexture()
-        if flowThumb then flowThumb:SetAlpha(0) end
-    end
-    local flowSbBd = _G["OmniGuildBankFlowScrollScrollBarBackdrop"]
-    if flowSbBd and flowSbBd.Hide then
-        flowSbBd:Hide()
-    end
-
-    frame.flowChild = CreateFrame("Frame", "OmniGuildBankFlowChild", frame.flowScroll)
-    frame.flowChild:SetSize(100, 1)
-    frame.flowScroll:SetScrollChild(frame.flowChild)
-    frame.flowScroll:Hide()
 
     local tabStride = FOOTER_TAB_BTN + TAB_TAB_GAP
     for i = 1, MAX_TABS do
@@ -1852,20 +1853,87 @@ function GuildBankFrame:UpdateTabs()
 end
 
 function GuildBankFrame:UpdateSlots()
-    local slotStep = GetGuildSlotStep()
+    if not frame or not frame.virtualView then return end
+
+    local slotDataList = {}
     for i = 1, SLOTS_PER_TAB do
-        local btn = slotButtons[i]
-        if btn then
-            local col = (i - 1) % SLOTS_PER_ROW
-            local row = math.floor((i - 1) / SLOTS_PER_ROW)
-            ApplyGuildSlotMetrics(btn)
-            btn:ClearAllPoints()
-            btn:SetPoint("TOPLEFT", frame.gridContainer, "TOPLEFT",
-                col * slotStep,
-                -(row * slotStep))
-            UpdateSlotButton(btn)
-        end
+        local texture, count, locked = GetGuildBankItemInfo(currentTab, i)
+        local link = GetGuildBankItemLink(currentTab, i)
+        table.insert(slotDataList, {
+            guildBankTab = currentTab,
+            guildBankSlot = i,
+            bagID = currentTab,
+            slotID = i,
+            icon = texture,
+            count = count,
+            locked = locked,
+            link = link,
+            hyperlink = link,
+            renderCallback = function(btn, data)
+                btn.gbTab = data.guildBankTab
+                btn.gbSlot = data.guildBankSlot
+                btn.slotIndex = data.guildBankSlot
+                if btn.SetID then btn:SetID(data.guildBankSlot) end
+
+                if not btn._gbWired then
+                    btn._gbWired = true
+                    btn:SetScript("OnClick", GuildBankSlotOnClick)
+                    btn:SetScript("OnEnter", function(self)
+                        self.__omniUsesCustomTooltip = true
+                        if Omni.ItemButton and Omni.ItemButton.SetOmniItemTooltipOwner then
+                            Omni.ItemButton.SetOmniItemTooltipOwner(self)
+                        else
+                            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        end
+                        local t = self.gbTab or currentTab
+                        local s = self.gbSlot or self.slotIndex
+                        if IsOffline() then
+                            local link = GetGuildBankItemLink(t, s)
+                            if link then
+                                GameTooltip:SetHyperlink(link)
+                            end
+                        else
+                            GameTooltip:SetGuildBankItem(t, s)
+                        end
+                        GameTooltip:Show()
+                        if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
+                            Omni.ItemButton.FinalizeOmniItemTooltipLayout()
+                        end
+                        if Omni.ItemButton and Omni.ItemButton.RefreshCompareTooltips then
+                            Omni.ItemButton:RefreshCompareTooltips()
+                        end
+                    end)
+                    btn:SetScript("OnLeave", function(self)
+                        self.__omniUsesCustomTooltip = false
+                        GameTooltip:Hide()
+                        if ResetCursor then ResetCursor() end
+                    end)
+                    btn:SetScript("OnReceiveDrag", function(self)
+                        if IsOffline() then return end
+                        local t = self.gbTab or currentTab
+                        local s = self.gbSlot or self.slotIndex
+                        if PickupGuildBankItem then
+                            PickupGuildBankItem(t, s)
+                        end
+                    end)
+                    btn:SetScript("OnDragStart", function(self)
+                        if IsOffline() then return end
+                        local t = self.gbTab or currentTab
+                        local s = self.gbSlot or self.slotIndex
+                        if PickupGuildBankItem then
+                            PickupGuildBankItem(t, s)
+                        end
+                    end)
+                    btn:RegisterForDrag("LeftButton")
+                end
+
+                pcall(ApplyGuildSlotMetrics, btn)
+                UpdateGuildBankSlotVisual(btn, data.guildBankTab, data.guildBankSlot)
+            end,
+        })
     end
+
+    frame.virtualView:SetData(slotDataList, SLOTS_PER_ROW, SLOT_SIZE, SLOT_SPACING)
 end
 
 -- GetCoinTextureString takes a 32-bit int internally, so feeding it a

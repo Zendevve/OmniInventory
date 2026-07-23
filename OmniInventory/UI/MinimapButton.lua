@@ -1,185 +1,174 @@
 -- =============================================================================
--- OmniInventory Minimap Button
+-- OmniInventory MinimapButton Component
 -- =============================================================================
--- Purpose: Draggable minimap button to toggle inventory window
--- WoTLK 3.3.5a Compatible - Uses only native APIs
+-- Purpose: 31x31 3-layer clamped minimap button for WoW 3.3.5a
+-- WoTLK 3.3.5a Compatible - Adheres strictly to wow-addon-development skill rules
 -- =============================================================================
 
 local addonName, Omni = ...
+Omni = Omni or {}
 
-Omni.MinimapButton = {}
-local MinimapButton = Omni.MinimapButton
+local MinimapBtn = {
+    button = nil,
+    isDragging = false,
+    angle = 225 * (math.pi / 180), -- Default position: 225 deg (bottom-left)
+}
+Omni.MinimapButton = MinimapBtn
 
-local button = nil
-local isDragging = false
+local frame = CreateFrame("Frame", "OmniMinimapButtonEventFrame")
 
--- =============================================================================
--- Constants
--- =============================================================================
+function MinimapBtn:Create()
+    if self.button then return self.button end
 
-local BUTTON_RADIUS = 80  -- Distance from minimap center
+    local btn = CreateFrame("Button", "OmniInventoryMinimapButton", Minimap)
+    btn:SetSize(31, 31)
+    btn:SetFrameStrata("MEDIUM")
+    btn:SetFrameLevel(8)
+    btn:EnableMouse(true)
+    btn:SetMovable(true)
 
--- =============================================================================
--- Creation
--- =============================================================================
+    -- Layer 1: Background (BACKGROUND)
+    local bg = btn:CreateTexture(nil, "BACKGROUND")
+    bg:SetSize(20, 20)
+    bg:SetPoint("TOPLEFT", btn, "TOPLEFT", 7, -5)
+    bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    btn.bg = bg
 
-function MinimapButton:Create()
-    if button then return button end
+    -- Layer 2: Icon (ARTWORK)
+    local icon = btn:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(20, 20)
+    icon:SetPoint("TOPLEFT", btn, "TOPLEFT", 7, -5)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_28")
+    btn.icon = icon
 
-    button = CreateFrame("Button", "OmniMinimapButton", Minimap)
-    button:SetSize(32, 32)
-    button:SetFrameStrata("HIGH") -- Ensure it's above the Minimap content
-    button:SetFrameLevel(Minimap:GetFrameLevel() + 10)
-    button:EnableMouse(true)
-    button:SetMovable(true)
+    -- Layer 3: Border (OVERLAY)
+    local border = btn:CreateTexture(nil, "OVERLAY")
+    border:SetSize(53, 53)
+    border:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    btn.border = border
 
-    -- Icon
-    button.icon = button:CreateTexture(nil, "ARTWORK")
-    button.icon:SetSize(20, 20)
-    button.icon:SetPoint("CENTER")
-    button.icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_07")
+    -- Highlight Texture
+    local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetSize(20, 20)
+    highlight:SetPoint("TOPLEFT", btn, "TOPLEFT", 7, -5)
+    highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    btn.highlight = highlight
 
-    -- Border
-    button.border = button:CreateTexture(nil, "OVERLAY")
-    button.border:SetSize(52, 52)
-    button.border:SetPoint("CENTER")
-    button.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-
-    -- Highlight
-    button.highlight = button:CreateTexture(nil, "HIGHLIGHT")
-    button.highlight:SetSize(24, 24)
-    button.highlight:SetPoint("CENTER")
-    button.highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-
-    -- Click handler
-    button:SetScript("OnClick", function(self, mouseButton)
-        if mouseButton == "LeftButton" then
-            if Omni.Frame then
-                Omni.Frame:Toggle()
+    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    btn:SetScript("OnClick", function(self, mouseButton)
+        if mouseButton == "RightButton" then
+            if Omni.MainContainer and Omni.MainContainer.ToggleConfig then
+                Omni.MainContainer:ToggleConfig()
             end
-        elseif mouseButton == "RightButton" then
-            if Omni.Settings then
-                Omni.Settings:Toggle()
+        else
+            if Omni.MainContainer and Omni.MainContainer.Toggle then
+                Omni.MainContainer:Toggle()
             end
         end
     end)
 
-    -- Tooltip
-    button:SetScript("OnEnter", function(self)
+    btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("|cFF00FF00Zen|rBags")
-        GameTooltip:AddLine("Left-click: Toggle Bags", 1, 1, 1)
-        GameTooltip:AddLine("Right-click: Settings", 1, 1, 1)
-        GameTooltip:AddLine("Drag: Move button", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine("OmniInventory [2.1.0]")
+        GameTooltip:AddLine("Left-Click: Toggle Master Container", 1, 1, 1)
+        GameTooltip:AddLine("Right-Click: Toggle Configuration", 1, 1, 1)
+        GameTooltip:AddLine("Drag: Move Minimap Button", 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
 
-    button:SetScript("OnLeave", function(self)
+    btn:SetScript("OnLeave", function(self)
         GameTooltip:Hide()
     end)
 
-    -- Dragging
-    button:RegisterForDrag("LeftButton")
-    button:SetScript("OnDragStart", function(self)
-        self:StartMoving() -- Use StartMoving for smoother native handling first, or custom logic
-        isDragging = true
+    btn:RegisterForDrag("LeftButton")
+    btn:SetScript("OnDragStart", function(self)
+        MinimapBtn.isDragging = true
     end)
 
-    button:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        isDragging = false
-        MinimapButton:SavePosition()
+    btn:SetScript("OnDragStop", function(self)
+        MinimapBtn.isDragging = false
+        MinimapBtn:SavePosition()
     end)
 
-    button:SetScript("OnUpdate", function(self)
-        if isDragging then
+    btn:SetScript("OnUpdate", function(self)
+        if MinimapBtn.isDragging then
             local mx, my = Minimap:GetCenter()
             local cx, cy = GetCursorPosition()
             local scale = Minimap:GetEffectiveScale()
-            cx, cy = cx / scale, cy / scale
-
-            local angle = math.atan2(cy - my, cx - mx)
-            MinimapButton:SetPositionByAngle(angle)
+            if mx and my and scale and scale > 0 then
+                cx, cy = cx / scale, cy / scale
+                MinimapBtn.angle = math.atan2(cy - my, cx - mx)
+                MinimapBtn:UpdatePosition()
+            end
         end
     end)
 
-    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-
+    self.button = btn
     self:LoadPosition()
-
-    return button
+    return btn
 end
 
--- =============================================================================
--- Position Management
--- =============================================================================
+function MinimapBtn:UpdatePosition()
+    if not self.button then return end
 
-function MinimapButton:SetPositionByAngle(angle)
-    if not button then return end
+    local angle = self.angle or (225 * (math.pi / 180))
+    local radius = 80
+    local x = math.cos(angle) * radius
+    local y = math.sin(angle) * radius
 
-    local x = math.cos(angle) * BUTTON_RADIUS
-    local y = math.sin(angle) * BUTTON_RADIUS
+    -- Square Minimap Clamping Support (SexyMap / ElvUI)
+    local shape = GetMinimapShape and GetMinimapShape() or "ROUND"
+    if shape ~= "ROUND" then
+        local diagRadius = 103.13708498985 -- math.sqrt(2 * 80^2) - 10
+        local qX = math.max(-radius, math.min(radius, x * (diagRadius / radius)))
+        local qY = math.max(-radius, math.min(radius, y * (diagRadius / radius)))
+        x, y = qX, qY
+    end
 
-    button:ClearAllPoints()
-    button:SetPoint("CENTER", Minimap, "CENTER", x, y)
-
-    -- Store angle for saving
-    button.angle = angle
+    self.button:ClearAllPoints()
+    self.button:SetPoint("CENTER", Minimap, "CENTER", x, y)
 end
 
-function MinimapButton:SavePosition()
-    if not button or not button.angle then return end
-
+function MinimapBtn:SavePosition()
     if not OmniInventoryDB then OmniInventoryDB = {} end
     if not OmniInventoryDB.global then OmniInventoryDB.global = {} end
-
-    OmniInventoryDB.global.minimapAngle = button.angle
+    OmniInventoryDB.global.minimapAngle = self.angle
 end
 
-function MinimapButton:LoadPosition()
-    if not button then return end
-
-    local angle = 225 * (math.pi / 180)  -- Default: bottom-left
-
+function MinimapBtn:LoadPosition()
     if OmniInventoryDB and OmniInventoryDB.global and OmniInventoryDB.global.minimapAngle then
-        angle = OmniInventoryDB.global.minimapAngle
+        self.angle = OmniInventoryDB.global.minimapAngle
     end
-
-    self:SetPositionByAngle(angle)
+    self:UpdatePosition()
 end
 
-function MinimapButton:ResetPosition()
-    if OmniInventoryDB and OmniInventoryDB.global then
-        OmniInventoryDB.global.minimapAngle = nil
-    end
-    self:LoadPosition()
+function MinimapBtn:Init()
+    self:Create()
+    self:UpdatePosition()
 end
 
--- =============================================================================
--- Visibility
--- =============================================================================
-
-function MinimapButton:Show()
-    if not button then self:Create() end
-    button:Show()
+function MinimapBtn:Show()
+    if not self.button then self:Create() end
+    self.button:Show()
 end
 
-function MinimapButton:Hide()
-    if button then button:Hide() end
+function MinimapBtn:Hide()
+    if self.button then self.button:Hide() end
 end
 
-function MinimapButton:Toggle()
-    if button and button:IsShown() then
+function MinimapBtn:Toggle()
+    if self.button and self.button:IsShown() then
         self:Hide()
     else
         self:Show()
     end
 end
 
--- =============================================================================
--- Initialization
--- =============================================================================
-
-function MinimapButton:Init()
-    self:Create()
-end
+-- Event Sync on PLAYER_LOGIN after SexyMap / ElvUI initialization pass
+frame:RegisterEvent("PLAYER_LOGIN")
+frame:SetScript("OnEvent", function(self, event, ...)
+    if event == "PLAYER_LOGIN" then
+        MinimapBtn:Init()
+    end
+end)

@@ -565,78 +565,344 @@ function Rules:ClearCache()
 end
 
 -- =============================================================================
--- User-Defined Categories (A18)
+-- User-Defined Categories & Dynamic Rules (R1)
 -- =============================================================================
 
 Omni.Categories = Omni.Categories or {}
 local Categories = Omni.Categories
 
-local categoriesDB = nil       -- OmniInventoryDB.global.userCategories
-local compiledCategories = {}  -- name -> { compiledRule, itemList, err }
+local compiledCategories = {}  -- name/id -> { compiledRule, itemList, err }
 
-local function ensureCategoriesDB()
+local function ensureDB()
     OmniInventoryDB = OmniInventoryDB or {}
+    OmniInventoryDB.profile = OmniInventoryDB.profile or {}
+    OmniInventoryDB.profile.rules = OmniInventoryDB.profile.rules or {}
+    OmniInventoryDB.profile.categories = OmniInventoryDB.profile.categories or {}
     OmniInventoryDB.global = OmniInventoryDB.global or {}
     OmniInventoryDB.global.userCategories = OmniInventoryDB.global.userCategories or {}
-    return OmniInventoryDB.global.userCategories
+    return OmniInventoryDB.profile.rules, OmniInventoryDB.profile.categories, OmniInventoryDB.global.userCategories
 end
 
---- Create or update a user-defined category.
---- @param name string Category name
---- @param opts table { sequence, list, rule, classes, nameSort }
-function Categories:Create(name, opts)
-    if not name or name == "" then return false, "name required" end
-    local db = ensureCategoriesDB()
-    opts = opts or {}
-    db[name] = {
-        name = name,
-        sequence = opts.sequence or 50,
-        list = opts.list or {},
-        rule = opts.rule or "",
-        classes = opts.classes or {},
-        nameSort = opts.nameSort or name,
-    }
-    self:Compile(name)
-    return true
-end
-
---- Delete a user-defined category.
---- @param name string
-function Categories:Delete(name)
-    local db = ensureCategoriesDB()
-    db[name] = nil
-    compiledCategories[name] = nil
+--- Sync local state to RulesEngine and clear caches
+function Categories:SyncToEngine()
+    if Omni.RulesEngine and Omni.RulesEngine.SyncFromDB then
+        Omni.RulesEngine:SyncFromDB()
+    end
     if Omni.Categorizer and Omni.Categorizer.ClearCategoryCache then
         Omni.Categorizer:ClearCategoryCache()
     end
+    if Rules and Rules.ClearCache then
+        Rules:ClearCache()
+    end
+end
+
+-- =============================================================================
+-- DYNAMIC RULES API
+-- =============================================================================
+
+--- Get all user-defined dynamic rules, sorted by priority ascending
+function Categories:GetAllRules()
+    local rulesDB, _, globalCats = ensureDB()
+    local list = {}
+
+    -- Collect from profile.rules
+    for id, r in pairs(rulesDB) do
+        table.insert(list, r)
+    end
+
+    -- Legacy migration / fallback check from global.userCategories if rulesDB is empty
+    if #list == 0 then
+        for name, cat in pairs(globalCats) do
+            if cat.rule and cat.rule ~= "" then
+                local ruleObj = {
+                    id = name,
+                    name = name,
+                    categoryTarget = cat.categoryTarget or name,
+                    filterType = cat.filterType or "expression",
+                    filterValue = cat.filterValue or cat.rule,
+                    rule = cat.rule,
+                    priority = cat.sequence or 50,
+                    enabled = (cat.enabled ~= false),
+                }
+                rulesDB[name] = ruleObj
+                table.insert(list, ruleObj)
+            end
+        end
+    end
+
+    table.sort(list, function(a, b)
+        if (a.priority or 50) == (b.priority or 50) then
+            return tostring(a.name) < tostring(b.name)
+        end
+        return (a.priority or 50) < (b.priority or 50)
+    end)
+    return list
+end
+
+--- Get a dynamic rule by ID
+function Categories:GetRule(id)
+    if not id then return nil end
+    local rulesDB = ensureDB()
+    return rulesDB[id]
+end
+
+--- Create or update a dynamic rule
+function Categories:CreateRule(id, opts)
+    if not id or id == "" then return false, "id required" end
+    local rulesDB, _, globalCats = ensureDB()
+    opts = opts or {}
+
+    local name = opts.name or id
+    local priority = opts.priority or opts.sequence or 50
+    local ruleFormula = opts.rule or ""
+    local catTarget = opts.categoryTarget or opts.categoryID or name
+
+    local ruleObj = {
+        id = id,
+        name = name,
+        categoryTarget = catTarget,
+        filterType = opts.filterType or "expression",
+        filterValue = opts.filterValue or ruleFormula,
+        rule = ruleFormula,
+        priority = priority,
+        enabled = (opts.enabled ~= false),
+        list = opts.list or {},
+    }
+
+    rulesDB[id] = ruleObj
+
+    -- Sync to legacy global.userCategories format for backwards compatibility
+    globalCats[name] = {
+        name = name,
+        sequence = priority,
+        rule = ruleFormula,
+        categoryTarget = catTarget,
+        enabled = (opts.enabled ~= false),
+    }
+
+    self:Compile(id)
+    self:SyncToEngine()
+    return true
+end
+
+function Categories:UpdateRule(id, opts)
+    return self:CreateRule(id, opts)
+end
+
+--- Delete a dynamic rule
+function Categories:DeleteRule(id)
+    if not id then return end
+    local rulesDB, _, globalCats = ensureDB()
+    local rule = rulesDB[id]
+    if rule then
+        if rule.name and globalCats[rule.name] then
+            globalCats[rule.name] = nil
+        end
+        rulesDB[id] = nil
+    end
+    compiledCategories[id] = nil
+    self:SyncToEngine()
+end
+
+--- Toggle a dynamic rule's enabled state
+function Categories:ToggleRuleEnabled(id)
+    local rule = self:GetRule(id)
+    if rule then
+        rule.enabled = not (rule.enabled == true)
+        self:SyncToEngine()
+        return rule.enabled
+    end
+    return false
+end
+
+--- Move rule UP in precedence (swaps priority with previous rule)
+function Categories:MoveRuleUp(id)
+    local rules = self:GetAllRules()
+    local idx = nil
+    for i, r in ipairs(rules) do
+        if r.id == id then idx = i break end
+    end
+    if idx and idx > 1 then
+        local curRule = rules[idx]
+        local prevRule = rules[idx - 1]
+        local tempPrio = curRule.priority or 50
+        curRule.priority = prevRule.priority or 50
+        prevRule.priority = tempPrio
+        if curRule.priority == prevRule.priority then
+            curRule.priority = math.max(1, curRule.priority - 1)
+        end
+        self:SyncToEngine()
+    end
+end
+
+--- Move rule DOWN in precedence (swaps priority with next rule)
+function Categories:MoveRuleDown(id)
+    local rules = self:GetAllRules()
+    local idx = nil
+    for i, r in ipairs(rules) do
+        if r.id == id then idx = i break end
+    end
+    if idx and idx < #rules then
+        local curRule = rules[idx]
+        local nextRule = rules[idx + 1]
+        local tempPrio = curRule.priority or 50
+        curRule.priority = nextRule.priority or 50
+        nextRule.priority = tempPrio
+        if curRule.priority == nextRule.priority then
+            curRule.priority = curRule.priority + 1
+        end
+        self:SyncToEngine()
+    end
+end
+
+--- Check if an item matches a specific rule definition
+function Categories:ItemMatchesRule(item, rule)
+    if not item or not rule or rule.enabled == false then return false end
+
+    -- Check direct item list
+    if item.itemID and rule.list then
+        for _, id in ipairs(rule.list) do
+            if id == item.itemID then return true end
+        end
+    end
+
+    -- Check rule formula
+    if rule.compiledRule then
+        return Rules:Match(rule.compiledRule, item)
+    elseif rule.rule and rule.rule ~= "" then
+        local func, err = Rules:Compile(rule.rule)
+        if func then
+            rule.compiledRule = func
+            return Rules:Match(func, item)
+        end
+    end
+
+    return false
+end
+
+-- =============================================================================
+-- CATEGORY SECTION LANES API
+-- =============================================================================
+
+--- Create or update a user-defined category section lane.
+--- @param name string Category name
+--- @param opts table { sequence, list, rule, color, enabled }
+function Categories:Create(name, opts)
+    if not name or name == "" then return false, "name required" end
+    local _, catsDB, globalCats = ensureDB()
+    opts = opts or {}
+
+    local catObj = {
+        name = name,
+        sequence = opts.sequence or opts.priority or 50,
+        color = opts.color or { r = 0.5, g = 0.5, b = 0.5 },
+        list = opts.list or {},
+        rule = opts.rule or "",
+        enabled = (opts.enabled ~= false),
+    }
+
+    catsDB[name] = catObj
+    globalCats[name] = globalCats[name] or catObj
+
+    self:Compile(name)
+    self:SyncToEngine()
+    return true
+end
+
+function Categories:UpdateCategory(name, opts)
+    return self:Create(name, opts)
+end
+
+--- Delete a category section lane.
+--- @param name string
+function Categories:Delete(name)
+    if not name then return end
+    local _, catsDB, globalCats = ensureDB()
+    catsDB[name] = nil
+    globalCats[name] = nil
+    compiledCategories[name] = nil
+    self:SyncToEngine()
 end
 
 --- Get a user-defined category definition.
 --- @param name string
 --- @return table|nil
 function Categories:Get(name)
-    local db = ensureCategoriesDB()
-    return db[name]
+    if not name then return nil end
+    local _, catsDB, globalCats = ensureDB()
+    return catsDB[name] or globalCats[name]
 end
 
---- Get all user-defined category names, sorted by sequence.
+--- Get all user-defined category section lanes, sorted by sequence.
 --- @return table
 function Categories:GetAll()
-    local db = ensureCategoriesDB()
+    local _, catsDB, globalCats = ensureDB()
     local list = {}
-    for name, cat in pairs(db) do
+
+    local seen = {}
+    for name, cat in pairs(catsDB) do
         table.insert(list, cat)
+        seen[name] = true
     end
+    for name, cat in pairs(globalCats) do
+        if not seen[name] then
+            table.insert(list, cat)
+        end
+    end
+
     table.sort(list, function(a, b)
+        if (a.sequence or 50) == (b.sequence or 50) then
+            return tostring(a.name) < tostring(b.name)
+        end
         return (a.sequence or 50) < (b.sequence or 50)
     end)
     return list
 end
 
+--- Move category lane UP in precedence
+function Categories:MoveCategoryUp(name)
+    local cats = self:GetAll()
+    local idx = nil
+    for i, c in ipairs(cats) do
+        if c.name == name then idx = i break end
+    end
+    if idx and idx > 1 then
+        local curCat = cats[idx]
+        local prevCat = cats[idx - 1]
+        local tempSeq = curCat.sequence or 50
+        curCat.sequence = prevCat.sequence or 50
+        prevCat.sequence = tempSeq
+        if curCat.sequence == prevCat.sequence then
+            curCat.sequence = math.max(1, curCat.sequence - 1)
+        end
+        self:SyncToEngine()
+    end
+end
+
+--- Move category lane DOWN in precedence
+function Categories:MoveCategoryDown(name)
+    local cats = self:GetAll()
+    local idx = nil
+    for i, c in ipairs(cats) do
+        if c.name == name then idx = i break end
+    end
+    if idx and idx < #cats then
+        local curCat = cats[idx]
+        local nextCat = cats[idx + 1]
+        local tempSeq = curCat.sequence or 50
+        curCat.sequence = nextCat.sequence or 50
+        nextCat.sequence = tempSeq
+        if curCat.sequence == nextCat.sequence then
+            curCat.sequence = curCat.sequence + 1
+        end
+        self:SyncToEngine()
+    end
+end
+
 --- Compile a category's rule and cache it.
 --- @param name string
 function Categories:Compile(name)
-    local cat = self:Get(name)
+    local cat = self:Get(name) or self:GetRule(name)
     if not cat then return end
 
     local compiled = { compiledRule = nil, itemList = {}, err = nil }
@@ -659,16 +925,18 @@ function Categories:Compile(name)
     end
 
     compiledCategories[name] = compiled
-    if Omni.Categorizer and Omni.Categorizer.ClearCategoryCache then
-        Omni.Categorizer:ClearCategoryCache()
-    end
+    if cat.id then compiledCategories[cat.id] = compiled end
 end
 
---- Compile all user-defined categories.
+--- Compile all user-defined categories & rules.
 function Categories:CompileAll()
-    local db = ensureCategoriesDB()
-    for name in pairs(db) do
-        self:Compile(name)
+    local rules = self:GetAllRules()
+    for _, r in ipairs(rules) do
+        self:Compile(r.id or r.name)
+    end
+    local cats = self:GetAll()
+    for _, c in ipairs(cats) do
+        self:Compile(c.name)
     end
 end
 
@@ -691,38 +959,9 @@ function Categories:ItemMatchesCategory(item, catName)
         return true
     end
 
-    -- Check class-specific lists
-    local cat = self:Get(catName)
-    if cat and cat.classes then
-        local _, class = UnitClass("player")
-        if class and cat.classes[class] and cat.classes[class].list then
-            for _, itemID in ipairs(cat.classes[class].list) do
-                if itemID == item.itemID then return true end
-            end
-        end
-    end
-
     -- Check rule
     if compiled.compiledRule then
         return Rules:Match(compiled.compiledRule, item)
-    end
-
-    -- Check class-specific rules
-    if cat and cat.classes then
-        local _, class = UnitClass("player")
-        if class and cat.classes[class] and cat.classes[class].rule then
-            local classCompiled = compiledCategories[catName .. "_" .. class]
-            if not classCompiled then
-                local func, err = Rules:Compile(cat.classes[class].rule)
-                if func then
-                    compiledCategories[catName .. "_" .. class] = { compiledRule = func }
-                    classCompiled = compiledCategories[catName .. "_" .. class]
-                end
-            end
-            if classCompiled and classCompiled.compiledRule then
-                return Rules:Match(classCompiled.compiledRule, item)
-            end
-        end
     end
 
     return false
@@ -733,15 +972,15 @@ end
 --- @param itemID number
 function Categories:AddItem(catName, itemID)
     if not catName or not itemID then return end
-    local cat = self:Get(catName)
+    local cat = self:Get(catName) or self:GetRule(catName)
     if not cat then return end
     cat.list = cat.list or {}
-    -- Avoid duplicates
     for _, id in ipairs(cat.list) do
         if id == itemID then return end
     end
     table.insert(cat.list, itemID)
     self:Compile(catName)
+    self:SyncToEngine()
 end
 
 --- Remove an item from a category's direct list.
@@ -749,12 +988,13 @@ end
 --- @param itemID number
 function Categories:RemoveItem(catName, itemID)
     if not catName or not itemID then return end
-    local cat = self:Get(catName)
+    local cat = self:Get(catName) or self:GetRule(catName)
     if not cat or not cat.list then return end
     for i, id in ipairs(cat.list) do
         if id == itemID then
             table.remove(cat.list, i)
             self:Compile(catName)
+            self:SyncToEngine()
             return
         end
     end
@@ -780,7 +1020,6 @@ function Rules:Register(name, func)
         return false, "invalid arguments"
     end
     ruleFunctions[name] = func
-    -- Clear compiled rules cache to allow custom rule to be evaluated in new compilations
     for k in pairs(compiledRules) do
         compiledRules[k] = nil
     end
@@ -788,8 +1027,8 @@ function Rules:Register(name, func)
 end
 
 function Rules:Init()
-    -- Compile all user-defined categories on load
     if Omni.Categories then
         Omni.Categories:CompileAll()
+        Omni.Categories:SyncToEngine()
     end
-end
+end

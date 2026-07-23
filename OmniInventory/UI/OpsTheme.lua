@@ -47,6 +47,62 @@ end
 -- =============================================================================
 -- Reference: refs/opencode-design-system.md (dark section)
 
+-- Color Ramp (RGBA normalized 0.0 to 1.0)
+OpsTheme.colors = {
+    canvas              = { 0.086, 0.078, 0.075, 0.95 }, -- #161413 (Dark Canvas)
+    surfaceSoft         = { 0.122, 0.110, 0.102, 1.00 }, -- #1f1c1a (Card Surface)
+    surfaceDark         = { 0.039, 0.035, 0.031, 1.00 }, -- #0a0908 (Deep Background)
+    hairline            = { 0.941, 0.910, 0.824, 0.10 }, -- Translucent Hairline Rule
+    hairlineStrong      = { 0.353, 0.337, 0.329, 1.00 }, -- #5a5654
+    
+    -- Typography Ink Ladder
+    ink                 = { 0.945, 0.933, 0.914, 1.00 }, -- #f1eee9 (Warm Off-White)
+    charcoal            = { 0.812, 0.796, 0.769, 1.00 }, -- #cfcbc4
+    body                = { 0.659, 0.639, 0.612, 1.00 }, -- #a8a39c
+    mute                = { 0.478, 0.455, 0.431, 1.00 }, -- #7a746e
+    ash                 = { 0.290, 0.275, 0.259, 1.00 }, -- #4a4642 (Disabled)
+    
+    -- Accents
+    accent              = { 0.000, 0.478, 1.000, 1.00 }, -- Apple Blue #007aff
+    danger              = { 1.000, 0.231, 0.188, 1.00 }, -- Red #ff3b30
+    warning             = { 1.000, 0.624, 0.039, 1.00 }, -- Gold #ff9f0a
+    success             = { 0.188, 0.820, 0.345, 1.00 }, -- Green #30d158
+}
+
+-- OpenCode TUI RGBA Quality Colors for Item Buttons (0: Poor -> 7: Heirloom)
+OpsTheme.qualityColors = {
+    [0] = { 0.478, 0.455, 0.431, 1.00 }, -- Poor (Mute Grey)
+    [1] = { 0.812, 0.796, 0.769, 1.00 }, -- Common (Charcoal Off-White)
+    [2] = { 0.188, 0.820, 0.345, 1.00 }, -- Uncommon (OpenCode Green #30d158)
+    [3] = { 0.000, 0.478, 1.000, 1.00 }, -- Rare (OpenCode Blue #007aff)
+    [4] = { 0.635, 0.325, 0.871, 1.00 }, -- Epic (OpenCode Purple #a259ff)
+    [5] = { 1.000, 0.624, 0.039, 1.00 }, -- Legendary (OpenCode Warning Gold #ff9f0a)
+    [6] = { 0.900, 0.800, 0.500, 1.00 }, -- Artifact (OpenCode Gold)
+    [7] = { 0.000, 0.800, 1.000, 1.00 }, -- Heirloom (OpenCode Heirloom Cyan)
+}
+OpsTheme.QUALITY_COLORS = OpsTheme.qualityColors
+
+--- Returns RGBA quality colors for native OpenCode TUI quality glow borders
+-- @param quality Item quality integer (0..7)
+-- @return r, g, b, a values normalized (0..1)
+function OpsTheme:GetQualityColor(quality)
+    quality = tonumber(quality) or 1
+    local color = self.qualityColors[quality] or self.qualityColors[1]
+    return color[1], color[2], color[3], color[4] or 1
+end
+
+-- ASCII Formatting Markers
+OpsTheme.ASCII = {
+    EXPAND   = "[+]",
+    COLLAPSE = "[-]",
+    CLOSE    = "[x]",
+    CHECKED  = "[X]",
+    UNCHECKED= "[ ]",
+    ARROW    = "->",
+    OK       = "[OK]",
+    WARN     = "[!]",
+}
+
 OpsTheme.PAL = {
     -- Canvas / surface
     BG                 = Hex("#161413ff"),  -- canvas (deep warm black, replaces #fdfcfc)

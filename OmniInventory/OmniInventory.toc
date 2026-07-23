@@ -1,18 +1,26 @@
 ## Interface: 30300
-## Title: |cFF00FF00Omni|rInventory
-## Notes: The definitive inventory management addon for WoW 3.3.5a
+## Title: OmniInventory
+## Notes: The definitive inventory management suite for WoW 3.3.5a
 ## Author: Zendevve
 ## Version: 2.1.0
 ## SavedVariables: OmniInventoryDB
 
-## X-Website: https://github.com/Zendevve/OmniInventory
-## X-Category: Inventory
-## X-License: Proprietary
-## Tags: Inventory, Bags, Bank, Sorting, Categorization
-
 # =============================================================================
 # Core Architecture (Load Order Critical)
 # =============================================================================
+Core\Init.lua
+Core\Compatibility.lua
+Core\EventRouter.lua
+Core\SlashCommands.lua
+
+# =============================================================================
+# Rules & Layout Engine
+# =============================================================================
+Engine\ASTCompiler.lua
+Engine\RulesEngine.lua
+Engine\SignatureCache.lua
+Engine\LayoutEngine.lua
+Engine\BinPacker.lua
 Omni\API.lua
 Omni\Perf.lua
 Omni\Events.lua
@@ -27,8 +35,12 @@ Omni\PhysicalSort.lua
 Omni\RecipeColor.lua
 
 # =============================================================================
-# UI Components
+# User Interface Components
 # =============================================================================
+UI\OpsTheme.lua
+UI\FramePool.lua
+UI\VirtualScrollView.lua
+UI\MainContainer.lua
 UI\ItemButton.lua
 UI\GridView.lua
 UI\FlowView.lua
@@ -36,9 +48,24 @@ UI\ListView.lua
 UI\Frame.lua
 UI\BankFrame.lua
 UI\GuildBankFrame.lua
-UI\OpsTheme.lua
+UI\MerchantOverlay.lua
+UI\MinimapButton.lua
 UI\Options.lua
 UI\Tooltip.lua
+
+# =============================================================================
+# Database & Index Store
+# =============================================================================
+DB\Schema.lua
+DB\IndexEngine.lua
+DB\CacheWarmer.lua
+
+# =============================================================================
+# Economy & Utility Modules
+# =============================================================================
+Modules\AutoVendor.lua
+Modules\AutoRepair.lua
+Modules\AutoContainer.lua
 
 # =============================================================================
 # Main Entry Point

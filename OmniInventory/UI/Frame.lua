@@ -2050,11 +2050,17 @@ function Frame:CreateContentArea()
     -- the table OOC so it doesn't matter.
     mainFrame.itemContainers = {}
     local function MakeItemContainer(bagID)
-        local f = CreateFrame("Frame", nil, scrollChild)
-        f:SetSize(1, 1)
-        f:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
-        f:SetID(bagID)
-        f:Show()
+        local f = nil
+        if Omni.FramePool and not InCombat() then
+            f = Omni.FramePool:GetDummyBag(mainFrame, bagID)
+        end
+        if not f then
+            f = CreateFrame("Frame", "OmniInventoryDummyBag" .. bagID, scrollChild)
+            f:SetSize(1, 1)
+            f:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
+            f:SetID(bagID)
+            f:Show()
+        end
         mainFrame.itemContainers[bagID] = f
         return f
     end
@@ -2077,6 +2083,13 @@ local function GetItemContainer(bagID)
     local container = mainFrame.itemContainers[bagID]
     if container then return container end
     if InCombat() and not Frame._combatGridBootstrap then return nil end
+    if Omni.FramePool and not InCombat() then
+        local dummy = Omni.FramePool:GetDummyBag(mainFrame, bagID)
+        if dummy then
+            mainFrame.itemContainers[bagID] = dummy
+            return dummy
+        end
+    end
     if mainFrame._makeItemContainer then
         return mainFrame._makeItemContainer(bagID)
     end
@@ -2118,7 +2131,11 @@ local function CreateSlotButton(bagID, slotID)
 
     local btn
     local fromPool = false
-    if Frame._combatGridBootstrap and Omni.ItemButton then
+    if Omni.FramePool and not InCombat() then
+        btn = Omni.FramePool:AcquireItemButton(mainFrame or UIParent, bagID, slotID)
+        if btn then fromPool = true end
+    end
+    if not btn and Frame._combatGridBootstrap and Omni.ItemButton then
         local createdOK, created = pcall(Omni.ItemButton.Create, Omni.ItemButton, container)
         if createdOK then
             btn = created
@@ -2140,7 +2157,7 @@ local function CreateSlotButton(bagID, slotID)
     if not btn then return nil end
 
     local ok = pcall(function()
-        if btn:GetParent() ~= container then
+        if not InCombat() and btn:GetParent() ~= container then
             btn:SetParent(container)
         end
         if btn.SetID then btn:SetID(slotID) end
@@ -2153,7 +2170,9 @@ local function CreateSlotButton(bagID, slotID)
     local parentOK = btn.GetParent and btn:GetParent() == container
     local idOK = (not btn.GetID) or btn:GetID() == slotID
     if not ok and not (parentOK and idOK) then
-        if fromPool and Omni.Pool then
+        if fromPool and Omni.FramePool then
+            Omni.FramePool:ReleaseItemButton(btn)
+        elseif fromPool and Omni.Pool then
             Omni.Pool:Release("ItemButton", btn)
         else
             pcall(btn.Hide, btn)
@@ -3668,6 +3687,16 @@ function Frame:SetView(mode)
     -- restore to a view the user has since moved past.
     if currentView ~= "bag" then
         preBagViewMode = nil
+    end
+
+    if Omni.LayoutEngine and mainFrame then
+        local modeMap = {
+            flow = Omni.LayoutEngine.MODE_FLOW or 1,
+            grid = Omni.LayoutEngine.MODE_GRID or 2,
+            list = Omni.LayoutEngine.MODE_LIST or 3,
+            bag  = Omni.LayoutEngine.MODE_GRID or 2,
+        }
+        Omni.LayoutEngine:SetMode(mainFrame, modeMap[currentView] or 1)
     end
 
     self:_RefreshViewButtonLabel()

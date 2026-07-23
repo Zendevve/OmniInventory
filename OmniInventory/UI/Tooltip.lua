@@ -37,36 +37,57 @@ local function AddTooltipData(tooltip, targetItemID)
     local grandTotal = 0
     local charAdded = false
 
-    -- Iterate all characters on this realm
-    for playerName, charData in pairs(realmData) do
-        local bagCount = 0
-        if charData.bags then
-            for _, item in ipairs(charData.bags) do
-                if GetItemIDFromLink(item.link) == targetItemID then
-                    bagCount = bagCount + (item.count or 1)
-                end
+    -- Query fast-path O(1) IndexEngine if initialized
+    local IndexEngine = Omni.IndexEngine or (Omni.DB and Omni.DB.IndexEngine)
+    if IndexEngine and IndexEngine.GetItemLocationBreakdown then
+        local breakdown = IndexEngine:GetItemLocationBreakdown(targetItemID, currentRealm)
+        for playerName, counts in pairs(breakdown) do
+            local bags = counts.bags or 0
+            local bank = counts.bank or 0
+            local total = counts.total or (bags + bank)
+            if total > 0 then
+                table.insert(characterCounts, {
+                    name = playerName,
+                    total = total,
+                    bags = bags,
+                    bank = bank,
+                    isCurrent = (playerName == currentPlayer)
+                })
+                grandTotal = grandTotal + total
             end
         end
-
-        local bankCount = 0
-        if charData.bank then
-            for _, item in ipairs(charData.bank) do
-                if GetItemIDFromLink(item.link) == targetItemID then
-                    bankCount = bankCount + (item.count or 1)
+    else
+        -- Fallback: Iterate all characters on this realm in SavedVariables
+        for playerName, charData in pairs(realmData) do
+            local bagCount = 0
+            if charData.bags then
+                for _, item in ipairs(charData.bags) do
+                    if GetItemIDFromLink(item.link) == targetItemID then
+                        bagCount = bagCount + (item.count or 1)
+                    end
                 end
             end
-        end
 
-        local total = bagCount + bankCount
-        if total > 0 then
-            table.insert(characterCounts, {
-                name = playerName,
-                total = total,
-                bags = bagCount,
-                bank = bankCount,
-                isCurrent = (playerName == currentPlayer)
-            })
-            grandTotal = grandTotal + total
+            local bankCount = 0
+            if charData.bank then
+                for _, item in ipairs(charData.bank) do
+                    if GetItemIDFromLink(item.link) == targetItemID then
+                        bankCount = bankCount + (item.count or 1)
+                    end
+                end
+            end
+
+            local total = bagCount + bankCount
+            if total > 0 then
+                table.insert(characterCounts, {
+                    name = playerName,
+                    total = total,
+                    bags = bagCount,
+                    bank = bankCount,
+                    isCurrent = (playerName == currentPlayer)
+                })
+                grandTotal = grandTotal + total
+            end
         end
     end
 

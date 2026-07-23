@@ -1217,15 +1217,51 @@ function Settings:RefreshSortLabel()
 end
 
 function Settings:BuildRules(panel)
-    panel.editingCategoryName = nil  -- nil: list view, "": new category/rule, "name": edit rule
+    panel.activeRulesSubTab = 1     -- 1: Dynamic Rules Pipeline, 2: Category Section Lanes
+    panel.editingRuleId = nil       -- nil: list view, "": new rule, "id": edit rule
+    panel.editingCategoryName = nil -- nil: list view, "": new category, "name": edit category
 
     local container = CreateFrame("Frame", nil, panel)
     container:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, 0)
     container:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
     panel.container = container
 
+    local function ApplyTuiCardBackdrop(f)
+        OpsTheme:ApplyControlBackdrop(f)
+        f:SetBackdropColor(0.12, 0.11, 0.10, 0.95)     -- OpenCode TUI card background #1f1c1a
+        f:SetBackdropBorderColor(0.22, 0.20, 0.17, 1.0) -- OpenCode hairline border #38322c
+    end
+
+    local FILTER_TYPES = {
+        { key = "expression", label = "Custom Expression" },
+        { key = "quality",    label = "Item Quality" },
+        { key = "class",      label = "Item Class / Type" },
+        { key = "subclass",   label = "Item Subclass" },
+        { key = "equiploc",   label = "Equip Location" },
+        { key = "name",       label = "Item Name Match" },
+        { key = "id",         label = "Item ID Match" },
+    }
+
+    local function GenerateFormula(filterType, value)
+        value = value and value:match("^%s*(.-)%s*$") or ""
+        if filterType == "quality" then
+            return string.format('Quality("%s")', value ~= "" and value or ">=3")
+        elseif filterType == "class" then
+            return string.format('Type("%s")', value ~= "" and value or "Armor")
+        elseif filterType == "subclass" then
+            return string.format('Subtype("%s")', value ~= "" and value or "Cloth")
+        elseif filterType == "equiploc" then
+            return string.format('EquipLocation("%s")', value ~= "" and value or "INVTYPE_HEAD")
+        elseif filterType == "name" then
+            return string.format('Name("%s")', value)
+        elseif filterType == "id" then
+            return string.format('Id(%s)', value ~= "" and value or "0")
+        end
+        return value
+    end
+
     local function RefreshPanel()
-        -- Clean up existing widgets in container
+        -- Clear existing container widgets
         local children = { container:GetChildren() }
         for _, child in ipairs(children) do
             child:Hide()
@@ -1236,282 +1272,599 @@ function Settings:BuildRules(panel)
             region:Hide()
         end
 
-        local y = -15
-        local header = OpsTheme.CreateSectionHeader(container, "[+]  Custom Rules", SECTION_COLORS.colors)
+        local y = -12
+        local header = OpsTheme.CreateSectionHeader(container, "[+]  Category & Rules Manager", SECTION_COLORS.colors)
         header:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
         y = y - HEADER_GAP
 
-        if panel.editingCategoryName then
-            -- =============================================================================
-            -- EDITOR MODE
-            -- =============================================================================
-            local isNew = (panel.editingCategoryName == "")
-            local catName = panel.editingCategoryName
-            local catDef = not isNew and Omni.Categories and Omni.Categories:Get(catName)
+        -- Sub-tab navigation bar: [ Rules Pipeline ] | [ Category Lanes ]
+        local navFrame = CreateFrame("Frame", nil, container)
+        navFrame:SetSize(CONTENT_W - 24, 26)
+        navFrame:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+        ApplyTuiCardBackdrop(navFrame)
 
-            local ruleName = isNew and "" or catName
-            local rulePrio = catDef and tostring(catDef.sequence or 50) or "50"
-            local ruleFormula = catDef and tostring(catDef.rule or "") or ""
+        local tabRulesBtn = OpsTheme.CreateButton(navFrame, "Rules Pipeline", 140, function()
+            panel.activeRulesSubTab = 1
+            panel.editingRuleId = nil
+            panel.editingCategoryName = nil
+            RefreshPanel()
+        end)
+        tabRulesBtn:SetHeight(20)
+        tabRulesBtn:SetPoint("LEFT", navFrame, "LEFT", 3, 0)
+        if panel.activeRulesSubTab == 1 then
+            tabRulesBtn:SetBackdropColor(0.25, 0.22, 0.18, 1)
+            tabRulesBtn.text:SetTextColor(1, 0.85, 0)
+        else
+            tabRulesBtn.text:SetTextColor(0.7, 0.7, 0.7)
+        end
 
-            -- Title for Editor
-            local subHeader = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-            subHeader:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-            subHeader:SetText(isNew and "CREATE NEW RULE" or "EDIT RULE: " .. catName)
-            subHeader:SetTextColor(0.9, 0.9, 0.9)
-            y = y - 16
+        local tabCatsBtn = OpsTheme.CreateButton(navFrame, "Category Lanes", 140, function()
+            panel.activeRulesSubTab = 2
+            panel.editingRuleId = nil
+            panel.editingCategoryName = nil
+            RefreshPanel()
+        end)
+        tabCatsBtn:SetHeight(20)
+        tabCatsBtn:SetPoint("LEFT", tabRulesBtn, "RIGHT", 4, 0)
+        if panel.activeRulesSubTab == 2 then
+            tabCatsBtn:SetBackdropColor(0.25, 0.22, 0.18, 1)
+            tabCatsBtn.text:SetTextColor(1, 0.85, 0)
+        else
+            tabCatsBtn.text:SetTextColor(0.7, 0.7, 0.7)
+        end
 
-            -- Input Helper Function
-            local function CreateEditBox(width, height, defaultVal, isMultiLine)
-                local f = CreateFrame("Frame", nil, container)
-                f:SetSize(width, height)
-                OpsTheme:ApplyControlBackdrop(f)
-                f:SetBackdropColor(0.08, 0.08, 0.08, 1)
+        y = y - 32
 
-                local eb = CreateFrame("EditBox", nil, f)
-                eb:SetSize(width - 12, height - 6)
-                eb:SetPoint("TOPLEFT", 6, -3)
-                eb:SetAutoFocus(false)
-                eb:SetFontObject(ChatFontNormal)
-                eb:SetTextColor(1, 1, 1, 1)
-                eb:SetTextInsets(0, 0, 0, 0)
-                eb:SetText(defaultVal)
-                if isMultiLine then
-                    eb:SetMultiLine(true)
-                end
-                eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        -- Multi-line editbox generator
+        local function CreateEditBox(width, height, defaultVal, isMultiLine)
+            local f = CreateFrame("Frame", nil, container)
+            f:SetSize(width, height)
+            ApplyTuiCardBackdrop(f)
 
-                f.editBox = eb
-                return f
+            local eb = CreateFrame("EditBox", nil, f)
+            eb:SetSize(width - 12, height - 6)
+            eb:SetPoint("TOPLEFT", 6, -3)
+            eb:SetAutoFocus(false)
+            eb:SetFontObject(ChatFontNormal)
+            eb:SetTextColor(1, 1, 1, 1)
+            eb:SetText(defaultVal or "")
+            if isMultiLine then
+                eb:SetMultiLine(true)
             end
+            eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+            f.editBox = eb
+            return f
+        end
 
-            -- Rule Name Label
-            local nameLabel = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            nameLabel:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-            nameLabel:SetText("Rule / Category Name:")
-            nameLabel:SetTextColor(0.7, 0.7, 0.7)
-            y = y - 14
+        if panel.activeRulesSubTab == 1 then
+            -- =============================================================================
+            -- DYNAMIC RULES PIPELINE VIEW
+            -- =============================================================================
+            if panel.editingRuleId ~= nil then
+                -- -------------------------------------------------------------------------
+                -- RULE EDITOR MODE
+                -- -------------------------------------------------------------------------
+                local isNew = (panel.editingRuleId == "")
+                local ruleId = isNew and ("rule_" .. time()) or panel.editingRuleId
+                local ruleObj = not isNew and Omni.Categories and Omni.Categories:GetRule(ruleId)
 
-            -- Rule Name Input
-            local nameFrame = CreateEditBox(200, 22, ruleName)
-            nameFrame:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-            y = y - 30
-            if not isNew then
-                nameFrame.editBox:EnableMouse(false)
-                nameFrame.editBox:SetTextColor(0.5, 0.5, 0.5)
-            end
+                local curName = ruleObj and ruleObj.name or (isNew and "" or ruleId)
+                local curTarget = ruleObj and (ruleObj.categoryTarget or ruleObj.name) or "Equipment"
+                local curFilterType = ruleObj and ruleObj.filterType or "quality"
+                local curFilterValue = ruleObj and ruleObj.filterValue or ">=4"
+                local curFormula = ruleObj and ruleObj.rule or 'Quality(">=4")'
+                local curPrio = ruleObj and tostring(ruleObj.priority or 10) or "10"
+                local curEnabled = ruleObj and (ruleObj.enabled ~= false) or true
 
-            -- Priority Label
-            local prioLabel = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            prioLabel:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-            prioLabel:SetText("Priority / Order (lower numbers run first):")
-            prioLabel:SetTextColor(0.7, 0.7, 0.7)
-            y = y - 14
+                local subHeader = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                subHeader:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                subHeader:SetText(isNew and "CREATE NEW RULE" or "EDIT RULE: " .. curName)
+                subHeader:SetTextColor(1, 0.82, 0)
+                y = y - 18
 
-            -- Priority Input
-            local prioFrame = CreateEditBox(60, 22, rulePrio)
-            prioFrame:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-            y = y - 30
+                -- Rule Name
+                local nameLbl = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                nameLbl:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                nameLbl:SetText("Rule Name:")
+                nameLbl:SetTextColor(0.8, 0.8, 0.8)
+                y = y - 14
 
-            -- Formula Label
-            local formulaLabel = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            formulaLabel:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-            formulaLabel:SetText("Rule Formula:")
-            formulaLabel:SetTextColor(0.7, 0.7, 0.7)
-            y = y - 14
+                local nameBox = CreateEditBox(320, 22, curName)
+                nameBox:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                y = y - 28
 
-            -- Formula Input
-            local formulaFrame = CreateEditBox(320, 60, ruleFormula, true)
-            formulaFrame:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-            y = y - 70
+                -- Category Target
+                local targetLbl = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                targetLbl:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                targetLbl:SetText("Target Category Lane:")
+                targetLbl:SetTextColor(0.8, 0.8, 0.8)
+                y = y - 14
 
-            -- Status / Error text
-            local errorLabel = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            errorLabel:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-            errorLabel:SetWidth(320)
-            errorLabel:SetJustifyH("LEFT")
-            errorLabel:SetText("")
-            errorLabel:SetTextColor(1, 0.2, 0.2)
-            y = y - 30
+                local targetBox = CreateEditBox(320, 22, curTarget)
+                targetBox:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                y = y - 26
 
-            -- Buttons
-            local saveBtn = OpsTheme.CreateButton(container, "Save", 80, function()
-                local nameText = nameFrame.editBox:GetText() or ""
-                nameText = nameText:match("^%s*(.-)%s*$") -- simple trim
-                local prioNum = tonumber(prioFrame.editBox:GetText()) or 50
-                local formulaText = formulaFrame.editBox:GetText() or ""
+                -- Preset target buttons
+                local targetPresets = { "Equipment", "Consumables", "Trade Goods", "Junk", "Quest Items" }
+                local tx = COL_LEFT
+                for _, tp in ipairs(targetPresets) do
+                    local pBtn = OpsTheme.CreateButton(container, tp, 60, function()
+                        targetBox.editBox:SetText(tp)
+                    end)
+                    pBtn:SetHeight(16)
+                    pBtn:SetPoint("TOPLEFT", container, "TOPLEFT", tx, y)
+                    tx = tx + 64
+                end
+                y = y - 22
 
-                if nameText == "" then
-                    errorLabel:SetText("Error: Name is required.")
-                    return
+                -- Filter Type Selector
+                local selectedFilterIndex = 1
+                for i, ft in ipairs(FILTER_TYPES) do
+                    if ft.key == curFilterType then selectedFilterIndex = i break end
                 end
 
-                -- Check syntax by compiling the rule first
-                local _, compileErr = Omni.Rules:Compile(formulaText)
-                if compileErr then
-                    errorLabel:SetText("Formula Error: " .. compileErr)
-                    return
-                end
+                local ftLbl = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                ftLbl:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                ftLbl:SetText("Filter Type:")
+                ftLbl:SetTextColor(0.8, 0.8, 0.8)
+                y = y - 14
 
-                if Omni.Categories then
-                    -- Save category
-                    local success, err = Omni.Categories:Create(nameText, {
-                        sequence = prioNum,
-                        rule = formulaText,
-                    })
-                    if not success then
-                        errorLabel:SetText("Error: " .. (err or "failed to create"))
+                local formulaBox = nil -- forward declaration for helper update
+
+                local ftBtn = OpsTheme.CreateButton(container, FILTER_TYPES[selectedFilterIndex].label, 200, function(selfBtn)
+                    selectedFilterIndex = (selectedFilterIndex % #FILTER_TYPES) + 1
+                    local newFt = FILTER_TYPES[selectedFilterIndex]
+                    selfBtn.text:SetText(newFt.label)
+                    curFilterType = newFt.key
+                    if newFt.key ~= "expression" and formulaBox then
+                        local gen = GenerateFormula(newFt.key, curFilterValue)
+                        formulaBox.editBox:SetText(gen)
+                    end
+                end)
+                ftBtn:SetHeight(20)
+                ftBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                y = y - 26
+
+                -- Filter Value / Formula
+                local fLbl = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                fLbl:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                fLbl:SetText("Rule Formula / Filter Expression:")
+                fLbl:SetTextColor(0.8, 0.8, 0.8)
+                y = y - 14
+
+                formulaBox = CreateEditBox(320, 44, curFormula, true)
+                formulaBox:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                y = y - 48
+
+                -- Priority & Enabled Row
+                local prioLbl = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                prioLbl:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                prioLbl:SetText("Priority / Precedence:")
+                prioLbl:SetTextColor(0.8, 0.8, 0.8)
+
+                local prioBox = CreateEditBox(60, 22, curPrio)
+                prioBox:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT + 130, y - 4)
+
+                local enabledCb = OpsTheme.CreateCheckButton(container, "Enabled", "Enabled State", "Enable or disable this rule.", curEnabled, nil)
+                enabledCb:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT + 210, y - 4)
+
+                y = y - 34
+
+                -- Error label for validation feedback
+                local errLbl = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                errLbl:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                errLbl:SetWidth(320)
+                errLbl:SetJustifyH("LEFT")
+                errLbl:SetText("")
+                errLbl:SetTextColor(1, 0.3, 0.3)
+                y = y - 24
+
+                -- Save & Cancel Buttons
+                local saveBtn = OpsTheme.CreateButton(container, "Save Rule", 90, function()
+                    local rName = nameBox.editBox:GetText() or ""
+                    rName = rName:match("^%s*(.-)%s*$")
+                    local rTarget = targetBox.editBox:GetText() or ""
+                    rTarget = rTarget:match("^%s*(.-)%s*$")
+                    local rFormula = formulaBox.editBox:GetText() or ""
+                    rFormula = rFormula:match("^%s*(.-)%s*$")
+                    local rPrio = tonumber(prioBox.editBox:GetText()) or 10
+                    local rEnabled = enabledCb:GetChecked() == true
+
+                    if rName == "" then
+                        errLbl:SetText("Error: Rule name is required.")
                         return
                     end
+                    if rFormula == "" then
+                        errLbl:SetText("Error: Formula is required.")
+                        return
+                    end
+
+                    -- Validate syntax using Omni.Rules:Compile
+                    local compiledFunc, compileErr = Omni.Rules:Compile(rFormula)
+                    if compileErr then
+                        errLbl:SetText("Formula Error: " .. tostring(compileErr))
+                        return
+                    end
+
+                    if Omni.Categories and Omni.Categories.CreateRule then
+                        Omni.Categories:CreateRule(ruleId, {
+                            name = rName,
+                            categoryTarget = rTarget ~= "" and rTarget or rName,
+                            filterType = curFilterType,
+                            filterValue = rFormula,
+                            rule = rFormula,
+                            priority = rPrio,
+                            enabled = rEnabled,
+                        })
+                    end
+
+                    panel.editingRuleId = nil
+                    RefreshPanel()
+                    RefreshAllInventory()
+                end)
+                saveBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+
+                local cancelBtn = OpsTheme.CreateButton(container, "Cancel", 80, function()
+                    panel.editingRuleId = nil
+                    RefreshPanel()
+                end)
+                cancelBtn:SetPoint("LEFT", saveBtn, "RIGHT", 10, 0)
+                y = y - 30
+
+            else
+                -- -------------------------------------------------------------------------
+                -- RULES PIPELINE LIST MODE
+                -- -------------------------------------------------------------------------
+                local addRuleBtn = OpsTheme.CreateButton(container, "[+] New Rule", 110, function()
+                    panel.editingRuleId = ""
+                    RefreshPanel()
+                end)
+                addRuleBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                addRuleBtn:SetScript("OnEnter", function(self)
+                    self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+                    self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    GameTooltip:SetText("Add New Custom Rule", 1, 0.82, 0)
+                    GameTooltip:AddLine("Create a new dynamic classification rule.", 0.75, 0.75, 0.75, true)
+                    GameTooltip:Show()
+                end)
+                addRuleBtn:SetScript("OnLeave", function(self)
+                    self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+                    self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+                    GameTooltip:Hide()
+                end)
+                y = y - 28
+
+                local rules = Omni.Categories and Omni.Categories:GetAllRules() or {}
+                if #rules == 0 then
+                    local emptyTxt = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                    emptyTxt:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                    emptyTxt:SetText("No custom rules created yet. Click [+] New Rule to add one.")
+                    emptyTxt:SetTextColor(0.5, 0.5, 0.5)
+                    y = y - 20
+                else
+                    for _, rule in ipairs(rules) do
+                        local rowCard = CreateFrame("Frame", nil, container)
+                        rowCard:SetSize(CONTENT_W - 24, 44)
+                        rowCard:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                        ApplyTuiCardBackdrop(rowCard)
+
+                        local isEnabled = (rule.enabled ~= false)
+
+                        -- ASCII Enabled Toggle Button: [x] or [ ]
+                        local toggleBtn = OpsTheme.CreateButton(rowCard, isEnabled and "[x]" or "[ ]", 26, function()
+                            if Omni.Categories and Omni.Categories.ToggleRuleEnabled then
+                                Omni.Categories:ToggleRuleEnabled(rule.id or rule.name)
+                            end
+                            RefreshPanel()
+                            RefreshAllInventory()
+                        end)
+                        toggleBtn:SetHeight(20)
+                        toggleBtn:SetPoint("LEFT", rowCard, "LEFT", 5, 0)
+                        if isEnabled then
+                            toggleBtn.text:SetTextColor(0.3, 0.9, 0.4)
+                        else
+                            toggleBtn.text:SetTextColor(0.5, 0.5, 0.5)
+                        end
+
+                        -- Rule Name & Target Category
+                        local rNameTxt = rowCard:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+                        rNameTxt:SetPoint("TOPLEFT", rowCard, "TOPLEFT", 36, -5)
+                        rNameTxt:SetText(rule.name or rule.id)
+                        if isEnabled then
+                            rNameTxt:SetTextColor(1, 0.82, 0)
+                        else
+                            rNameTxt:SetTextColor(0.5, 0.5, 0.5)
+                        end
+
+                        local rTargetTxt = rowCard:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                        rTargetTxt:SetPoint("TOPLEFT", rNameTxt, "BOTTOMLEFT", 0, -2)
+                        rTargetTxt:SetText("-> " .. (rule.categoryTarget or rule.name))
+                        rTargetTxt:SetTextColor(0.4, 0.8, 1.0)
+
+                        -- Precedence & Formula Preview
+                        local prioTxt = rowCard:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                        prioTxt:SetPoint("TOPLEFT", rowCard, "TOPLEFT", 155, -5)
+                        prioTxt:SetText("Prio: " .. (rule.priority or 50))
+                        prioTxt:SetTextColor(0.7, 0.7, 0.7)
+
+                        local formTxt = rowCard:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                        formTxt:SetPoint("TOPLEFT", prioTxt, "BOTTOMLEFT", 0, -2)
+                        formTxt:SetWidth(90)
+                        formTxt:SetJustifyH("LEFT")
+                        local fPreview = rule.rule or ""
+                        if #fPreview > 14 then fPreview = string.sub(fPreview, 1, 12) .. ".." end
+                        formTxt:SetText(fPreview)
+                        formTxt:SetTextColor(0.5, 0.5, 0.5)
+
+                        -- Action Control Buttons: [^] [v] [E] [X]
+                        local rx = CONTENT_W - 24 - 5
+
+                        -- [X] Delete Rule
+                        local delBtn = OpsTheme.CreateButton(rowCard, "[X]", 24, function()
+                            if Omni.Categories and Omni.Categories.DeleteRule then
+                                Omni.Categories:DeleteRule(rule.id or rule.name)
+                            end
+                            RefreshPanel()
+                            RefreshAllInventory()
+                        end)
+                        delBtn:SetHeight(20)
+                        delBtn:SetPoint("RIGHT", rowCard, "RIGHT", -5, 0)
+                        delBtn.text:SetTextColor(1, 0.3, 0.3)
+                        delBtn:SetScript("OnEnter", function(self)
+                            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                            GameTooltip:SetText("Delete Rule", 1, 0.3, 0.3)
+                            GameTooltip:AddLine("Permanently delete this custom rule.", 0.75, 0.75, 0.75, true)
+                            GameTooltip:Show()
+                        end)
+                        delBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+                        -- [E] Edit Rule
+                        local editBtn = OpsTheme.CreateButton(rowCard, "[E]", 24, function()
+                            panel.editingRuleId = rule.id or rule.name
+                            RefreshPanel()
+                        end)
+                        editBtn:SetHeight(20)
+                        editBtn:SetPoint("RIGHT", delBtn, "LEFT", -2, 0)
+                        editBtn.text:SetTextColor(0.9, 0.9, 0.9)
+                        editBtn:SetScript("OnEnter", function(self)
+                            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                            GameTooltip:SetText("Edit Rule", 1, 0.82, 0)
+                            GameTooltip:AddLine("Edit rule target, precedence, or formula.", 0.75, 0.75, 0.75, true)
+                            GameTooltip:Show()
+                        end)
+                        editBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+                        -- [v] Move Down
+                        local dnBtn = OpsTheme.CreateButton(rowCard, "[v]", 24, function()
+                            if Omni.Categories and Omni.Categories.MoveRuleDown then
+                                Omni.Categories:MoveRuleDown(rule.id or rule.name)
+                            end
+                            RefreshPanel()
+                            RefreshAllInventory()
+                        end)
+                        dnBtn:SetHeight(20)
+                        dnBtn:SetPoint("RIGHT", editBtn, "LEFT", -2, 0)
+                        dnBtn.text:SetTextColor(0.8, 0.8, 0.8)
+
+                        -- [^] Move Up
+                        local upBtn = OpsTheme.CreateButton(rowCard, "[^]", 24, function()
+                            if Omni.Categories and Omni.Categories.MoveRuleUp then
+                                Omni.Categories:MoveRuleUp(rule.id or rule.name)
+                            end
+                            RefreshPanel()
+                            RefreshAllInventory()
+                        end)
+                        upBtn:SetHeight(20)
+                        upBtn:SetPoint("RIGHT", dnBtn, "LEFT", -2, 0)
+                        upBtn.text:SetTextColor(0.8, 0.8, 0.8)
+
+                        y = y - 48
+                    end
                 end
-
-                -- Close editor
-                panel.editingCategoryName = nil
-                RefreshPanel()
-                RefreshAllInventory()
-            end)
-            saveBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-            saveBtn:SetScript("OnEnter", function(self)
-                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
-                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText("Save Rule", 1, 0.82, 0)
-                GameTooltip:AddLine("Compile and save this custom rule.", 0.75, 0.75, 0.75, true)
-                GameTooltip:Show()
-            end)
-            saveBtn:SetScript("OnLeave", function(self)
-                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
-                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
-                GameTooltip:Hide()
-            end)
-
-            local cancelBtn = OpsTheme.CreateButton(container, "Cancel", 80, function()
-                panel.editingCategoryName = nil
-                RefreshPanel()
-            end)
-            cancelBtn:SetPoint("TOPLEFT", saveBtn, "TOPRIGHT", 10, 0)
-            cancelBtn:SetScript("OnEnter", function(self)
-                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
-                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText("Cancel", 1, 0.82, 0)
-                GameTooltip:AddLine("Discard changes and return to the list.", 0.75, 0.75, 0.75, true)
-                GameTooltip:Show()
-            end)
-            cancelBtn:SetScript("OnLeave", function(self)
-                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
-                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
-                GameTooltip:Hide()
-            end)
-            y = y - 30
+            end
 
         else
             -- =============================================================================
-            -- LIST MODE
+            -- CATEGORY SECTION LANES VIEW
             -- =============================================================================
-            local addBtn = OpsTheme.CreateButton(container, "+ Add New Rule", 120, function()
-                panel.editingCategoryName = ""
-                RefreshPanel()
-            end)
-            addBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-            addBtn:SetScript("OnEnter", function(self)
-                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
-                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText("Add New Rule", 1, 0.82, 0)
-                GameTooltip:AddLine("Create a new custom sorting rule.", 0.75, 0.75, 0.75, true)
-                GameTooltip:Show()
-            end)
-            addBtn:SetScript("OnLeave", function(self)
-                self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
-                self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
-                GameTooltip:Hide()
-            end)
-            y = y - 30
+            if panel.editingCategoryName ~= nil then
+                -- -------------------------------------------------------------------------
+                -- CATEGORY EDITOR MODE
+                -- -------------------------------------------------------------------------
+                local isNewCat = (panel.editingCategoryName == "")
+                local catNameKey = panel.editingCategoryName
+                local catObj = not isNewCat and Omni.Categories and Omni.Categories:Get(catNameKey)
 
-            local cats = Omni.Categories and Omni.Categories:GetAll() or {}
-            if #cats == 0 then
-                local noRulesText = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                noRulesText:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-                noRulesText:SetText("No custom rules created yet.")
-                noRulesText:SetTextColor(0.5, 0.5, 0.5)
-                y = y - 20
-            else
-                for _, cat in ipairs(cats) do
-                    local rowFrame = CreateFrame("Frame", nil, container)
-                    rowFrame:SetSize(CONTENT_W - 24, 38)
-                    rowFrame:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
-                    OpsTheme:ApplyControlBackdrop(rowFrame)
-                    rowFrame:SetBackdropColor(0.1, 0.1, 0.1, 0.3)
+                local cName = catObj and catObj.name or (isNewCat and "" or catNameKey)
+                local cPrio = catObj and tostring(catObj.sequence or 50) or "50"
+                local cColor = catObj and catObj.color or { r = 0.5, g = 0.5, b = 0.5 }
 
-                    -- Name & Prio
-                    local nameText = rowFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-                    nameText:SetPoint("TOPLEFT", 6, -4)
-                    nameText:SetText(cat.name)
-                    nameText:SetTextColor(1, 0.82, 0)
+                local subHeader = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                subHeader:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                subHeader:SetText(isNewCat and "CREATE NEW CATEGORY LANE" or "EDIT CATEGORY: " .. cName)
+                subHeader:SetTextColor(1, 0.82, 0)
+                y = y - 18
 
-                    local prioText = rowFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                    prioText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
-                    prioText:SetText("Prio: " .. (cat.sequence or 50))
-                    prioText:SetTextColor(0.6, 0.6, 0.6)
+                -- Category Name
+                local nameLbl = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                nameLbl:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                nameLbl:SetText("Category Lane Name:")
+                nameLbl:SetTextColor(0.8, 0.8, 0.8)
+                y = y - 14
 
-                    -- Formula (truncated)
-                    local formulaText = rowFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                    formulaText:SetPoint("LEFT", 120, 0)
-                    formulaText:SetWidth(120)
-                    formulaText:SetJustifyH("LEFT")
-                    local rawFormula = cat.rule or ""
-                    if #rawFormula > 25 then
-                        rawFormula = string.sub(rawFormula, 1, 22) .. "..."
+                local nameBox = CreateEditBox(320, 22, cName)
+                nameBox:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                y = y - 28
+
+                -- Priority / Order
+                local prioLbl = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                prioLbl:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                prioLbl:SetText("Priority Order (lower numbers appear earlier in layout):")
+                prioLbl:SetTextColor(0.8, 0.8, 0.8)
+                y = y - 14
+
+                local prioBox = CreateEditBox(80, 22, cPrio)
+                prioBox:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                y = y - 28
+
+                -- Color Palette Selection
+                local colLbl = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                colLbl:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                colLbl:SetText("Lane Header Color:")
+                colLbl:SetTextColor(0.8, 0.8, 0.8)
+                y = y - 14
+
+                local selectedColor = { r = cColor.r or 0.5, g = cColor.g or 0.5, b = cColor.b or 0.5 }
+
+                local colorPresets = {
+                    { label = "Steel", r = 0.35, g = 0.70, b = 0.95 },
+                    { label = "Amber", r = 0.90, g = 0.65, b = 0.25 },
+                    { label = "Sage",  r = 0.55, g = 0.75, b = 0.55 },
+                    { label = "Purple",r = 0.75, g = 0.50, b = 0.90 },
+                    { label = "Cyan",  r = 0.00, g = 0.85, b = 0.95 },
+                    { label = "Rose",  r = 0.95, g = 0.60, b = 0.60 },
+                }
+
+                local cx = COL_LEFT
+                for _, cp in ipairs(colorPresets) do
+                    local cBtn = OpsTheme.CreateButton(container, cp.label, 50, function()
+                        selectedColor = { r = cp.r, g = cp.g, b = cp.b }
+                    end)
+                    cBtn:SetHeight(18)
+                    cBtn:SetPoint("TOPLEFT", container, "TOPLEFT", cx, y)
+                    cBtn.text:SetTextColor(cp.r, cp.g, cp.b)
+                    cx = cx + 54
+                end
+                y = y - 28
+
+                -- Save & Cancel Buttons
+                local saveBtn = OpsTheme.CreateButton(container, "Save Category", 100, function()
+                    local newName = nameBox.editBox:GetText() or ""
+                    newName = newName:match("^%s*(.-)%s*$")
+                    local newPrio = tonumber(prioBox.editBox:GetText()) or 50
+
+                    if newName == "" then return end
+
+                    if Omni.Categories and Omni.Categories.Create then
+                        Omni.Categories:Create(newName, {
+                            sequence = newPrio,
+                            color = selectedColor,
+                        })
                     end
-                    formulaText:SetText(rawFormula)
-                    formulaText:SetTextColor(0.8, 0.8, 0.8)
 
-                    -- Action buttons
-                    local editBtn = OpsTheme.CreateButton(rowFrame, "Edit", 40, function()
-                        panel.editingCategoryName = cat.name
-                        RefreshPanel()
-                    end)
-                    editBtn:SetPoint("RIGHT", -50, 0)
-                    editBtn:SetHeight(18)
-                    editBtn:SetScript("OnEnter", function(self)
-                        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
-                        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
-                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                        GameTooltip:SetText("Edit Rule", 1, 0.82, 0)
-                        GameTooltip:AddLine("Edit this custom rule's priority and formula.", 0.75, 0.75, 0.75, true)
-                        GameTooltip:Show()
-                    end)
-                    editBtn:SetScript("OnLeave", function(self)
-                        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
-                        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
-                        GameTooltip:Hide()
-                    end)
+                    panel.editingCategoryName = nil
+                    RefreshPanel()
+                    RefreshAllInventory()
+                end)
+                saveBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
 
-                    local deleteBtn = OpsTheme.CreateButton(rowFrame, "Del", 36, function()
-                        if Omni.Categories then
-                            Omni.Categories:Delete(cat.name)
-                        end
-                        RefreshPanel()
-                        RefreshAllInventory()
-                    end)
-                    deleteBtn:SetPoint("RIGHT", -8, 0)
-                    deleteBtn:SetHeight(18)
-                    deleteBtn:SetScript("OnEnter", function(self)
-                        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
-                        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
-                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                        GameTooltip:SetText("Delete Rule", 1, 0.82, 0)
-                        GameTooltip:AddLine("Delete this custom rule.", 0.75, 0.75, 0.75, true)
-                        GameTooltip:Show()
-                    end)
-                    deleteBtn:SetScript("OnLeave", function(self)
-                        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
-                        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
-                        GameTooltip:Hide()
-                    end)
-                    deleteBtn.text:SetTextColor(1, 0.3, 0.3)
+                local cancelBtn = OpsTheme.CreateButton(container, "Cancel", 80, function()
+                    panel.editingCategoryName = nil
+                    RefreshPanel()
+                end)
+                cancelBtn:SetPoint("LEFT", saveBtn, "RIGHT", 10, 0)
+                y = y - 30
 
-                    y = y - 42
+            else
+                -- -------------------------------------------------------------------------
+                -- CATEGORY SECTION LANES LIST MODE
+                -- -------------------------------------------------------------------------
+                local addCatBtn = OpsTheme.CreateButton(container, "[+] New Category", 120, function()
+                    panel.editingCategoryName = ""
+                    RefreshPanel()
+                end)
+                addCatBtn:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                addCatBtn:SetScript("OnEnter", function(self)
+                    self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+                    self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    GameTooltip:SetText("Add New Category Section Lane", 1, 0.82, 0)
+                    GameTooltip:AddLine("Create a new section lane for grouping items in Flow view.", 0.75, 0.75, 0.75, true)
+                    GameTooltip:Show()
+                end)
+                addCatBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+                y = y - 28
+
+                local cats = Omni.Categories and Omni.Categories:GetAll() or {}
+                if #cats == 0 then
+                    local emptyTxt = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                    emptyTxt:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                    emptyTxt:SetText("No custom category lanes created yet.")
+                    emptyTxt:SetTextColor(0.5, 0.5, 0.5)
+                    y = y - 20
+                else
+                    for _, cat in ipairs(cats) do
+                        local rowCard = CreateFrame("Frame", nil, container)
+                        rowCard:SetSize(CONTENT_W - 24, 38)
+                        rowCard:SetPoint("TOPLEFT", container, "TOPLEFT", COL_LEFT, y)
+                        ApplyTuiCardBackdrop(rowCard)
+
+                        -- Color Swatch
+                        local swatch = rowCard:CreateTexture(nil, "OVERLAY")
+                        swatch:SetSize(12, 12)
+                        swatch:SetPoint("LEFT", rowCard, "LEFT", 8, 0)
+                        swatch:SetTexture("Interface\\Buttons\\WHITE8X8")
+                        local cr = cat.color and cat.color.r or 0.5
+                        local cg = cat.color and cat.color.g or 0.5
+                        local cb = cat.color and cat.color.b or 0.5
+                        swatch:SetVertexColor(cr, cg, cb)
+
+                        -- Name & Priority
+                        local cNameTxt = rowCard:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+                        cNameTxt:SetPoint("LEFT", swatch, "RIGHT", 8, 0)
+                        cNameTxt:SetText(cat.name)
+                        cNameTxt:SetTextColor(1, 0.82, 0)
+
+                        local prioTxt = rowCard:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                        prioTxt:SetPoint("LEFT", rowCard, "LEFT", 170, 0)
+                        prioTxt:SetText("Prio: " .. (cat.sequence or 50))
+                        prioTxt:SetTextColor(0.6, 0.6, 0.6)
+
+                        -- Action Control Buttons: [^] [v] [E] [X]
+                        local delBtn = OpsTheme.CreateButton(rowCard, "[X]", 24, function()
+                            if Omni.Categories and Omni.Categories.Delete then
+                                Omni.Categories:Delete(cat.name)
+                            end
+                            RefreshPanel()
+                            RefreshAllInventory()
+                        end)
+                        delBtn:SetHeight(20)
+                        delBtn:SetPoint("RIGHT", rowCard, "RIGHT", -5, 0)
+                        delBtn.text:SetTextColor(1, 0.3, 0.3)
+
+                        local editBtn = OpsTheme.CreateButton(rowCard, "[E]", 24, function()
+                            panel.editingCategoryName = cat.name
+                            RefreshPanel()
+                        end)
+                        editBtn:SetHeight(20)
+                        editBtn:SetPoint("RIGHT", delBtn, "LEFT", -2, 0)
+                        editBtn.text:SetTextColor(0.9, 0.9, 0.9)
+
+                        local dnBtn = OpsTheme.CreateButton(rowCard, "[v]", 24, function()
+                            if Omni.Categories and Omni.Categories.MoveCategoryDown then
+                                Omni.Categories:MoveCategoryDown(cat.name)
+                            end
+                            RefreshPanel()
+                            RefreshAllInventory()
+                        end)
+                        dnBtn:SetHeight(20)
+                        dnBtn:SetPoint("RIGHT", editBtn, "LEFT", -2, 0)
+                        dnBtn.text:SetTextColor(0.8, 0.8, 0.8)
+
+                        local upBtn = OpsTheme.CreateButton(rowCard, "[^]", 24, function()
+                            if Omni.Categories and Omni.Categories.MoveCategoryUp then
+                                Omni.Categories:MoveCategoryUp(cat.name)
+                            end
+                            RefreshPanel()
+                            RefreshAllInventory()
+                        end)
+                        upBtn:SetHeight(20)
+                        upBtn:SetPoint("RIGHT", dnBtn, "LEFT", -2, 0)
+                        upBtn.text:SetTextColor(0.8, 0.8, 0.8)
+
+                        y = y - 42
+                    end
                 end
             end
         end

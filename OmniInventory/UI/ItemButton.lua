@@ -216,14 +216,14 @@ function ItemButton:HandleBagSlotRightClickInventory(bagID, slotID, secureUseCon
 end
 
 local QUALITY_COLORS = {
-    [0] = { 0.62, 0.62, 0.62 },
-    [1] = { 1.00, 1.00, 1.00 },
-    [2] = { 0.12, 1.00, 0.00 },
-    [3] = { 0.00, 0.44, 0.87 },
-    [4] = { 0.64, 0.21, 0.93 },
-    [5] = { 1.00, 0.50, 0.00 },
-    [6] = { 0.90, 0.80, 0.50 },
-    [7] = { 0.00, 0.80, 1.00 },
+    [0] = { 0.478, 0.455, 0.431 }, -- Poor (Mute Grey)
+    [1] = { 0.812, 0.796, 0.769 }, -- Common (Charcoal Off-White)
+    [2] = { 0.188, 0.820, 0.345 }, -- Uncommon (OpenCode Green)
+    [3] = { 0.000, 0.478, 1.000 }, -- Rare (OpenCode Blue)
+    [4] = { 0.635, 0.325, 0.871 }, -- Epic (OpenCode Purple)
+    [5] = { 1.000, 0.624, 0.039 }, -- Legendary (OpenCode Gold)
+    [6] = { 0.900, 0.800, 0.500 }, -- Artifact (OpenCode Gold)
+    [7] = { 0.000, 0.800, 1.000 }, -- Heirloom (OpenCode Heirloom Cyan)
 }
 
 -- Hidden, ID-less limbo parent for buttons that are not currently
@@ -796,7 +796,8 @@ function ItemButton:Create(parent)
         end
     end
 
-
+    ItemButton.ApplyThemeToButton(button)
+    ItemButton.ApplyExternalSkin(button)
 
     return button
 end
@@ -848,6 +849,10 @@ end
 function ItemButton:SetItem(button, itemInfo)
     if not button then return end
 
+    if not button.__omniSkinType then
+        ItemButton.ApplyExternalSkin(button)
+    end
+
     button.itemInfo = itemInfo
 
     if itemInfo and itemInfo.__empty then
@@ -875,10 +880,7 @@ function ItemButton:SetItem(button, itemInfo)
         if sr then
             r, g, b = sr, sg, sb
         end
-        if button.borderTop then button.borderTop:SetVertexColor(r, g, b, 1) end
-        if button.borderBottom then button.borderBottom:SetVertexColor(r, g, b, 1) end
-        if button.borderLeft then button.borderLeft:SetVertexColor(r, g, b, 1) end
-        if button.borderRight then button.borderRight:SetVertexColor(r, g, b, 1) end
+        ItemButton.UpdateQualityBorderColor(button, r, g, b, 1, 1)
         button.dimOverlay:Hide()
         UpdateEmptyDropHighlight(button)
         ClearButtonOverlays(button)
@@ -893,10 +895,7 @@ function ItemButton:SetItem(button, itemInfo)
         button.count:Hide()
         pcall(button.EnableMouse, button, false)
         local grey = 0.3
-        if button.borderTop then button.borderTop:SetVertexColor(grey, grey, grey, 1) end
-        if button.borderBottom then button.borderBottom:SetVertexColor(grey, grey, grey, 1) end
-        if button.borderLeft then button.borderLeft:SetVertexColor(grey, grey, grey, 1) end
-        if button.borderRight then button.borderRight:SetVertexColor(grey, grey, grey, 1) end
+        ItemButton.UpdateQualityBorderColor(button, grey, grey, grey, 1, 1)
         button.dimOverlay:Hide()
         UpdateEmptyDropHighlight(button)
         ClearButtonOverlays(button)
@@ -987,30 +986,19 @@ function ItemButton:SetItem(button, itemInfo)
 
     -- Set quality border color
     local quality = itemInfo.quality or 1
-    local r, g, b
+    local r, g, b, a
     local sr, sg, sb = GetSpecialtyBagColor(itemInfo.bagID)
     if quality <= 1 and sr then
-        r, g, b = sr, sg, sb
+        r, g, b, a = sr, sg, sb, 1
     else
-        local color = QUALITY_COLORS[quality] or QUALITY_COLORS[1]
-        r, g, b = color[1], color[2], color[3]
+        if Omni.OpsTheme and Omni.OpsTheme.GetQualityColor then
+            r, g, b, a = Omni.OpsTheme:GetQualityColor(quality)
+        else
+            local color = QUALITY_COLORS[quality] or QUALITY_COLORS[1]
+            r, g, b, a = color[1], color[2], color[3], 1
+        end
     end
-    if button.borderTop then
-        button.borderTop:SetVertexColor(r, g, b, 1)
-        button.borderTop:Show()
-    end
-    if button.borderBottom then
-        button.borderBottom:SetVertexColor(r, g, b, 1)
-        button.borderBottom:Show()
-    end
-    if button.borderLeft then
-        button.borderLeft:SetVertexColor(r, g, b, 1)
-        button.borderLeft:Show()
-    end
-    if button.borderRight then
-        button.borderRight:SetVertexColor(r, g, b, 1)
-        button.borderRight:Show()
-    end
+    ItemButton.UpdateQualityBorderColor(button, r, g, b, a, quality)
 
     -- ContainerFrameItemButton_OnClick reads bag from
     -- self:GetParent():GetID() and slot from self:GetID(); the parenting
@@ -1169,33 +1157,43 @@ end
 
 function ItemButton:SetSearchMatch(button, isMatch)
     if not button then return end
+    if ItemButton.Decorate then ItemButton.Decorate(button) end
 
     if isMatch then
-        button.dimOverlay:Hide()
-        button.icon:SetDesaturated(false)
-        button.icon:SetAlpha(1)
+        if button.dimOverlay then button.dimOverlay:Hide() end
+        if button.icon then
+            button.icon:SetDesaturated(false)
+            button.icon:SetAlpha(1)
+        end
     else
-        button.dimOverlay:Show()
-        button.icon:SetDesaturated(true)
-        button.icon:SetAlpha(0.5)
+        if button.dimOverlay then button.dimOverlay:Show() end
+        if button.icon then
+            button.icon:SetDesaturated(true)
+            button.icon:SetAlpha(0.5)
+        end
     end
 end
 
 function ItemButton:ClearSearch(button)
     if not button then return end
+    if ItemButton.Decorate then ItemButton.Decorate(button) end
 
     local info = button.itemInfo
     if info and info.isQuickFiltered then
-        button.dimOverlay:Show()
-        button.icon:SetDesaturated(true)
-        button.icon:SetAlpha(0.4)
-        button.icon:SetVertexColor(1, 1, 1)
+        if button.dimOverlay then button.dimOverlay:Show() end
+        if button.icon then
+            button.icon:SetDesaturated(true)
+            button.icon:SetAlpha(0.4)
+            button.icon:SetVertexColor(1, 1, 1)
+        end
         return
     end
 
-    button.dimOverlay:Hide()
-    button.icon:SetDesaturated(false)
-    button.icon:SetAlpha(1)
+    if button.dimOverlay then button.dimOverlay:Hide() end
+    if button.icon then
+        button.icon:SetDesaturated(false)
+        button.icon:SetAlpha(1)
+    end
 end
 
 -- =============================================================================
@@ -1586,10 +1584,7 @@ function ItemButton:Reset(button)
     end
 
     local grey = 0.3
-    if button.borderTop then button.borderTop:SetVertexColor(grey, grey, grey, 1) end
-    if button.borderBottom then button.borderBottom:SetVertexColor(grey, grey, grey, 1) end
-    if button.borderLeft then button.borderLeft:SetVertexColor(grey, grey, grey, 1) end
-    if button.borderRight then button.borderRight:SetVertexColor(grey, grey, grey, 1) end
+    ItemButton.UpdateQualityBorderColor(button, grey, grey, grey, 1, 1)
 
     if button.dimOverlay then button.dimOverlay:Hide() end
     if button.pinIcon then button.pinIcon:Hide() end
@@ -1612,8 +1607,257 @@ end
 -- =============================================================================
 -- "rounded" = inset icons (0.08-0.92 texCoord), "square" = full-crop (0-1)
 
+-- =============================================================================
+-- Theme & Skinning Suite Adapters (R2: Masque/ButtonFacade, ElvUI, Tukui, LortiUI, Native)
+-- =============================================================================
+
+local masqueGroups = {}
+
+--- Detect active external skinning framework or return "native"
+-- @return string skinType ("masque", "elvui", "tukui", "lortiui", "native")
+-- @return table|nil addonHandle
+function ItemButton.DetectSkinningAddon()
+    -- 1. Check LibStub Masque / ButtonFacade or global objects
+    local Masque = (LibStub and LibStub("Masque", true))
+        or (LibStub and LibStub("ButtonFacade", true))
+        or _G.Masque or _G.ButtonFacade
+    if Masque then
+        return "masque", Masque
+    end
+
+    -- 2. Check ElvUI framework
+    if _G.ElvUI and _G.ElvUI[1] then
+        return "elvui", _G.ElvUI[1]
+    end
+
+    -- 3. Check Tukui framework
+    if _G.Tukui and (_G.Tukui[1] or _G.Tukui.SetTemplate) then
+        return "tukui", _G.Tukui
+    end
+
+    -- 4. Check LortiUI
+    if _G.LortiUI or _G.LortiUIFont
+        or (IsAddOnLoaded and (IsAddOnLoaded("LortiUI") or IsAddOnLoaded("Lorti-UI") or IsAddOnLoaded("LortiUI_rActionBars"))) then
+        return "lortiui", nil
+    end
+
+    return "native", nil
+end
+
+--- Get Masque Group Name for a button context
+-- @param button ItemButton object
+-- @param customGroup Optional explicit group name override
+-- @return string groupName ("Bags", "Bank", "Guild Bank", or "Item Buttons")
+function ItemButton.GetMasqueGroupName(button, customGroup)
+    if customGroup then
+        return customGroup
+    end
+    if not button then
+        return "Bags"
+    end
+    if button.isGuildBank then
+        return "Guild Bank"
+    end
+    local bagID = button.bagID
+    if bagID == -1 or (bagID and bagID >= 5 and bagID <= 11) then
+        return "Bank"
+    end
+    return "Bags"
+end
+
+--- Register or update button skin styling according to active adapter
+-- @param button ItemButton object
+-- @param customGroup Optional group name for Masque
+function ItemButton.ApplyExternalSkin(button, customGroup)
+    if not button then return end
+
+    local skinType, addonObj = ItemButton.DetectSkinningAddon()
+    button.__omniSkinType = skinType
+
+    if skinType == "masque" then
+        local groupName = ItemButton.GetMasqueGroupName(button, customGroup)
+        button.__masqueGroupName = groupName
+        if not masqueGroups[groupName] and addonObj then
+            if type(addonObj.Group) == "function" then
+                masqueGroups[groupName] = addonObj:Group("OmniInventory", groupName)
+            end
+        end
+        local group = masqueGroups[groupName]
+        if group then
+            local buttonData = {
+                Icon = button.icon,
+                Cooldown = button.cooldown,
+                Count = button.count,
+                Border = button.border,
+            }
+            if group.AddButton then
+                pcall(group.AddButton, group, button, buttonData)
+            end
+            if group.ReSkin then
+                pcall(group.ReSkin, group, button)
+            end
+            button.__isMasqueSkinned = true
+        end
+        -- Hide native 4-edge border lines to prevent collision with Masque skin
+        if button.borderTop then button.borderTop:Hide() end
+        if button.borderBottom then button.borderBottom:Hide() end
+        if button.borderLeft then button.borderLeft:Hide() end
+        if button.borderRight then button.borderRight:Hide() end
+
+    elseif skinType == "elvui" then
+        local E = addonObj
+        if E then
+            if type(E.CropIcon) == "function" then
+                pcall(E.CropIcon, E, button.icon)
+            elseif button.icon then
+                button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            end
+            local B = E:GetModule("Bags", true) or E:GetModule("Skins", true)
+            if B and type(B.SkinButton) == "function" then
+                pcall(B.SkinButton, B, button)
+            elseif button.SetTemplate then
+                pcall(button.SetTemplate, button, "Default")
+            elseif type(E.CreateBackdrop) == "function" then
+                pcall(E.CreateBackdrop, E, button, "Default")
+            end
+        end
+        button.__isElvUISkinned = true
+        -- Hide native 4-edge border lines to prevent collision with ElvUI skin
+        if button.borderTop then button.borderTop:Hide() end
+        if button.borderBottom then button.borderBottom:Hide() end
+        if button.borderLeft then button.borderLeft:Hide() end
+        if button.borderRight then button.borderRight:Hide() end
+
+    elseif skinType == "tukui" then
+        local T = addonObj
+        if T then
+            if type(T.CropIcon) == "function" then
+                pcall(T.CropIcon, button.icon)
+            elseif button.icon then
+                button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            end
+            if button.SetTemplate then
+                pcall(button.SetTemplate, button, "Default")
+            elseif type(T.SetTemplate) == "function" then
+                pcall(T.SetTemplate, button, "Default")
+            end
+        end
+        button.__isTukuiSkinned = true
+        -- Hide native 4-edge border lines to prevent collision with Tukui skin
+        if button.borderTop then button.borderTop:Hide() end
+        if button.borderBottom then button.borderBottom:Hide() end
+        if button.borderLeft then button.borderLeft:Hide() end
+        if button.borderRight then button.borderRight:Hide() end
+
+    elseif skinType == "lortiui" then
+        if button.icon then
+            button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        end
+        if button.bg then
+            button.bg:SetVertexColor(0.05, 0.05, 0.05, 1)
+        end
+        button.__isLortiUISkinned = true
+        -- Native 4-edge border lines active with dark LortiUI action bar aesthetics
+        if button.borderTop then button.borderTop:Show() end
+        if button.borderBottom then button.borderBottom:Show() end
+        if button.borderLeft then button.borderLeft:Show() end
+        if button.borderRight then button.borderRight:Show() end
+
+    else
+        -- Native OpenCode TUI Fallback
+        button.__isNativeSkinned = true
+        if button.borderTop then button.borderTop:Show() end
+        if button.borderBottom then button.borderBottom:Show() end
+        if button.borderLeft then button.borderLeft:Show() end
+        if button.borderRight then button.borderRight:Show() end
+    end
+end
+
+--- Update quality border color on button without colliding with external skins
+-- @param button ItemButton object
+-- @param r Red (0..1)
+-- @param g Green (0..1)
+-- @param b Blue (0..1)
+-- @param a Alpha (0..1)
+-- @param quality Optional item quality integer (0..7)
+function ItemButton.UpdateQualityBorderColor(button, r, g, b, a, quality)
+    if not button then return end
+    a = a or 1
+    local skinType = button.__omniSkinType or ItemButton.DetectSkinningAddon()
+
+    if skinType == "masque" then
+        if button.borderTop then button.borderTop:Hide() end
+        if button.borderBottom then button.borderBottom:Hide() end
+        if button.borderLeft then button.borderLeft:Hide() end
+        if button.borderRight then button.borderRight:Hide() end
+        local groupName = button.__masqueGroupName or ItemButton.GetMasqueGroupName(button)
+        local group = masqueGroups[groupName]
+        if group and type(group.SetNormalColor) == "function" then
+            pcall(group.SetNormalColor, group, button, r, g, b, a)
+        elseif button.SetBorderColor then
+            pcall(button.SetBorderColor, button, r, g, b, a)
+        end
+
+    elseif skinType == "elvui" or skinType == "tukui" then
+        if button.borderTop then button.borderTop:Hide() end
+        if button.borderBottom then button.borderBottom:Hide() end
+        if button.borderLeft then button.borderLeft:Hide() end
+        if button.borderRight then button.borderRight:Hide() end
+        if button.backdrop and type(button.backdrop.SetBackdropBorderColor) == "function" then
+            pcall(button.backdrop.SetBackdropBorderColor, button.backdrop, r, g, b, a)
+        elseif type(button.SetBackdropBorderColor) == "function" then
+            pcall(button.SetBackdropBorderColor, button, r, g, b, a)
+        end
+
+    elseif skinType == "lortiui" then
+        if button.borderTop then button.borderTop:Show() end
+        if button.borderBottom then button.borderBottom:Show() end
+        if button.borderLeft then button.borderLeft:Show() end
+        if button.borderRight then button.borderRight:Show() end
+        -- Dark action bar aesthetic for poor/common items, quality tint for uncommon+
+        local isSpecialty = button.itemInfo and GetSpecialtyBagColor(button.itemInfo.bagID)
+        if quality and quality <= 1 and not isSpecialty then
+            r, g, b = 0.12, 0.12, 0.12
+        end
+        if button.borderTop then button.borderTop:SetVertexColor(r, g, b, a) end
+        if button.borderBottom then button.borderBottom:SetVertexColor(r, g, b, a) end
+        if button.borderLeft then button.borderLeft:SetVertexColor(r, g, b, a) end
+        if button.borderRight then button.borderRight:SetVertexColor(r, g, b, a) end
+
+    else
+        -- Native OpenCode TUI quality glow borders
+        if button.borderTop then
+            button.borderTop:SetVertexColor(r, g, b, a)
+            button.borderTop:Show()
+        end
+        if button.borderBottom then
+            button.borderBottom:SetVertexColor(r, g, b, a)
+            button.borderBottom:Show()
+        end
+        if button.borderLeft then
+            button.borderLeft:SetVertexColor(r, g, b, a)
+            button.borderLeft:Show()
+        end
+        if button.borderRight then
+            button.borderRight:SetVertexColor(r, g, b, a)
+            button.borderRight:Show()
+        end
+    end
+end
+
 function ItemButton.ApplyThemeToButton(button)
     if not button or not button.icon then return end
+    local skinType = button.__omniSkinType or ItemButton.DetectSkinningAddon()
+    if skinType == "elvui" or skinType == "tukui" or skinType == "lortiui" then
+        button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        if button.icon.SetPoint then
+            button.icon:ClearAllPoints()
+            button.icon:SetPoint("TOPLEFT", 2, -2)
+            button.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+        end
+        return
+    end
+
     local isSquare = Omni.Features and Omni.Features.IsSquareTheme
         and Omni.Features:IsSquareTheme() or false
     if isSquare then
@@ -1634,9 +1878,11 @@ function ItemButton.ApplyThemeToButton(button)
 end
 
 function ItemButton:ApplyThemeToAllButtons()
+    local skinType, addonObj = ItemButton.DetectSkinningAddon()
     if Omni.Frame and Omni.Frame._IterateSlotButtons then
         Omni.Frame._IterateSlotButtons(function(_, _, btn)
             ItemButton.ApplyThemeToButton(btn)
+            ItemButton.ApplyExternalSkin(btn)
         end)
     end
     if Omni.Pool and Omni.Pool.Get then
@@ -1644,6 +1890,14 @@ function ItemButton:ApplyThemeToAllButtons()
         if pool and pool.available then
             for _, btn in ipairs(pool.available) do
                 ItemButton.ApplyThemeToButton(btn)
+                ItemButton.ApplyExternalSkin(btn)
+            end
+        end
+    end
+    if skinType == "masque" then
+        for _, group in pairs(masqueGroups) do
+            if group and type(group.ReSkin) == "function" then
+                pcall(group.ReSkin, group)
             end
         end
     end

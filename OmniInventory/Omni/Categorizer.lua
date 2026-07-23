@@ -559,13 +559,24 @@ function Categorizer:GetCategoryInternal(itemInfo)
         end
     end
 
-    -- User-defined categories (A18): evaluate in sequence order
-    -- before the hardcoded pipeline. Each category has an optional item
-    -- list and/or a compiled rule expression.
+    -- Priority 1.5: Dynamic User Rules & Categories (R1)
     if Omni.Categories then
+        if Omni.Categories.GetAllRules then
+            local userRules = Omni.Categories:GetAllRules()
+            for _, rule in ipairs(userRules or {}) do
+                if rule.enabled ~= false and Omni.Categories:ItemMatchesRule(itemInfo, rule) then
+                    if Omni._perfEnabled and Omni.Perf then
+                        Omni.Perf:End("categorizer.GetCategory", perfToken)
+                    end
+                    local target = (rule.categoryTarget and rule.categoryTarget ~= "") and rule.categoryTarget or rule.name
+                    return target
+                end
+            end
+        end
+
         local userCats = Omni.Categories:GetAll()
         for _, cat in ipairs(userCats or {}) do
-            if Omni.Categories:ItemMatchesCategory(itemInfo, cat.name) then
+            if cat.enabled ~= false and Omni.Categories:ItemMatchesCategory(itemInfo, cat.name) then
                 if Omni._perfEnabled and Omni.Perf then
                     Omni.Perf:End("categorizer.GetCategory", perfToken)
                 end
@@ -733,6 +744,16 @@ function Categorizer:GetCategoryInfo(name)
             priority = 150,
             color = { r = 0.5, g = 0.5, b = 0.5 },
         }
+    end
+    if Omni.Categories and Omni.Categories.Get then
+        local userCat = Omni.Categories:Get(name)
+        if userCat then
+            return {
+                name = userCat.name,
+                priority = userCat.sequence or 50,
+                color = userCat.color or CATEGORY_COLORS[name] or { r = 0.5, g = 0.5, b = 0.5 },
+            }
+        end
     end
     return categories[name] or {
         name = name,

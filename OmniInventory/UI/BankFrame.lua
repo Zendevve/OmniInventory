@@ -43,6 +43,7 @@ end
 
 Omni.BankFrame = {}
 local BankFrame = Omni.BankFrame
+local VirtualScrollView = Omni.VirtualScrollView
 
 -- =============================================================================
 -- Constants
@@ -712,32 +713,39 @@ local function CreateSearchBar(parent)
 end
 
 local function CreateContentArea(parent)
-    local content = CreateFrame("ScrollFrame", "OmniBankContentScroll", parent, "UIPanelScrollFrameTemplate")
-    content:SetPoint("TOPLEFT", parent.searchBar, "BOTTOMLEFT", 0, -4)
-    content:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -PADDING - 20, PADDING + FOOTER_HEIGHT + 4)
+    local width = parent:GetWidth() - (PADDING * 2) - 20
+    local height = parent:GetHeight() - HEADER_HEIGHT - SEARCH_HEIGHT - FOOTER_HEIGHT - (PADDING * 3)
+    if width <= 0 then width = 400 end
+    if height <= 0 then height = 300 end
 
-    local scrollChild = CreateFrame("Frame", "OmniBankContentChild", content)
-    scrollChild:SetSize(content:GetWidth(), 1)
-    content:SetScrollChild(scrollChild)
+    -- Instantiate VirtualScrollView Viewport Controller
+    local virtualView = Omni.VirtualScrollView:Create(parent, "OmniBankVirtualScrollView", width, height)
+    virtualView.container:SetPoint("TOPLEFT", parent.searchBar, "BOTTOMLEFT", 0, -4)
+    virtualView.container:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -PADDING - 20, PADDING + FOOTER_HEIGHT + 4)
 
-    local scrollBar = _G["OmniBankContentScrollScrollBar"]
-    if scrollBar then
-        scrollBar:ClearAllPoints()
-        scrollBar:SetPoint("TOPRIGHT", content, "TOPRIGHT", 20, -16)
-        scrollBar:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 20, 16)
-    end
+    parent.virtualView = virtualView
+    parent.content = virtualView.scrollFrame
+    parent.scrollChild = virtualView.scrollChild
 
-    -- Per-bag ItemContainer frames for the bank, mirroring the
-    -- main bag's setup. ContainerFrameItemButton_OnClick reads bag from
-    -- self:GetParent():GetID(), so each button must live under a parent
-    -- whose SetID matches its bag (-1 main bank, 5..11 bank bags).
+    -- Wire OnVerticalScroll Handler
+    virtualView.scrollFrame:SetScript("OnVerticalScroll", function(self, offset)
+        virtualView:UpdateViewport(offset)
+    end)
+
+    -- Per-bag ItemContainer frames for the bank
     parent.itemContainers = {}
     local function MakeItemContainer(bagID)
-        local f = CreateFrame("Frame", nil, scrollChild)
-        f:SetSize(1, 1)
-        f:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
-        f:SetID(bagID)
-        f:Show()
+        local f = nil
+        if Omni.FramePool and not InCombat() then
+            f = Omni.FramePool:GetDummyBag(parent, bagID)
+        end
+        if not f then
+            f = CreateFrame("Frame", "OmniInventoryDummyBag" .. bagID, virtualView.scrollChild)
+            f:SetSize(1, 1)
+            f:SetPoint("TOPLEFT", virtualView.scrollChild, "TOPLEFT", 0, 0)
+            f:SetID(bagID)
+            f:Show()
+        end
         parent.itemContainers[bagID] = f
         return f
     end
@@ -746,16 +754,20 @@ local function CreateContentArea(parent)
         MakeItemContainer(bagID)
     end
     parent._makeItemContainer = MakeItemContainer
-
-    parent.content = content
-    parent.scrollChild = scrollChild
 end
 
 local function GetBankItemContainer(bagID)
     if not bankFrame or not bankFrame.itemContainers then return nil end
     local container = bankFrame.itemContainers[bagID]
     if container then return container end
-    if InCombatLockdown and InCombatLockdown() then return nil end
+    if InCombat() then return nil end
+    if Omni.FramePool and not InCombat() then
+        local dummy = Omni.FramePool:GetDummyBag(bankFrame, bagID)
+        if dummy then
+            bankFrame.itemContainers[bagID] = dummy
+            return dummy
+        end
+    end
     if bankFrame._makeItemContainer then
         return bankFrame._makeItemContainer(bagID)
     end
@@ -988,6 +1000,16 @@ function BankFrame:SetView(mode)
     OmniInventoryDB.char = OmniInventoryDB.char or {}
     OmniInventoryDB.char.settings = OmniInventoryDB.char.settings or {}
     OmniInventoryDB.char.settings.bankViewMode = currentBankView
+
+    if Omni.LayoutEngine and bankFrame then
+        local modeMap = {
+            flow = Omni.LayoutEngine.MODE_FLOW or 1,
+            grid = Omni.LayoutEngine.MODE_GRID or 2,
+            list = Omni.LayoutEngine.MODE_LIST or 3,
+            bag  = Omni.LayoutEngine.MODE_GRID or 2,
+        }
+        Omni.LayoutEngine:SetMode(bankFrame, modeMap[currentBankView] or 1)
+    end
 
     self:UpdateViewButton()
     self:UpdateLayout()
@@ -2090,23 +2112,7 @@ function BankFrame:RenderFlowView(items)
 end
 
 function BankFrame:RenderGridView(items)
-    if not bankFrame or not bankFrame.scrollChild then return false end
-
-    local scrollChild = bankFrame.scrollChild
-    local previousButtons = itemButtons
-    itemButtons = {}
-    local releasedPreviousToPool = false
-
-    if InCombat() then
-        for _, btn in ipairs(previousButtons) do
-            pcall(btn.SetAlpha, btn, 0)
-        end
-    elseif Omni.Pool then
-        for _, btn in ipairs(previousButtons) do
-            Omni.Pool:Release("ItemButton", btn)
-        end
-        releasedPreviousToPool = true
-    end
+    if not bankFrame or not bankFrame.virtualView then return false end
 
     for _, header in ipairs(categoryHeaders) do
         header:Hide()
@@ -2120,68 +2126,6 @@ function BankFrame:RenderGridView(items)
         end
     end
 
-    local itemScale = GetSharedItemScale()
-    local itemGap = GetSharedItemGap()
-    local itemSize = ITEM_SIZE * itemScale
-    local itemStep = itemSize + itemGap
-    local usableWidth = math.max(1, GetBankContentWidth() - itemGap)
-    scrollChild:SetWidth(usableWidth)
-    local columns = math.max(math.floor((usableWidth + itemGap) / itemStep), 1)
-    local index = 0
-    local rendered = false
-
-    local function renderSlot(bagID, slotID, customItemInfo)
-        index = index + 1
-        local container = (customItemInfo and customItemInfo.__offline and customItemInfo.__owner) and scrollChild or (GetBankItemContainer(bagID) or scrollChild)
-        local btn = (not releasedPreviousToPool) and previousButtons[index] or nil
-        if not btn then
-            if InCombat() and Omni.ItemButton then
-                local createdOK, created = pcall(Omni.ItemButton.Create, Omni.ItemButton, container)
-                if createdOK then
-                    btn = created
-                end
-            end
-            if not btn and Omni.Pool then
-                local acquiredOK, acquired = pcall(Omni.Pool.Acquire, Omni.Pool, "ItemButton")
-                if acquiredOK then
-                    btn = acquired
-                end
-            end
-            if not btn and Omni.ItemButton then
-                local createdOK, created = pcall(Omni.ItemButton.Create, Omni.ItemButton, container)
-                if createdOK then
-                    btn = created
-                end
-            end
-        end
-        if not btn then return end
-
-        local col = (index - 1) % columns
-        local row = math.floor((index - 1) / columns)
-        local x = itemGap + col * itemStep
-        local y = -itemGap - row * itemStep
-
-        if btn:GetParent() ~= container then
-            pcall(btn.SetParent, btn, container)
-        end
-        pcall(ApplyBankItemMetrics, btn, itemSize)
-        pcall(btn.ClearAllPoints, btn)
-        pcall(btn.SetPoint, btn, "TOPLEFT", scrollChild, "TOPLEFT", x, y)
-        pcall(btn.SetAlpha, btn, 1)
-
-        local itemInfo = customItemInfo or (itemBySlot[bagID] and itemBySlot[bagID][slotID])
-        pcall(SetButtonItem, btn, itemInfo or { bagID = bagID, slotID = slotID, __empty = true })
-        if btn:GetParent() ~= container then
-            pcall(btn.SetParent, btn, container)
-        end
-        if slotID and btn.SetID then
-            pcall(btn.SetID, btn, slotID)
-        end
-        pcall(btn.Show, btn)
-        table.insert(itemButtons, btn)
-        rendered = true
-    end
-
     local collapseEmpty = false
     if Omni.Data and Omni.Data.Get then
         collapseEmpty = (Omni.Data:Get("collapseEmptySlots") == true)
@@ -2189,7 +2133,7 @@ function BankFrame:RenderGridView(items)
 
     local activeBankBags = {}
     if IsValidBankBagID(selectedBankBagID) then
-        table.insert(activeBankBags, selectedBankBankID or selectedBankBagID)
+        table.insert(activeBankBags, selectedBankBagID)
     else
         table.insert(activeBankBags, -1)
         for _, bagID in ipairs(BANK_BAG_IDS) do
@@ -2197,27 +2141,38 @@ function BankFrame:RenderGridView(items)
         end
     end
 
-    local slotsToRender = {}
     local activeBagsSet = {}
     for _, bagID in ipairs(activeBankBags) do
         activeBagsSet[bagID] = true
     end
 
+    local slotsToRender = {}
+
     -- Insert sorted filled items first
     for _, itemInfo in ipairs(items or {}) do
         if (itemInfo.__offline and itemInfo.__owner) or (itemInfo.bagID and activeBagsSet[itemInfo.bagID]) then
-            table.insert(slotsToRender, { bagID = itemInfo.bagID, slotID = itemInfo.slotID, itemInfo = itemInfo })
+            table.insert(slotsToRender, {
+                bagID = itemInfo.bagID or -1,
+                slotID = itemInfo.slotID or 1,
+                itemInfo = itemInfo,
+                icon = itemInfo.iconFileID or (itemInfo.hyperlink and GetItemIcon and GetItemIcon(itemInfo.hyperlink)),
+                count = itemInfo.stackCount or 1,
+                renderCallback = function(btn, data)
+                    pcall(ApplyBankItemMetrics, btn, ITEM_SIZE * GetSharedItemScale())
+                    pcall(SetButtonItem, btn, data.itemInfo or { bagID = data.bagID, slotID = data.slotID })
+                end,
+            })
         end
     end
 
     if collapseEmpty then
         local emptyGroups = {}
         for _, bagID in ipairs(activeBankBags) do
-            local slots = GetContainerNumSlots(bagID) or 0
+            local slots = GetContainerNumSlots and GetContainerNumSlots(bagID) or 0
             for slotID = 1, slots do
                 local itemInfo = itemBySlot[bagID] and itemBySlot[bagID][slotID]
                 if not itemInfo then
-                    local grp = GetFreeSpaceCategoryName(bagID)
+                    local grp = GetFreeSpaceCategoryName and GetFreeSpaceCategoryName(bagID) or "General"
                     emptyGroups[grp] = emptyGroups[grp] or {
                         bagID = bagID,
                         slotID = slotID,
@@ -2236,36 +2191,49 @@ function BankFrame:RenderGridView(items)
         end
         table.sort(sortedGrps, function(a, b) return a.name < b.name end)
         for _, grp in ipairs(sortedGrps) do
-            table.insert(slotsToRender, { bagID = grp.item.bagID, slotID = grp.item.slotID, itemInfo = grp.item })
+            table.insert(slotsToRender, {
+                bagID = grp.item.bagID,
+                slotID = grp.item.slotID,
+                itemInfo = grp.item,
+                icon = nil,
+                count = 0,
+                renderCallback = function(btn, data)
+                    pcall(ApplyBankItemMetrics, btn, ITEM_SIZE * GetSharedItemScale())
+                    pcall(SetButtonItem, btn, data.itemInfo)
+                end,
+            })
         end
     else
         for _, bagID in ipairs(activeBankBags) do
-            local slots = GetContainerNumSlots(bagID) or 0
+            local slots = GetContainerNumSlots and GetContainerNumSlots(bagID) or 0
             for slotID = 1, slots do
                 local itemInfo = itemBySlot[bagID] and itemBySlot[bagID][slotID]
                 if not itemInfo then
-                    table.insert(slotsToRender, { bagID = bagID, slotID = slotID, itemInfo = nil })
+                    local emptyData = { bagID = bagID, slotID = slotID, __empty = true }
+                    table.insert(slotsToRender, {
+                        bagID = bagID,
+                        slotID = slotID,
+                        itemInfo = emptyData,
+                        icon = nil,
+                        count = 0,
+                        renderCallback = function(btn, data)
+                            pcall(ApplyBankItemMetrics, btn, ITEM_SIZE * GetSharedItemScale())
+                            pcall(SetButtonItem, btn, data.itemInfo)
+                        end,
+                    })
                 end
             end
         end
     end
 
-    for _, slot in ipairs(slotsToRender) do
-        renderSlot(slot.bagID, slot.slotID, slot.itemInfo)
-    end
+    local itemScale = GetSharedItemScale()
+    local itemGap = GetSharedItemGap()
+    local itemSize = ITEM_SIZE * itemScale
+    local usableWidth = math.max(1, GetBankContentWidth() - itemGap)
+    local columns = math.max(math.floor((usableWidth + itemGap) / (itemSize + itemGap)), 1)
 
-    if not releasedPreviousToPool then
-        for i = index + 1, #previousButtons do
-            local btn = previousButtons[i]
-            pcall(SetButtonItem, btn, nil)
-            pcall(btn.SetAlpha, btn, 0)
-            table.insert(itemButtons, btn)
-        end
-    end
-
-    local rows = math.ceil(index / columns)
-    scrollChild:SetHeight(math.max(rows * itemStep + itemGap, 1))
-    return rendered
+    bankFrame.virtualView:SetData(slotsToRender, columns, itemSize, itemGap)
+    return true
 end
 
 function BankFrame:UpdateLayout()
