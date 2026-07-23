@@ -932,13 +932,18 @@ function ItemButton:SetItem(button, itemInfo)
         isKnownRecipe = CheckIfKnownRecipe(itemInfo.bagID, itemInfo.slotID, itemInfo.itemID)
     end
 
+    local texture = itemInfo.iconFileID or itemInfo.icon or itemInfo.texture or (itemInfo.hyperlink and GetItemIcon and GetItemIcon(itemInfo.hyperlink))
+    if not texture and itemInfo.bagID and itemInfo.slotID and GetContainerItemInfo then
+        texture = GetContainerItemInfo(itemInfo.bagID, itemInfo.slotID)
+    end
+
     local renderKey = button.__lastRenderKey
     local questOverlayKind
     if renderKey
             and renderKey.bagID == itemInfo.bagID
             and renderKey.slotID == itemInfo.slotID
             and renderKey.hyperlink == itemInfo.hyperlink
-            and renderKey.iconFileID == itemInfo.iconFileID
+            and renderKey.texture == texture
             and renderKey.stackCount == itemInfo.stackCount
             and renderKey.quality == itemInfo.quality
             and renderKey.isNew == itemInfo.isNew
@@ -950,7 +955,7 @@ function ItemButton:SetItem(button, itemInfo)
     end
     if renderKey
             and renderKey.hyperlink == itemInfo.hyperlink
-            and renderKey.iconFileID == itemInfo.iconFileID
+            and renderKey.texture == texture
             and renderKey.stackCount == itemInfo.stackCount
             and renderKey.quality == itemInfo.quality
             and renderKey.isNew == itemInfo.isNew
@@ -968,12 +973,13 @@ function ItemButton:SetItem(button, itemInfo)
     end
 
     -- Set icon
-    local texture = itemInfo.iconFileID
     if texture then
         button.icon:SetTexture(texture)
     else
         button.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
     end
+    button.icon:SetAlpha(1)
+    button.icon:Show()
 
     local count = math.max(1, tonumber(itemInfo.stackCount) or 1)
     if count > 1 then
@@ -1137,7 +1143,7 @@ function ItemButton:SetItem(button, itemInfo)
         button.__lastRenderKey = rKey
     end
     rKey.hyperlink = itemInfo.hyperlink
-    rKey.iconFileID = itemInfo.iconFileID
+    rKey.texture = texture
     rKey.stackCount = itemInfo.stackCount
     rKey.quality = itemInfo.quality
     rKey.isNew = itemInfo.isNew

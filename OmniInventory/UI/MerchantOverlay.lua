@@ -77,37 +77,17 @@ function MerchantOverlay:TriggerProtectionAlert(itemLink)
     DEFAULT_CHAT_FRAME:AddMessage(string.format("[!] Protected Item: Cannot sell %s", itemLink or itemName))
 end
 
--- Hook container item selling actions when MerchantFrame is open
-local origUseContainerItem = UseContainerItem
-UseContainerItem = function(bag, slot, onSelf)
-    if MerchantFrame and MerchantFrame:IsShown() then
-        local link = GetContainerItemLink(bag, slot)
-        if link then
-            local _, _, quality = GetItemInfo(link)
-            if MerchantOverlay:IsProtected(bag, slot, link, quality) then
-                MerchantOverlay:TriggerProtectionAlert(link)
-                return -- Cancel sell operation!
-            end
-        end
-    end
-    return origUseContainerItem(bag, slot, onSelf)
-end
-
--- Hook ContainerFrameItemButton_OnModifiedClick if present
-if ContainerFrameItemButton_OnModifiedClick then
-    local origModifiedClick = ContainerFrameItemButton_OnModifiedClick
-    ContainerFrameItemButton_OnModifiedClick = function(self, button, ...)
-        if MerchantFrame and MerchantFrame:IsShown() and button == "RightButton" then
-            local bag = self:GetParent() and self:GetParent():GetID()
-            local slot = self:GetID()
-            if bag and slot then
-                local link = GetContainerItemLink(bag, slot)
-                if link and MerchantOverlay:IsProtected(bag, slot, link) then
+-- Safely monitor container item selling actions when MerchantFrame is open using hooksecurefunc
+if hooksecurefunc then
+    hooksecurefunc("UseContainerItem", function(bag, slot, onSelf)
+        if MerchantFrame and MerchantFrame:IsShown() and bag and slot then
+            local link = GetContainerItemLink(bag, slot)
+            if link then
+                local _, _, quality = GetItemInfo(link)
+                if MerchantOverlay:IsProtected(bag, slot, link, quality) then
                     MerchantOverlay:TriggerProtectionAlert(link)
-                    return
                 end
             end
         end
-        return origModifiedClick(self, button, ...)
-    end
+    end)
 end
