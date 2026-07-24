@@ -16,17 +16,33 @@ local MerchantOverlay = {
 Omni.MerchantOverlay = MerchantOverlay
 
 function MerchantOverlay:IsItemInEquipmentSet(itemLink)
-    if not itemLink or not GetEquipmentSetLocations then return false end
-    local equipmentSets = GetEquipmentSetLocations()
-    if not equipmentSets then return false end
+    if not itemLink or not GetNumEquipmentSets or not GetEquipmentSetInfo or not GetEquipmentSetLocations or not EquipmentManager_UnpackLocation then
+        return false
+    end
 
-    for setName, location in pairs(equipmentSets) do
-        if location then
-            local player, bank, bags, slot, bag = EquipmentManager_UnpackLocation(location)
-            if bags and bag and slot then
-                local link = GetContainerItemLink(bag, slot)
-                if link and link == itemLink then
-                    return true
+    local numSets = GetNumEquipmentSets() or 0
+    if numSets == 0 then return false end
+
+    for i = 1, numSets do
+        local setName = GetEquipmentSetInfo(i)
+        if setName then
+            local locations = GetEquipmentSetLocations(setName)
+            if locations then
+                for _, location in pairs(locations) do
+                    if location and location ~= 0 and location ~= 1 then
+                        local player, bank, bags, slot, bag = EquipmentManager_UnpackLocation(location)
+                        if bags and bag and slot then
+                            local link = GetContainerItemLink(bag, slot)
+                            if link and link == itemLink then
+                                return true
+                            end
+                        elseif player and slot then
+                            local link = GetInventoryItemLink("player", slot)
+                            if link and link == itemLink then
+                                return true
+                            end
+                        end
+                    end
                 end
             end
         end
