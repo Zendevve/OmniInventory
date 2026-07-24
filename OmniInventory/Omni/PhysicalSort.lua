@@ -257,51 +257,70 @@ local function BuildDesiredOrder(allItems, specializedBags)
     -- Sort by desired order
     table.sort(activeItems, ItemSortComparator)
 
-    -- Assign target positions: specialized items go to their bags first
-    local targetPositions = {}
-    local bagSlotCounters = {}
+    -- Phase 5: Target Slot Assignment Matrix
+    -- We split available slots into Specialized slots (e.g. Quiver, Herb Bag) and General slots.
+    local specializedSlots = {}
+    local generalSlots = {}
+
     for bagID = 0, 4 do
-        bagSlotCounters[bagID] = 1
+        local numSlots = GetContainerNumSlots(bagID) or 0
+        local family = specializedBags[bagID]
+        if family and family > 0 then
+            specializedSlots[bagID] = {}
+            for slot = 1, numSlots do
+                table.insert(specializedSlots[bagID], {bagID = bagID, slotID = slot})
+            end
+        else
+            for slot = 1, numSlots do
+                table.insert(generalSlots, {bagID = bagID, slotID = slot})
+            end
+        end
     end
 
-    for _, item in ipairs(activeItems) do
-        -- Find the best target bag for this item
-        local targetBag = nil
-        
-        -- 1. Try to place in specialized bags first (bags 1-4)
-        for bagID = 1, 4 do
-            if specializedBags[bagID] and ShouldItemGoInBag(item, bagID, specializedBags) then
-                local slot = bagSlotCounters[bagID]
-                local numSlots = GetContainerNumSlots(bagID) or 0
-                if slot <= numSlots then
-                    targetBag = bagID
-                    break
-                end
-            end
-        end
-        
-        -- 2. Fall back to normal bags (checking bag 0 first, then 1-4 if they are normal)
-        if not targetBag then
-            for bagID = 0, 4 do
-                if not specializedBags[bagID] and ShouldItemGoInBag(item, bagID, specializedBags) then
-                    local slot = bagSlotCounters[bagID]
-                    local numSlots = GetContainerNumSlots(bagID) or 0
-                    if slot <= numSlots then
-                        targetBag = bagID
-                        break
-                    end
-                end
-            end
-        end
+    local frontIdx = 1
+    local backIdx = #generalSlots
+    local targetPositions = {}
 
-        if targetBag then
-            local slot = bagSlotCounters[targetBag]
-            table.insert(targetPositions, {
-                item = item,
-                targetBag = targetBag,
-                targetSlot = slot,
-            })
-            bagSlotCounters[targetBag] = slot + 1
+    for _, item in ipairs(activeItems) do
+        local placed = false
+
+        -- 1. Try to place in specialized bags first (bags 1-4)
+        for bagID, slots in pairs(specializedSlots) do
+            if #slots > 0 and ShouldItemGoInBag(item, bagID, specializedBags) then
+                local target = table.remove(slots, 1) -- pop front
+                table.insert(targetPositions, {
+                    item = item,
+                    targetBag = target.bagID,
+                    targetSlot = target.slotID,
+                })
+                placed = true
+                break
+            end
+        end
+        
+        -- 2. Fall back to normal bags matrix logic
+        if not placed then
+            local isJunk = (item.quality == 0) or (GetCategoryPriority(item) >= 90)
+
+            if isJunk and backIdx >= frontIdx then
+                -- Place junk at the tail
+                local target = generalSlots[backIdx]
+                backIdx = backIdx - 1
+                table.insert(targetPositions, {
+                    item = item,
+                    targetBag = target.bagID,
+                    targetSlot = target.slotID,
+                })
+            elseif frontIdx <= backIdx then
+                -- Place normal items at the front
+                local target = generalSlots[frontIdx]
+                frontIdx = frontIdx + 1
+                table.insert(targetPositions, {
+                    item = item,
+                    targetBag = target.bagID,
+                    targetSlot = target.slotID,
+                })
+            end
         end
     end
 
