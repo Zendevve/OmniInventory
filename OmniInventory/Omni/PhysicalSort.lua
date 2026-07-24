@@ -91,38 +91,45 @@ local function GetCategoryPriority(item)
     return 99
 end
 
+local function GenerateSortKey(item)
+    if not item then return 0 end
+    if item.__sortKey then return item.__sortKey end
+
+    local catPrio = GetCategoryPriority(item)
+    local invCatPrio = math.max(0, 100 - catPrio) -- Higher is better (0-100)
+    
+    local quality = math.min(10, item.quality or 0)
+    local ilvl = math.min(999, item.itemLevel or 0)
+    local itemID = math.min(99999, item.itemID or 0)
+    local count = math.min(9999, item.count or 1)
+
+    -- Max possible key = 100 * 10^13 = 10^15 (fits within 53-bit float precision of 9 * 10^15)
+    item.__sortKey = (invCatPrio * 10000000000000) 
+                   + (quality    * 1000000000000) 
+                   + (ilvl       * 1000000000) 
+                   + (itemID     * 10000) 
+                   + count
+
+    return item.__sortKey
+end
+
 -- Multi-property comparator for desired order
 local function ItemSortComparator(a, b)
     if not a and not b then return false end
     if not a then return false end
     if not b then return true end
 
-    -- 1. Category priority
-    local catA = GetCategoryPriority(a)
-    local catB = GetCategoryPriority(b)
-    if catA ~= catB then return catA < catB end
+    local keyA = GenerateSortKey(a)
+    local keyB = GenerateSortKey(b)
 
-    -- 2. Quality (higher first)
-    local qA = a.quality or 0
-    local qB = b.quality or 0
-    if qA ~= qB then return qA > qB end
+    if keyA ~= keyB then 
+        return keyA > keyB 
+    end
 
-    -- 3. Item level (higher first)
-    local ilvlA = a.itemLevel or 0
-    local ilvlB = b.itemLevel or 0
-    if ilvlA ~= ilvlB then return ilvlA > ilvlB end
-
-    -- 4. Name (alphabetical)
+    -- Fallback for identical keys (e.g. same itemID but different random enchants)
     local nA = a.name or "zzz"
     local nB = b.name or "zzz"
-    if nA ~= nB then return nA < nB end
-
-    -- 5. Stack count (higher first)
-    local sA = a.count or 1
-    local sB = b.count or 1
-    if sA ~= sB then return sA > sB end
-
-    return false
+    return nA < nB
 end
 
 -- =============================================================================
@@ -436,12 +443,16 @@ end
 -- Sort Execution Engine
 -- =============================================================================
 
+local previousPassSwaps = {}
+local sortOpts = {}
+
 local function StopSort(reason)
     isSorting = false
     sortQueue = {}
     currentMove = nil
     if sortFrame then
         sortFrame:SetScript("OnUpdate", nil)
+        sortFrame:UnregisterEvent("ITEM_LOCK_CHANGED")
     end
     if reason then
         print("|cFF00FF00OmniInventory|r: Physical sort " .. reason .. ". (" .. totalMoves .. " moves)")
@@ -452,69 +463,89 @@ local function StopSort(reason)
 end
 
 local function ExecuteNextMove()
-
     if sortCancelled then
         StopSort("cancelled")
         return
     end
 
     if #sortQueue == 0 then
-        StopSort("complete")
-        -- Trigger a layout refresh
-        if Omni.Frame and Omni.Frame.UpdateLayout then
-            Omni.Frame:UpdateLayout(nil, { forceFull = true, reason = "physical_sort" })
+        -- We finished this pass. Try another pass if we haven't hit the limit.
+        passCount = passCount + 1
+        if passCount >= MAX_PASSES then
+            StopSort("complete (max passes)")
+        else
+            -- Run next pass
+            PhysicalSort:RunSortPass()
         end
         return
     end
 
     if totalMoves >= MAX_MOVES_PER_CYCLE * MAX_PASSES then
-        StopSort("reached move limit")
+        StopSort("reached absolute move limit")
         return
     end
 
-    -- Check combat
     if InCombatLockdown and InCombatLockdown() then
         StopSort("interrupted by combat")
         return
     end
 
-    -- Check cursor
     if CursorHasItem and CursorHasItem() then
         return -- wait for cursor to clear
     end
 
     currentMove = table.remove(sortQueue, 1)
-    if not currentMove then
-        StopSort("complete")
-        return
-    end
+    if not currentMove then return end
 
-    -- Verify the source still has an item
+    -- Verify source still has an item
     local texture = GetContainerItemInfo(currentMove.fromBag, currentMove.fromSlot)
     if not texture then
-        -- Source is empty, skip this move
+        ExecuteNextMove() -- skip and proceed
         return
     end
 
-    -- Check if target is empty (it should be, but verify)
+    -- Verify target hasn't been blocked
     local targetTexture = GetContainerItemInfo(currentMove.toBag, currentMove.toSlot)
     if targetTexture and currentMove.type ~= "merge" then
-        -- Target got filled by something else; skip
+        ExecuteNextMove() -- skip
         return
     end
 
     -- Execute the move
     PickupContainerItem(currentMove.fromBag, currentMove.fromSlot)
     PickupContainerItem(currentMove.toBag, currentMove.toSlot)
-
     totalMoves = totalMoves + 1
-    lockWaitElapsed = 0
+    totalWaitElapsed = 0
+end
+
+local function PumpSortEngine()
+    if not isSorting or not currentMove then return end
+
+    local _, _, locked = GetContainerItemInfo(currentMove.fromBag, currentMove.fromSlot)
+    local targetLocked = false
+    local _, targetCount = GetContainerItemInfo(currentMove.toBag, currentMove.toSlot)
+    if targetCount then
+        local _, _, tl = GetContainerItemInfo(currentMove.toBag, currentMove.toSlot)
+        targetLocked = tl
+    end
+
+    if not locked and not targetLocked then
+        currentMove = nil
+        totalWaitElapsed = 0
+        ExecuteNextMove()
+    end
 end
 
 local function StartSortFrame()
     if not sortFrame then
         sortFrame = CreateFrame("Frame")
+        sortFrame:SetScript("OnEvent", function(self, event, ...)
+            if isSorting and event == "ITEM_LOCK_CHANGED" then
+                PumpSortEngine()
+            end
+        end)
     end
+    sortFrame:RegisterEvent("ITEM_LOCK_CHANGED")
 
     totalWaitElapsed = 0
     sortFrame:SetScript("OnUpdate", function(self, elapsed)
@@ -522,73 +553,29 @@ local function StartSortFrame()
             self:SetScript("OnUpdate", nil)
             return
         end
-
-        lockWaitElapsed = lockWaitElapsed + (elapsed or 0)
-
-        -- Wait for move delay before doing anything
-        if lockWaitElapsed < MOVE_DELAY then
-            return
-        end
-
-        -- Check item locks on the ACTIVE move (if we just executed one)
+        
+        -- Fallback timeout in case events are dropped by server
         if currentMove then
-            local _, _, locked = GetContainerItemInfo(currentMove.fromBag, currentMove.fromSlot)
-            local targetLocked = false
-            -- If the target slot contains an item, we must check if that item is locked too (e.g. for swap/merge)
-            local _, targetCount = GetContainerItemInfo(currentMove.toBag, currentMove.toSlot)
-            if targetCount then
-                local _, _, tl = GetContainerItemInfo(currentMove.toBag, currentMove.toSlot)
-                targetLocked = tl
-            end
-
-            if locked or targetLocked then
-                totalWaitElapsed = totalWaitElapsed + (elapsed or 0)
-                if totalWaitElapsed > LOCK_TIMEOUT then
-                    -- Timed out! Force clear the active move and move to next
-                    currentMove = nil
-                    totalWaitElapsed = 0
-                else
-                    return -- Wait for lock to clear
-                end
-            else
+            totalWaitElapsed = totalWaitElapsed + (elapsed or 0)
+            if totalWaitElapsed > LOCK_TIMEOUT then
+                -- Timeout occurred. Clear current move and proceed to retry or skip
                 currentMove = nil
                 totalWaitElapsed = 0
+                ExecuteNextMove()
+            end
+        else
+            -- Initial bootstrap or stuck
+            totalWaitElapsed = totalWaitElapsed + (elapsed or 0)
+            if totalWaitElapsed > MOVE_DELAY then
+                totalWaitElapsed = 0
+                ExecuteNextMove()
             end
         end
-
-        lockWaitElapsed = 0
-        ExecuteNextMove()
     end)
 end
 
--- =============================================================================
--- Public API
--- =============================================================================
-
---- Start a physical bag sort.
---- @param opts table|nil { consolidateStacks, routeSpecialized }
-function PhysicalSort:Sort(opts)
-    opts = opts or {}
-
-    if isSorting then
-        print("|cFF00FF00OmniInventory|r: Sort already in progress.")
-        return
-    end
-
-    if InCombatLockdown and InCombatLockdown() then
-        print("|cFF00FF00OmniInventory|r: Cannot sort in combat.")
-        return
-    end
-
-    isSorting = true
-    sortCancelled = false
-    totalMoves = 0
-    passCount = 0
-
-    -- Phase 1: Detect specialized bags
+function PhysicalSort:RunSortPass()
     local specializedBags = DetectSpecializedBags()
-
-    -- Phase 2+3: Collect all items and find consolidation moves
     local allItems = {}
     for bagID = 0, 4 do
         local numSlots = GetContainerNumSlots(bagID) or 0
@@ -603,37 +590,72 @@ function PhysicalSort:Sort(opts)
         end
     end
 
-    -- Phase 3: Consolidate partial stacks
     local consolidateMoves = {}
-    if opts.consolidateStacks ~= false then
+    if sortOpts.consolidateStacks ~= false then
         consolidateMoves = FindConsolidationMoves(allItems)
     end
 
-    -- Phase 4: Build desired order
     local targetPositions = BuildDesiredOrder(allItems, specializedBags)
-
-    -- Phase 5: Build move list
     local placeMoves = BuildMoveList(targetPositions, allItems, specializedBags)
 
-    -- Combine: consolidation first, then placement
     sortQueue = {}
-    for _, m in ipairs(consolidateMoves) do
-        table.insert(sortQueue, m)
-    end
-    for _, m in ipairs(placeMoves) do
-        table.insert(sortQueue, m)
-    end
-
-    -- Deduplicate
+    for _, m in ipairs(consolidateMoves) do table.insert(sortQueue, m) end
+    for _, m in ipairs(placeMoves) do table.insert(sortQueue, m) end
     sortQueue = DeduplicateMoves(sortQueue)
 
+    -- Deduplicate against previous passes to prevent oscillation loops
+    local validQueue = {}
+    for _, m in ipairs(sortQueue) do
+        local key = string.format("%d:%d->%d:%d", m.fromBag, m.fromSlot, m.toBag, m.toSlot)
+        local reverseKey = string.format("%d:%d->%d:%d", m.toBag, m.toSlot, m.fromBag, m.fromSlot)
+        if previousPassSwaps[key] or previousPassSwaps[reverseKey] then
+            -- Skip oscillating move
+        else
+            previousPassSwaps[key] = true
+            table.insert(validQueue, m)
+        end
+    end
+    sortQueue = validQueue
+
     if #sortQueue == 0 then
-        StopSort("complete - nothing to sort")
+        StopSort(passCount == 0 and "complete - nothing to sort" or "complete")
+        if Omni.Frame and Omni.Frame.UpdateLayout then
+            Omni.Frame:UpdateLayout(nil, { forceFull = true, reason = "physical_sort" })
+        end
+        return
+    end
+    
+    if passCount == 0 then
+        print("|cFF00FF00OmniInventory|r: Sorting bags...")
+        StartSortFrame()
+    end
+end
+
+-- =============================================================================
+-- Public API
+-- =============================================================================
+
+--- Start a physical bag sort.
+--- @param opts table|nil { consolidateStacks, routeSpecialized }
+function PhysicalSort:Sort(opts)
+    if isSorting then
+        print("|cFF00FF00OmniInventory|r: Sort already in progress.")
         return
     end
 
-    print("|cFF00FF00OmniInventory|r: Sorting bags (" .. #sortQueue .. " moves)...")
-    StartSortFrame()
+    if InCombatLockdown and InCombatLockdown() then
+        print("|cFF00FF00OmniInventory|r: Cannot sort in combat.")
+        return
+    end
+
+    sortOpts = opts or {}
+    isSorting = true
+    sortCancelled = false
+    totalMoves = 0
+    passCount = 0
+    previousPassSwaps = {}
+    
+    self:RunSortPass()
 end
 
 --- Cancel an in-progress sort.
