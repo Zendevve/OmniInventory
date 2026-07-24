@@ -537,8 +537,18 @@ local function ExecuteNextMove()
     totalWaitElapsed = 0
 end
 
-local function PumpSortEngine()
+local function PumpSortEngine(eventBag, eventSlot)
     if not isSorting or not currentMove then return end
+
+    -- Fast reject if the lock event isn't for our involved slots
+    -- Note: bag and slot might be nil if pumped manually or via timeout fallback
+    if eventBag and eventSlot then
+        local matchesFrom = (eventBag == currentMove.fromBag and eventSlot == currentMove.fromSlot)
+        local matchesTo = (eventBag == currentMove.toBag and eventSlot == currentMove.toSlot)
+        if not (matchesFrom or matchesTo) then
+            return
+        end
+    end
 
     local _, _, locked = GetContainerItemInfo(currentMove.fromBag, currentMove.fromSlot)
     local targetLocked = false
@@ -558,9 +568,9 @@ end
 local function StartSortFrame()
     if not sortFrame then
         sortFrame = CreateFrame("Frame")
-        sortFrame:SetScript("OnEvent", function(self, event, ...)
+        sortFrame:SetScript("OnEvent", function(self, event, bag, slot)
             if isSorting and event == "ITEM_LOCK_CHANGED" then
-                PumpSortEngine()
+                PumpSortEngine(bag, slot)
             end
         end)
     end
@@ -620,17 +630,22 @@ function PhysicalSort:RunSortPass()
     sortQueue = {}
     for _, m in ipairs(consolidateMoves) do table.insert(sortQueue, m) end
     for _, m in ipairs(placeMoves) do table.insert(sortQueue, m) end
-    sortQueue = DeduplicateMoves(sortQueue)
 
-    -- Deduplicate against previous passes to prevent oscillation loops
+    -- Deduplicate against previous passes and within current pass
     local validQueue = {}
+    local currentPassSwaps = {}
+    
     for _, m in ipairs(sortQueue) do
         local key = string.format("%d:%d->%d:%d", m.fromBag, m.fromSlot, m.toBag, m.toSlot)
         local reverseKey = string.format("%d:%d->%d:%d", m.toBag, m.toSlot, m.fromBag, m.fromSlot)
+        
         if previousPassSwaps[key] or previousPassSwaps[reverseKey] then
-            -- Skip oscillating move
+            -- Skip inter-pass oscillation
+        elseif currentPassSwaps[key] then
+            -- Skip duplicate move in same pass
         else
             previousPassSwaps[key] = true
+            currentPassSwaps[key] = true
             table.insert(validQueue, m)
         end
     end
