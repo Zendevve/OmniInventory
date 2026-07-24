@@ -58,14 +58,20 @@ function VirtualScrollView:Create(parent, name, width, height)
     view.scrollChild = scrollChild
 
     -- Vertical ScrollBar Slider Component
-    local scrollBar = CreateFrame("Slider", name .. "ScrollBar", container, "UIPanelScrollBarTemplate")
+    local scrollBar = CreateFrame("Slider", name .. "ScrollBar", scrollFrame, "UIPanelScrollBarTemplate")
     scrollBar:SetPoint("TOPRIGHT", container, "TOPRIGHT", -2, -18)
     scrollBar:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -2, 18)
+    scrollBar:SetWidth(16)
+    view.scrollBar = scrollBar
+
+    scrollBar:SetScript("OnValueChanged", function(self, value)
+        scrollFrame:SetVerticalScroll(value)
+        view:UpdateViewport(value)
+    end)
+
     scrollBar:SetMinMaxValues(0, 0)
     scrollBar:SetValue(0)
     scrollBar:SetValueStep(1)
-    scrollBar:SetWidth(16)
-    view.scrollBar = scrollBar
 
     -- Instantiate Fixed Window of Visible Pooled Item Buttons (~40 buttons)
     local isCombat = InCombatLockdown and InCombatLockdown()
@@ -94,11 +100,6 @@ function VirtualScrollView:Create(parent, name, width, height)
         if newScroll < minVal then newScroll = minVal end
         if newScroll > maxVal then newScroll = maxVal end
         scrollBar:SetValue(newScroll)
-    end)
-
-    scrollBar:SetScript("OnValueChanged", function(self, value)
-        scrollFrame:SetVerticalScroll(value)
-        view:UpdateViewport(value)
     end)
 
     scrollFrame:SetScript("OnVerticalScroll", function(self, offset)

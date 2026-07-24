@@ -31,6 +31,18 @@ local function IsCombat()
     return InCombatLockdown and InCombatLockdown()
 end
 
+local function IsDescendantOf(frame, potentialAncestor)
+    if not frame or not potentialAncestor then return false end
+    local p = frame:GetParent()
+    while p do
+        if p == potentialAncestor then
+            return true
+        end
+        p = p:GetParent()
+    end
+    return false
+end
+
 --- Returns or creates a dummy frame with ID set to container bag index
 -- @param parent Parent frame (or UIParent)
 -- @param bagID Bag container integer ID (e.g. 0 to 4, -1 for bank)
@@ -50,7 +62,7 @@ function FramePool:GetDummyBag(parent, bagID)
     end
 
     local dummy = self.dummyBags[bagID]
-    if dummy:GetParent() ~= parent and not IsCombat() then
+    if parent and parent ~= dummy and not IsDescendantOf(parent, dummy) and dummy:GetParent() ~= parent and not IsCombat() then
         dummy:SetParent(parent)
     end
     return dummy
