@@ -57,6 +57,13 @@ function VirtualScrollView:Create(parent, name, width, height)
     scrollFrame:SetScrollChild(scrollChild)
     view.scrollChild = scrollChild
 
+    -- Attach controller methods to view instance
+    for k, v in pairs(VirtualScrollView) do
+        if type(v) == "function" then
+            view[k] = v
+        end
+    end
+
     -- Vertical ScrollBar Slider Component
     local scrollBar = CreateFrame("Slider", name .. "ScrollBar", scrollFrame, "UIPanelScrollBarTemplate")
     scrollBar:SetPoint("TOPRIGHT", container, "TOPRIGHT", -2, -18)
@@ -105,13 +112,6 @@ function VirtualScrollView:Create(parent, name, width, height)
     scrollFrame:SetScript("OnVerticalScroll", function(self, offset)
         view:UpdateViewport(offset)
     end)
-
-    -- Attach controller methods to view instance
-    for k, v in pairs(VirtualScrollView) do
-        if type(v) == "function" then
-            view[k] = v
-        end
-    end
 
     return view
 end
