@@ -738,7 +738,7 @@ local function CreateContentArea(parent)
     local function MakeItemContainer(bagID)
         local f = nil
         if Omni.FramePool and not InCombat() then
-            f = Omni.FramePool:GetDummyBag(parent, bagID)
+            f = Omni.FramePool:GetDummyBag(virtualView.scrollChild, bagID)
         end
         if not f then
             f = CreateFrame("Frame", "OmniInventoryDummyBag" .. bagID, virtualView.scrollChild)
@@ -763,7 +763,7 @@ local function GetBankItemContainer(bagID)
     if container then return container end
     if InCombat() then return nil end
     if Omni.FramePool and not InCombat() then
-        local dummy = Omni.FramePool:GetDummyBag(bankFrame, bagID)
+        local dummy = Omni.FramePool:GetDummyBag(bankFrame.virtualView and bankFrame.virtualView.scrollChild or bankFrame, bagID)
         if dummy then
             bankFrame.itemContainers[bagID] = dummy
             return dummy

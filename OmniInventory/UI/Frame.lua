@@ -2052,7 +2052,7 @@ function Frame:CreateContentArea()
     local function MakeItemContainer(bagID)
         local f = nil
         if Omni.FramePool and not InCombat() then
-            f = Omni.FramePool:GetDummyBag(mainFrame, bagID)
+            f = Omni.FramePool:GetDummyBag(scrollChild, bagID)
         end
         if not f then
             f = CreateFrame("Frame", "OmniInventoryDummyBag" .. bagID, scrollChild)
@@ -2084,7 +2084,7 @@ local function GetItemContainer(bagID)
     if container then return container end
     if InCombat() and not Frame._combatGridBootstrap then return nil end
     if Omni.FramePool and not InCombat() then
-        local dummy = Omni.FramePool:GetDummyBag(mainFrame, bagID)
+        local dummy = Omni.FramePool:GetDummyBag(mainFrame.scrollChild, bagID)
         if dummy then
             mainFrame.itemContainers[bagID] = dummy
             return dummy
@@ -2132,7 +2132,7 @@ local function CreateSlotButton(bagID, slotID)
     local btn
     local fromPool = false
     if Omni.FramePool and not InCombat() then
-        btn = Omni.FramePool:AcquireItemButton(mainFrame or UIParent, bagID, slotID)
+        btn = Omni.FramePool:AcquireItemButton(mainFrame.scrollChild or mainFrame or UIParent, bagID, slotID)
         if btn then fromPool = true end
     end
     if not btn and Frame._combatGridBootstrap and Omni.ItemButton then
