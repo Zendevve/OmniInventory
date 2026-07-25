@@ -66,6 +66,7 @@ local RIBBON_SEP_GAP = 5
 local RIBBON_ICON_BTN_SIZE = 20
 local SETTINGS_ICON = "Interface\\Icons\\Trade_Engineering"
 local BANK_BAG_IDS = { 5, 6, 7, 8, 9, 10, 11 }
+local BANK_BASE_BAG_ID = 200
 
 -- =============================================================================
 -- State
@@ -719,7 +720,7 @@ local function CreateContentArea(parent)
     if height <= 0 then height = 300 end
 
     -- Instantiate VirtualScrollView Viewport Controller
-    local virtualView = Omni.VirtualScrollView:Create(parent, "OmniBankVirtualScrollView", width, height)
+    local virtualView = Omni.VirtualScrollView:Create(parent, "OmniBankVirtualScrollView", width, height, BANK_BASE_BAG_ID)
     virtualView.container:SetPoint("TOPLEFT", parent.searchBar, "BOTTOMLEFT", 0, -4)
     virtualView.container:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -PADDING - 20, PADDING + FOOTER_HEIGHT + 4)
 
@@ -2367,6 +2368,15 @@ end
 
 function BankFrame:Hide()
     if bankFrame then
+        if bankFrame.virtualView then
+            for _, btn in ipairs(bankFrame.virtualView.visibleButtons) do
+                if btn then
+                    btn:Hide()
+                    btn:ClearAllPoints()
+                    btn:SetParent(UIParent)
+                end
+            end
+        end
         pcall(bankFrame.Hide, bankFrame)
     end
 end

@@ -23,6 +23,7 @@ local MAX_TABS = 6
 local SLOTS_PER_TAB = 98
 local SLOTS_PER_ROW = 14
 local ROWS_PER_TAB = 7
+local GB_BASE_BAG_ID = 100
 
 local SLOT_SIZE = 37
 local SLOT_SPACING = 4
@@ -89,6 +90,8 @@ local tabButtons = {}
 local slotButtons = {}
 local flowItemButtons = {}
 local categoryHeadersFlow = {}
+local tabViewableCache = {}
+local hoveredFlowBtn = nil
 local currentTab = 1
 local searchText = ""
 local searchTextLower = ""
@@ -662,7 +665,11 @@ local function CreateTabButton(parent, index)
         local name, _, isViewable, canDeposit, numWith, remainWith =
             GetGuildBankTabInfo(self.tabIndex)
         GameTooltip:AddLine((name and name ~= "") and name or ("Tab " .. self.tabIndex), 1, 1, 1)
-        if isViewable == nil or isViewable == 0 then
+        local viewOK = isViewable and isViewable ~= 0 and isViewable ~= false
+        if not viewOK then
+            viewOK = tabViewableCache[self.tabIndex]
+        end
+        if not viewOK then
             GameTooltip:AddLine("Not viewable", 1, 0.3, 0.3)
         else
             if canDeposit and canDeposit ~= 0 then
@@ -690,7 +697,7 @@ local function CreateTabButton(parent, index)
                 GameTooltip:AddLine("  |cFF00FFAA" .. k .. "|r", 0.9, 0.95, 0.9)
             end
         end
-        if isViewable and isViewable ~= 0 then
+        if viewOK then
             local u = self._gbSlotsUsed or 0
             local t = self._gbSlotsTotal or SLOTS_PER_TAB
             local f = t - u
@@ -718,6 +725,7 @@ end
 local function UpdateTabButtonAppearance(btn, index)
     local _, icon, isViewable = GetGuildBankTabInfo(index)
     local viewOK = not (isViewable == 0 or isViewable == false or isViewable == nil)
+    tabViewableCache[index] = viewOK
     local used, total = 0, SLOTS_PER_TAB
     if viewOK then
         used = CountGuildBankTabFilledSlots(index)
@@ -1459,6 +1467,9 @@ local function CollectGuildBankTabItems(tab)
             Omni.Perf:End("guildbank.CollectTabItems.sort", perfSort, { itemCount = #items })
         end
     end
+    if #items > 0 then
+        tabViewableCache[tab] = true
+    end
     if Omni._perfEnabled and Omni.Perf then
         Omni.Perf:End("guildbank.CollectTabItems.total", perfToken, { itemCount = #items, tab = tab })
     end
@@ -1604,6 +1615,16 @@ function GuildBankFrame:RenderFlowView(items)
                 if not btn then
                     btn = CreateSlotButton(scrollChild, flowBtnCount)
                     flowItemButtons[flowBtnCount] = btn
+                    local realOnEnter = btn:GetScript("OnEnter")
+                    local realOnLeave = btn:GetScript("OnLeave")
+                    btn:SetScript("OnEnter", function(self)
+                        hoveredFlowBtn = self
+                        if realOnEnter then realOnEnter(self) end
+                    end)
+                    btn:SetScript("OnLeave", function(self)
+                        hoveredFlowBtn = nil
+                        if realOnLeave then realOnLeave(self) end
+                    end)
                 end
                 ApplyGuildSlotMetrics(btn)
                 btn.gbTab = itemInfo.guildBankTab
@@ -1645,20 +1666,17 @@ function GuildBankFrame:RenderFlowView(items)
     scrollChild:SetHeight(math.max(1, math.abs(bottomY) + ITEM_SPACING))
     local sf = frame.flowScroll
     if sf then
-        if sf.UpdateScrollChildRect then
-            sf:UpdateScrollChildRect()
-        else
-            local sb = _G["OmniGuildBankFlowScrollScrollBar"]
-            local ch = scrollChild:GetHeight() or 1
-            local vh = sf:GetHeight() or 1
-            local maxVal = math.max(0, ch - vh)
-            if sb and sb.SetMinMaxValues then
-                sb:SetMinMaxValues(0, maxVal)
-            end
-            local cur = sf.GetVerticalScroll and sf:GetVerticalScroll() or 0
-            if cur > maxVal and sf.SetVerticalScroll then
-                sf:SetVerticalScroll(maxVal)
-            end
+        local ch = scrollChild:GetHeight() or 1
+        local vh = sf:GetHeight() or 1
+        local maxVal = math.max(0, ch - vh)
+        local sb = frame.virtualView and frame.virtualView.scrollBar
+        if sb and sb.SetMinMaxValues then
+            sb:SetMinMaxValues(0, maxVal)
+        end
+        local cur = sf.GetVerticalScroll and sf:GetVerticalScroll() or 0
+        if cur > maxVal and sf.SetVerticalScroll then
+            sf:SetVerticalScroll(maxVal)
+            if sb.SetValue then sb:SetValue(maxVal) end
         end
     end
 end
@@ -1677,18 +1695,20 @@ function GuildBankFrame:RefreshItemArea()
     else
         if frame.gridContainer then frame.gridContainer:Hide() end
         if frame.flowScroll then frame.flowScroll:Show() end
-        local perfFlowCollect = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("guildbank.RefreshItemArea.flowCollect")
-        local items = CollectGuildBankTabItems(currentTab)
-        if currentTab == GetDarkmoonTab() then
-            items = ApplyDarkmoonGrouping(items)
-        end
-        if Omni._perfEnabled and Omni.Perf then
-            Omni.Perf:End("guildbank.RefreshItemArea.flowCollect", perfFlowCollect, { itemCount = #items })
-        end
-        local perfFlowRender = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("guildbank.RefreshItemArea.flowRender")
-        self:RenderFlowView(items)
-        if Omni._perfEnabled and Omni.Perf then
-            Omni.Perf:End("guildbank.RefreshItemArea.flowRender", perfFlowRender)
+        if not hoveredFlowBtn then
+            local perfFlowCollect = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("guildbank.RefreshItemArea.flowCollect")
+            local items = CollectGuildBankTabItems(currentTab)
+            if currentTab == GetDarkmoonTab() then
+                items = ApplyDarkmoonGrouping(items)
+            end
+            if Omni._perfEnabled and Omni.Perf then
+                Omni.Perf:End("guildbank.RefreshItemArea.flowCollect", perfFlowCollect, { itemCount = #items })
+            end
+            local perfFlowRender = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("guildbank.RefreshItemArea.flowRender")
+            self:RenderFlowView(items)
+            if Omni._perfEnabled and Omni.Perf then
+                Omni.Perf:End("guildbank.RefreshItemArea.flowRender", perfFlowRender)
+            end
         end
     end
     if Omni._perfEnabled and Omni.Perf then
@@ -1767,7 +1787,7 @@ function GuildBankFrame:CreateMainFrame()
     if virtualWidth <= 0 then virtualWidth = 400 end
     if virtualHeight <= 0 then virtualHeight = 300 end
 
-    local virtualView = Omni.VirtualScrollView:Create(frame.rightPanel, "OmniGuildBankVirtualScrollView", virtualWidth, virtualHeight)
+    local virtualView = Omni.VirtualScrollView:Create(frame.rightPanel, "OmniGuildBankVirtualScrollView", virtualWidth, virtualHeight, GB_BASE_BAG_ID)
     virtualView.container:SetPoint("TOPLEFT", frame.rightPanel, "TOPLEFT", 0, 0)
     virtualView.container:SetPoint("BOTTOMRIGHT", frame.rightPanelBottom, "TOPRIGHT", 0, 0)
 
@@ -1775,9 +1795,17 @@ function GuildBankFrame:CreateMainFrame()
     frame.flowScroll = virtualView.scrollFrame
     frame.flowChild = virtualView.scrollChild
 
-    -- Wire OnVerticalScroll handler
+    virtualView.scrollBar:SetScript("OnValueChanged", function(self, value)
+        virtualView.scrollFrame:SetVerticalScroll(value)
+        if GetViewMode() == VIEW_GRID then
+            virtualView:UpdateViewport(value)
+        end
+    end)
+
     virtualView.scrollFrame:SetScript("OnVerticalScroll", function(self, offset)
-        virtualView:UpdateViewport(offset)
+        if GetViewMode() == VIEW_GRID then
+            virtualView:UpdateViewport(offset)
+        end
     end)
 
     local tabStride = FOOTER_TAB_BTN + TAB_TAB_GAP
@@ -1862,7 +1890,7 @@ function GuildBankFrame:UpdateSlots()
         table.insert(slotDataList, {
             guildBankTab = currentTab,
             guildBankSlot = i,
-            bagID = currentTab,
+            bagID = currentTab + GB_BASE_BAG_ID,
             slotID = i,
             icon = texture,
             count = count,
@@ -2048,6 +2076,7 @@ function GuildBankFrame:UpdateCurrentTabSlotSummary()
     end
     local name, _, isViewable = GetGuildBankTabInfo(currentTab)
     local viewOK = not (isViewable == 0 or isViewable == false or isViewable == nil)
+    tabViewableCache[currentTab] = viewOK
     local label = (name and name ~= "") and name or ("Tab " .. currentTab)
     if not viewOK then
         frame.tabSlotSummary:SetText(label .. "  (not viewable)")
@@ -2619,6 +2648,15 @@ end
 
 function GuildBankFrame:Hide()
     if frame then
+        if frame.virtualView then
+            for _, btn in ipairs(frame.virtualView.visibleButtons) do
+                if btn then
+                    btn:Hide()
+                    btn:ClearAllPoints()
+                    btn:SetParent(UIParent)
+                end
+            end
+        end
         pcall(frame.Hide, frame)
     end
 end

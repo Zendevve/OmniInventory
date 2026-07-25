@@ -20,17 +20,20 @@ local DEFAULT_COLUMNS       = 10
 -- @param name Sub-frame global identifier
 -- @param width Viewport width
 -- @param height Viewport height
+-- @param baseBagID Namespace offset for dummy bag IDs to avoid collisions (default 0)
 -- @return Viewport object table
-function VirtualScrollView:Create(parent, name, width, height)
+function VirtualScrollView:Create(parent, name, width, height, baseBagID)
     parent = parent or UIParent
     name = name or "OmniInventoryVirtualScrollView"
     width = width or 400
     height = height or 300
+    baseBagID = baseBagID or 0
 
     local view = {
         name = name,
         width = width,
         height = height,
+        baseBagID = baseBagID,
         columns = DEFAULT_COLUMNS,
         slotSize = DEFAULT_SLOT_SIZE,
         spacing = DEFAULT_SPACING,
@@ -85,7 +88,7 @@ function VirtualScrollView:Create(parent, name, width, height)
     for i = 1, VISIBLE_BUTTON_WINDOW do
         local btn = nil
         if Omni.FramePool and not isCombat then
-            btn = Omni.FramePool:AcquireItemButton(scrollChild, 0, i)
+            btn = Omni.FramePool:AcquireItemButton(scrollChild, baseBagID, i)
         end
         if not btn and not isCombat then
             btn = CreateFrame("Button", name .. "Btn" .. i, scrollChild, "ContainerFrameItemButtonTemplate")
@@ -175,7 +178,7 @@ function VirtualScrollView:UpdateViewport(scrollTop)
 
                 -- 2. Dummy Bag Parent Adjustment (for WoW native C-API compatibility)
                 if data.bagID and Omni.FramePool and not isCombat then
-                    local dummyParent = self.container or btn:GetParent()
+                    local dummyParent = self.scrollChild or btn:GetParent()
                     local dummyBag = Omni.FramePool:GetDummyBag(dummyParent, data.bagID)
                     if dummyBag and btn:GetParent() ~= dummyBag then
                         btn:SetParent(dummyBag)
