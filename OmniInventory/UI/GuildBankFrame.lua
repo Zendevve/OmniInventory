@@ -1615,15 +1615,37 @@ function GuildBankFrame:RenderFlowView(items)
                 if not btn then
                     btn = CreateSlotButton(scrollChild, flowBtnCount)
                     flowItemButtons[flowBtnCount] = btn
-                    local realOnEnter = btn:GetScript("OnEnter")
-                    local realOnLeave = btn:GetScript("OnLeave")
                     btn:SetScript("OnEnter", function(self)
                         hoveredFlowBtn = self
-                        if realOnEnter then realOnEnter(self) end
+                        self.__omniUsesCustomTooltip = true
+                        if Omni.ItemButton and Omni.ItemButton.SetOmniItemTooltipOwner then
+                            Omni.ItemButton.SetOmniItemTooltipOwner(self)
+                        else
+                            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        end
+                        local t = self.gbTab or currentTab
+                        local s = self.gbSlot or self.slotIndex
+                        if IsOffline() then
+                            local link = GetGuildBankItemLink(t, s)
+                            if link then
+                                GameTooltip:SetHyperlink(link)
+                            end
+                        else
+                            GameTooltip:SetGuildBankItem(t, s)
+                        end
+                        GameTooltip:Show()
+                        if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
+                            Omni.ItemButton.FinalizeOmniItemTooltipLayout()
+                        end
+                        if Omni.ItemButton and Omni.ItemButton.RefreshCompareTooltips then
+                            Omni.ItemButton:RefreshCompareTooltips()
+                        end
                     end)
                     btn:SetScript("OnLeave", function(self)
                         hoveredFlowBtn = nil
-                        if realOnLeave then realOnLeave(self) end
+                        self.__omniUsesCustomTooltip = false
+                        GameTooltip:Hide()
+                        if ResetCursor then ResetCursor() end
                     end)
                 end
                 ApplyGuildSlotMetrics(btn)
