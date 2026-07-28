@@ -1116,12 +1116,30 @@ function Frame:EquipBagFromCursor(bagID)
     local inventoryID = ContainerIDToInventoryID and ContainerIDToInventoryID(bagID)
     if not inventoryID then return end
 
-    local targetHasBag = (GetContainerNumSlots(bagID) or 0) > 0
+    local currentSlots = GetContainerNumSlots(bagID) or 0
+    local targetHasBag = currentSlots > 0
     if not targetHasBag then
         if PutItemInBag then
             PutItemInBag(inventoryID)
         end
         return
+    end
+
+    -- Check if the dragged bag is an upgrade (more slots than the equipped one)
+    local cursorLink
+    if GetCursorInfo then
+        local _, _, link = GetCursorInfo()
+        cursorLink = link
+    end
+    if cursorLink then
+        local _, _, _, _, _, _, _, newBagSlots = GetItemInfo(cursorLink)
+        if newBagSlots and newBagSlots <= currentSlots then
+            print(string.format(
+                "|cFF00FF00OmniInventory|r: Dragged bag (%d slots) is not bigger than the equipped bag (%d slots). Swap cancelled.",
+                newBagSlots, currentSlots))
+            if ClearCursor then ClearCursor() end
+            return
+        end
     end
 
     local tempBagID, tempSlotID
