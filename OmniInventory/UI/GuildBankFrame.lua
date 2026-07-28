@@ -92,6 +92,7 @@ local flowItemButtons = {}
 local categoryHeadersFlow = {}
 local tabViewableCache = {}
 local hoveredFlowBtn = nil
+local hoveredGridBtn = nil
 local currentTab = 1
 local searchText = ""
 local searchTextLower = ""
@@ -1709,10 +1710,12 @@ function GuildBankFrame:RefreshItemArea()
     if GetViewMode() == VIEW_GRID then
         if frame.gridContainer then frame.gridContainer:Show() end
         if frame.flowScroll then frame.flowScroll:Hide() end
-        local perfGrid = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("guildbank.RefreshItemArea.grid")
-        self:UpdateSlots()
-        if Omni._perfEnabled and Omni.Perf then
-            Omni.Perf:End("guildbank.RefreshItemArea.grid", perfGrid)
+        if not hoveredGridBtn then
+            local perfGrid = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("guildbank.RefreshItemArea.grid")
+            self:UpdateSlots()
+            if Omni._perfEnabled and Omni.Perf then
+                Omni.Perf:End("guildbank.RefreshItemArea.grid", perfGrid)
+            end
         end
     else
         if frame.gridContainer then frame.gridContainer:Hide() end
@@ -1929,6 +1932,7 @@ function GuildBankFrame:UpdateSlots()
                     btn._gbWired = true
                     btn:SetScript("OnClick", GuildBankSlotOnClick)
                     btn:SetScript("OnEnter", function(self)
+                        hoveredGridBtn = self
                         self.__omniUsesCustomTooltip = true
                         if Omni.ItemButton and Omni.ItemButton.SetOmniItemTooltipOwner then
                             Omni.ItemButton.SetOmniItemTooltipOwner(self)
@@ -1954,6 +1958,7 @@ function GuildBankFrame:UpdateSlots()
                         end
                     end)
                     btn:SetScript("OnLeave", function(self)
+                        hoveredGridBtn = nil
                         self.__omniUsesCustomTooltip = false
                         GameTooltip:Hide()
                         if ResetCursor then ResetCursor() end
