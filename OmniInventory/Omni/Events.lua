@@ -82,6 +82,9 @@ local function StartBagUpdateChunking(modifiedBags)
         if bagUpdateChunkQueue.idx > #bagUpdateChunkQueue.bagIDs then
             self:SetScript("OnUpdate", nil)
             bagUpdateChunkQueue = nil
+            if Omni.Frame and Omni.Frame:IsShown() and Omni.Frame.UpdateLayout then
+                Omni.Frame:UpdateLayout(nil, { forceFull = true, reason = "bag_update_chunk_complete" })
+            end
         end
     end)
     return true
@@ -720,21 +723,20 @@ function Events:Init()
         -- Always re-render so secure attributes / positions / new
         -- items missed during combat are restored. UpdateLayout no longer
         -- requires IsShown(), so this is safe even when bags are hidden.
-        if Omni.Frame and Omni.Frame.UpdateLayout then
-            pcall(Omni.Frame.UpdateLayout, Omni.Frame, nil, { reason = "player_regen" })
-        end
         -- Flush a deferred footer-button reflow that was skipped during
-        -- combat lockdown (secure buttons can't be repositioned in combat).
         if Omni.Frame and Omni.Frame._pendingFooterUpdate
                 and Omni.Frame.UpdateFooterCustomButtons then
             pcall(Omni.Frame.UpdateFooterCustomButtons, Omni.Frame)
         end
+        if Omni.Frame and Omni.Frame.UpdateLayout then
+            pcall(Omni.Frame.UpdateLayout, Omni.Frame, nil, { forceFull = true, reason = "player_regen" })
+        end
         if Omni.BankFrame and Omni.BankFrame.UpdateLayout
-                and Omni.BankFrame:IsShown() then
+                and Omni.Features and Omni.Features:IsAtBank() then
             pcall(Omni.BankFrame.UpdateLayout, Omni.BankFrame)
         end
         if Omni.GuildBankFrame and Omni.GuildBankFrame.UpdateLayout
-                and Omni.GuildBankFrame:IsShown() then
+                and Omni.Features and Omni.Features:GetInteractingWindow() == "guildbank" then
             pcall(Omni.GuildBankFrame.UpdateLayout, Omni.GuildBankFrame)
         end
     end)
@@ -744,13 +746,13 @@ function Events:Init()
         local perfToken = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("events.GET_ITEM_INFO_RECEIVED.flush")
         if Omni.Frame and Omni.Frame:IsShown() then
             -- Refresh layout to fix "Miscellaneous" items that now have data
-            Omni.Frame:UpdateLayout(nil, { reason = "item_info_received" })
+            Omni.Frame:UpdateLayout(nil, { forceFull = true, reason = "item_info_received" })
         end
         if Omni.BankFrame and Omni.BankFrame:IsShown() then
-            Omni.BankFrame:UpdateLayout()
+            Omni.BankFrame:UpdateLayout(nil, { forceFull = true })
         end
         if Omni.GuildBankFrame and Omni.GuildBankFrame:IsShown() then
-            Omni.GuildBankFrame:UpdateLayout()
+            Omni.GuildBankFrame:UpdateLayout(nil, { forceFull = true })
         end
         if Omni._perfEnabled and Omni.Perf then
             Omni.Perf:End("events.GET_ITEM_INFO_RECEIVED.flush", perfToken)
