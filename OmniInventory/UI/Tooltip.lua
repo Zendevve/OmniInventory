@@ -59,6 +59,7 @@ local function AddTooltipData(tooltip, targetItemID)
     else
         -- Fallback: Iterate all characters on this realm in SavedVariables
         for playerName, charData in pairs(realmData) do
+            if playerName ~= "guilds" and type(charData) == "table" then
             local bagCount = 0
             if charData.bags then
                 for _, item in ipairs(charData.bags) do
@@ -87,6 +88,7 @@ local function AddTooltipData(tooltip, targetItemID)
                     isCurrent = (playerName == currentPlayer)
                 })
                 grandTotal = grandTotal + total
+            end
             end
         end
     end

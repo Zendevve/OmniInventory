@@ -892,7 +892,7 @@ local function CollectBankItems()
         if realmData then
             local currentOwner = Omni.Data and (Omni.Data.currentViewedChar or Omni.Data.playerName)
             for charName, charData in pairs(realmData) do
-                if charName ~= currentOwner then
+                if charName ~= "guilds" and charName ~= currentOwner and type(charData) == "table" then
                     -- Scan bags
                     if charData.bags then
                         for _, item in ipairs(charData.bags) do

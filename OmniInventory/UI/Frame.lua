@@ -2859,9 +2859,11 @@ local function ShowFooterMoneyTooltip(owner)
         local totalGold = 0
         local currentPlayer = UnitName("player")
         for charName, charData in pairs(realmData) do
-            local gold = charData.gold or 0
-            totalGold = totalGold + gold
-            table.insert(alts, { name = charName, gold = gold, isCurrent = (charName == currentPlayer) })
+            if charName ~= "guilds" and type(charData) == "table" and charData.gold then
+                local gold = charData.gold or 0
+                totalGold = totalGold + gold
+                table.insert(alts, { name = charName, gold = gold, isCurrent = (charName == currentPlayer) })
+            end
         end
 
         if #alts > 1 then
@@ -4090,7 +4092,7 @@ function Frame:UpdateLayout(changedBags, opts)
         if realmData then
             local currentOwner = Omni.Data and (Omni.Data.currentViewedChar or Omni.Data.playerName)
             for charName, charData in pairs(realmData) do
-                if charName ~= currentOwner then
+                if charName ~= "guilds" and charName ~= currentOwner and type(charData) == "table" then
                     -- Scan bags
                     if charData.bags then
                         for _, item in ipairs(charData.bags) do
@@ -6028,11 +6030,17 @@ local function OpenCharacterSelectMenu(anchorFrame)
         dropdown = CreateFrame("Frame", "OmniCharacterDropdownMenu", UIParent, "UIDropDownMenuTemplate")
     end
 
+    if Omni.Data and Omni.Data.currentViewedChar == "guilds" then
+        Omni.Data.currentViewedChar = nil
+    end
+
     local realmName = GetRealmName()
     local characters = {}
     if OmniInventoryDB and OmniInventoryDB.realm and OmniInventoryDB.realm[realmName] then
         for name, data in pairs(OmniInventoryDB.realm[realmName]) do
-            table.insert(characters, { name = name, class = data.class })
+            if name ~= "guilds" and name ~= "Unknown Character" and type(data) == "table" and data.class then
+                table.insert(characters, { name = name, class = data.class })
+            end
         end
     end
     table.sort(characters, function(a, b) return a.name < b.name end)

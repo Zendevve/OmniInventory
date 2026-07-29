@@ -497,13 +497,15 @@ function Data:GetAllCharacters()
     local chars = {}
     for realmName, realmData in pairs(OmniInventoryDB.realm or {}) do
         for playerName, charData in pairs(realmData) do
-            table.insert(chars, {
-                realm = realmName,
-                name = playerName,
-                class = charData.class,
-                gold = charData.gold,
-                lastSeen = charData.lastSeen,
-            })
+            if playerName ~= "guilds" and type(charData) == "table" and charData.class then
+                table.insert(chars, {
+                    realm = realmName,
+                    name = playerName,
+                    class = charData.class,
+                    gold = charData.gold,
+                    lastSeen = charData.lastSeen,
+                })
+            end
         end
     end
     return chars
