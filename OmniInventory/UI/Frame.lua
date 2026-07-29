@@ -6915,8 +6915,9 @@ do
     end
 
     local function ensureForceEmptyFrame()
-        if forceEmptyFrame then return end
-        forceEmptyFrame = CreateFrame("Frame")
+        if not forceEmptyFrame then
+            forceEmptyFrame = CreateFrame("Frame")
+        end
         forceEmptyFrame:RegisterEvent("BAG_UPDATE")
         forceEmptyFrame:RegisterEvent("ITEM_LOCK_CHANGED")
         forceEmptyFrame:SetScript("OnEvent", function(_, event, arg1)
