@@ -929,6 +929,48 @@ local function GetGuildBankDummyBag(parent, tabIndex)
     return parent
 end
 
+local function GuildBankSlotOnEnter(self)
+    if self._isFlowBtn then
+        hoveredFlowBtn = self
+    else
+        hoveredGridBtn = self
+    end
+    self.__omniUsesCustomTooltip = true
+    if Omni.ItemButton and Omni.ItemButton.SetOmniItemTooltipOwner then
+        Omni.ItemButton.SetOmniItemTooltipOwner(self)
+    else
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    end
+    local t = self.gbTab or currentTab
+    local s = self.gbSlot or self.slotIndex
+    if IsOffline() then
+        local link = GetGuildBankItemLink(t, s)
+        if link then
+            GameTooltip:SetHyperlink(link)
+        end
+    else
+        GameTooltip:SetGuildBankItem(t, s)
+    end
+    GameTooltip:Show()
+    if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
+        Omni.ItemButton.FinalizeOmniItemTooltipLayout()
+    end
+    if Omni.ItemButton and Omni.ItemButton.RefreshCompareTooltips then
+        Omni.ItemButton:RefreshCompareTooltips()
+    end
+end
+
+local function GuildBankSlotOnLeave(self)
+    if self._isFlowBtn then
+        hoveredFlowBtn = nil
+    else
+        hoveredGridBtn = nil
+    end
+    self.__omniUsesCustomTooltip = false
+    GameTooltip:Hide()
+    if ResetCursor then ResetCursor() end
+end
+
 local function CreateSlotButton(parent, slotIndex)
     local dummyBag = GetGuildBankDummyBag(parent, currentTab)
     local btn = nil
@@ -991,38 +1033,9 @@ local function CreateSlotButton(parent, slotIndex)
     btn.dimOverlay:Hide()
 
     btn:SetScript("OnClick", GuildBankSlotOnClick)
-
-    btn:SetScript("OnEnter", function(self)
-        self.__omniUsesCustomTooltip = true
-        if Omni.ItemButton and Omni.ItemButton.SetOmniItemTooltipOwner then
-            Omni.ItemButton.SetOmniItemTooltipOwner(self)
-        else
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        end
-        local t = self.gbTab or currentTab
-        local s = self.gbSlot or self.slotIndex
-        if IsOffline() then
-            local link = GetGuildBankItemLink(t, s)
-            if link then
-                GameTooltip:SetHyperlink(link)
-            end
-        else
-            GameTooltip:SetGuildBankItem(t, s)
-        end
-        GameTooltip:Show()
-        if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
-            Omni.ItemButton.FinalizeOmniItemTooltipLayout()
-        end
-        if Omni.ItemButton and Omni.ItemButton.RefreshCompareTooltips then
-            Omni.ItemButton:RefreshCompareTooltips()
-        end
-    end)
-
-    btn:SetScript("OnLeave", function(self)
-        self.__omniUsesCustomTooltip = false
-        GameTooltip:Hide()
-        if ResetCursor then ResetCursor() end
-    end)
+    btn:SetScript("OnEnter", GuildBankSlotOnEnter)
+    btn:SetScript("OnLeave", GuildBankSlotOnLeave)
+    btn.UpdateTooltip = GuildBankSlotOnEnter
 
     btn:SetScript("OnReceiveDrag", function(self)
         if IsOffline() then return end
@@ -1615,39 +1628,10 @@ function GuildBankFrame:RenderFlowView(items)
                 local btn = flowItemButtons[flowBtnCount]
                 if not btn then
                     btn = CreateSlotButton(scrollChild, flowBtnCount)
-                    flowItemButtons[flowBtnCount] = btn
-                    btn:SetScript("OnEnter", function(self)
-                        hoveredFlowBtn = self
-                        self.__omniUsesCustomTooltip = true
-                        if Omni.ItemButton and Omni.ItemButton.SetOmniItemTooltipOwner then
-                            Omni.ItemButton.SetOmniItemTooltipOwner(self)
-                        else
-                            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                        end
-                        local t = self.gbTab or currentTab
-                        local s = self.gbSlot or self.slotIndex
-                        if IsOffline() then
-                            local link = GetGuildBankItemLink(t, s)
-                            if link then
-                                GameTooltip:SetHyperlink(link)
-                            end
-                        else
-                            GameTooltip:SetGuildBankItem(t, s)
-                        end
-                        GameTooltip:Show()
-                        if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
-                            Omni.ItemButton.FinalizeOmniItemTooltipLayout()
-                        end
-                        if Omni.ItemButton and Omni.ItemButton.RefreshCompareTooltips then
-                            Omni.ItemButton:RefreshCompareTooltips()
-                        end
-                    end)
-                    btn:SetScript("OnLeave", function(self)
-                        hoveredFlowBtn = nil
-                        self.__omniUsesCustomTooltip = false
-                        GameTooltip:Hide()
-                        if ResetCursor then ResetCursor() end
-                    end)
+                    btn._isFlowBtn = true
+                    btn:SetScript("OnEnter", GuildBankSlotOnEnter)
+                    btn:SetScript("OnLeave", GuildBankSlotOnLeave)
+                    btn.UpdateTooltip = GuildBankSlotOnEnter
                 end
                 ApplyGuildSlotMetrics(btn)
                 btn.gbTab = itemInfo.guildBankTab
@@ -1930,39 +1914,11 @@ function GuildBankFrame:UpdateSlots()
 
                 if not btn._gbWired then
                     btn._gbWired = true
+                    btn._isFlowBtn = false
                     btn:SetScript("OnClick", GuildBankSlotOnClick)
-                    btn:SetScript("OnEnter", function(self)
-                        hoveredGridBtn = self
-                        self.__omniUsesCustomTooltip = true
-                        if Omni.ItemButton and Omni.ItemButton.SetOmniItemTooltipOwner then
-                            Omni.ItemButton.SetOmniItemTooltipOwner(self)
-                        else
-                            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                        end
-                        local t = self.gbTab or currentTab
-                        local s = self.gbSlot or self.slotIndex
-                        if IsOffline() then
-                            local link = GetGuildBankItemLink(t, s)
-                            if link then
-                                GameTooltip:SetHyperlink(link)
-                            end
-                        else
-                            GameTooltip:SetGuildBankItem(t, s)
-                        end
-                        GameTooltip:Show()
-                        if Omni.ItemButton and Omni.ItemButton.FinalizeOmniItemTooltipLayout then
-                            Omni.ItemButton.FinalizeOmniItemTooltipLayout()
-                        end
-                        if Omni.ItemButton and Omni.ItemButton.RefreshCompareTooltips then
-                            Omni.ItemButton:RefreshCompareTooltips()
-                        end
-                    end)
-                    btn:SetScript("OnLeave", function(self)
-                        hoveredGridBtn = nil
-                        self.__omniUsesCustomTooltip = false
-                        GameTooltip:Hide()
-                        if ResetCursor then ResetCursor() end
-                    end)
+                    btn:SetScript("OnEnter", GuildBankSlotOnEnter)
+                    btn:SetScript("OnLeave", GuildBankSlotOnLeave)
+                    btn.UpdateTooltip = GuildBankSlotOnEnter
                     btn:SetScript("OnReceiveDrag", function(self)
                         if IsOffline() then return end
                         local t = self.gbTab or currentTab
