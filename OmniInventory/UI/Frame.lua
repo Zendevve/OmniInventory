@@ -1090,6 +1090,11 @@ function Frame:EquipBagFromCursor(bagID)
         print("|cFF00FF00OmniInventory|r: Cannot change bags during combat.")
         return
     end
+    if forceEmptyJob then
+        print("|cFF00FF00OmniInventory|r: A bag operation is already in progress.")
+        if ClearCursor then ClearCursor() end
+        return
+    end
     if not (CursorHasItem and CursorHasItem()) then return end
 
     if GetCursorInfo then
