@@ -219,6 +219,10 @@ function FramePool:ReleaseItemButton(button)
     button.bagID = nil
     button.slotID = nil
     button.itemLink = nil
+    button.itemInfo = nil
+    button.__lastRenderKey = nil
+    button.__omniActionStateKey = nil
+    button.__omniUsesCustomTooltip = nil
 
     self.itemButtons.actives[button] = nil
     table.insert(self.itemButtons.heap, button)
@@ -315,13 +319,27 @@ end
 
 --- Releases all active frames across all pools
 function FramePool:ReleaseAll()
+    local btns = {}
     for button in pairs(self.itemButtons.actives) do
+        table.insert(btns, button)
+    end
+    for _, button in ipairs(btns) do
         self:ReleaseItemButton(button)
     end
+
+    local secs = {}
     for section in pairs(self.sections.actives) do
+        table.insert(secs, section)
+    end
+    for _, section in ipairs(secs) do
         self:ReleaseSection(section)
     end
+
+    local rws = {}
     for row in pairs(self.rows.actives) do
+        table.insert(rws, row)
+    end
+    for _, row in ipairs(rws) do
         self:ReleaseRow(row)
     end
 end

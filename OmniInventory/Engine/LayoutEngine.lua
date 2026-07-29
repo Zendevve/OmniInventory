@@ -79,7 +79,9 @@ function LayoutEngine:CalculateFlowLayout(containerFrame, sections, maxColumns, 
                     for idx, btn in ipairs(buttons) do
                         local r = math.floor((idx - 1) / secCols)
                         local c = (idx - 1) % secCols
-                        btn:SetParent(sec.frame)
+                        if not btn.bagID or not btn:GetParent() then
+                            btn:SetParent(sec.frame)
+                        end
                         btn:ClearAllPoints()
                         btn:SetPoint("TOPLEFT", sec.frame, "TOPLEFT", c * (slotSize + spacing), -(headerHeight + r * (slotSize + spacing)))
                         btn:SetSize(slotSize, slotSize)
@@ -125,7 +127,9 @@ function LayoutEngine:CalculateFlowLayout(containerFrame, sections, maxColumns, 
             for idx, btn in ipairs(buttons) do
                 local r = math.floor((idx - 1) / sectionCols)
                 local c = (idx - 1) % sectionCols
-                btn:SetParent(section.frame)
+                if not btn.bagID or not btn:GetParent() then
+                    btn:SetParent(section.frame)
+                end
                 btn:ClearAllPoints()
                 btn:SetPoint("TOPLEFT", section.frame, "TOPLEFT", c * (slotSize + spacing), -(headerHeight + r * (slotSize + spacing)))
                 btn:SetSize(slotSize, slotSize)
@@ -172,7 +176,9 @@ function LayoutEngine:CalculateGridLayout(containerFrame, buttons, maxColumns, s
         local r = math.floor((idx - 1) / maxColumns)
         local c = (idx - 1) % maxColumns
 
-        btn:SetParent(content)
+        if not btn.bagID or not btn:GetParent() then
+            btn:SetParent(content)
+        end
         btn:ClearAllPoints()
         btn:SetPoint("TOPLEFT", content, "TOPLEFT", c * (slotSize + spacing), -r * (slotSize + spacing))
         btn:SetSize(slotSize, slotSize)
