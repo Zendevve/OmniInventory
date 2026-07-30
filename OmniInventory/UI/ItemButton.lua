@@ -202,6 +202,13 @@ function ItemButton:HandleBagSlotRightClickInventory(bagID, slotID, secureUseCon
     if InCombatLockdown and InCombatLockdown() then
         return false
     end
+
+    if Omni.Frame and Omni.Frame.EquipBagFromInventory then
+        if Omni.Frame:EquipBagFromInventory(bagID, slotID) then
+            return true
+        end
+    end
+
     if IsSendMailComposeOpen() then
         if not PerformBlizzardContainerRightClick(bagID, slotID) then
             UseContainerItem(bagID, slotID)
@@ -1477,6 +1484,19 @@ function ItemButton:OnPreClick(button, mouseButton)
     if button.itemInfo and button.itemInfo.__offline then
         pcall(button.SetID, button, 0)
         return
+    end
+
+    if mouseButton == "RightButton" and not (MerchantFrame and MerchantFrame:IsShown()) then
+        local bagID = button.bagID
+        local slotID = button.slotID
+        if bagID and slotID and bagID >= 0 and bagID <= 4 and slotID >= 1 then
+            if Omni.Frame and Omni.Frame.EquipBagFromInventory then
+                if Omni.Frame:EquipBagFromInventory(bagID, slotID) then
+                    pcall(button.SetID, button, 0)
+                    return
+                end
+            end
+        end
     end
 
     if mouseButton == "RightButton" and MerchantFrame and MerchantFrame:IsShown() and MerchantFrame.selectedTab == 1 then

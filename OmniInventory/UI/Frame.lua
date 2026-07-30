@@ -7078,6 +7078,54 @@ function Frame:StartBagSwap(sourceBagID, sourceSlotID, targetBagID)
     print(string.format("|cFF00FF00OmniInventory|r: Swapping bag %d (moving %d items)...", targetBagID, filledCount))
 end
 
+function Frame:EquipBagFromInventory(sourceBagID, sourceSlotID)
+    if InCombat() then
+        print("|cFF00FF00OmniInventory|r: Cannot change bags during combat.")
+        return false
+    end
+    if forceEmptyJob then
+        print("|cFF00FF00OmniInventory|r: A bag operation is already in progress.")
+        return false
+    end
+    if not sourceBagID or not sourceSlotID or sourceBagID < 0 or sourceSlotID > 4 or sourceSlotID < 1 then
+        return false
+    end
+
+    local link = GetContainerItemLink(sourceBagID, sourceSlotID)
+    if not link then return false end
+    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(link)
+    if equipLoc ~= "INVTYPE_BAG" and equipLoc ~= "INVTYPE_QUIVER" and equipLoc ~= "INVTYPE_AMMO" then
+        return false
+    end
+
+    local emptyBagID = nil
+    for bID = 1, 4 do
+        local slots = GetContainerNumSlots(bID) or 0
+        if slots == 0 then
+            emptyBagID = bID
+            break
+        end
+    end
+
+    if emptyBagID then
+        UseContainerItem(sourceBagID, sourceSlotID)
+        return true
+    end
+
+    local targetBagID = 1
+    local minSlots = 999
+    for bID = 1, 4 do
+        local slots = GetContainerNumSlots(bID) or 0
+        if slots < minSlots then
+            minSlots = slots
+            targetBagID = bID
+        end
+    end
+
+    Frame:StartBagSwap(sourceBagID, sourceSlotID, targetBagID)
+    return true
+end
+
 end -- force-empty inner scope
 
 -- =============================================================================
