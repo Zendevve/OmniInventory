@@ -529,7 +529,12 @@ function Categorizer:GetCategory(itemInfo)
     end
 
     local category = self:GetCategoryInternal(itemInfo)
-    if itemID and category then
+    local isWarm = false
+    if itemID or itemInfo.hyperlink then
+        local name = GetItemInfo(itemID or itemInfo.hyperlink)
+        if name then isWarm = true end
+    end
+    if itemID and category and isWarm then
         categoryCache[itemID] = category
     end
 
@@ -900,8 +905,11 @@ function Categorizer:GetCategory(itemInfo)
     if cat and OmniInventoryDB and OmniInventoryDB.global and OmniInventoryDB.global.categoryRenames then
         local newName = OmniInventoryDB.global.categoryRenames[cat]
         if newName then
-            return newName
+            cat = newName
         end
+    end
+    if not cat or cat == "" or cat == "Unassigned" then
+        cat = "Miscellaneous"
     end
     return cat
 end

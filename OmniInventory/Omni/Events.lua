@@ -744,8 +744,11 @@ function Events:Init()
     -- Item info received (async data load)
     self:RegisterBucketEvent("GET_ITEM_INFO_RECEIVED", function()
         local perfToken = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("events.GET_ITEM_INFO_RECEIVED.flush")
+        if Omni.Categorizer and Omni.Categorizer.ClearCategoryCache then
+            Omni.Categorizer:ClearCategoryCache()
+        end
         if Omni.Frame and Omni.Frame:IsShown() then
-            -- Refresh layout to fix "Miscellaneous" items that now have data
+            -- Refresh layout to fix items that now have data
             Omni.Frame:UpdateLayout(nil, { forceFull = true, reason = "item_info_received" })
         end
         if Omni.BankFrame and Omni.BankFrame:IsShown() then
