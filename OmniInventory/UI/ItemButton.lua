@@ -72,50 +72,127 @@ local function GetSpecialtyBagColor(bagID)
     return nil
 end
 
+local playerClass = select(2, UnitClass("player"))
+
+-- SubClass IDs for ClassID 2 (Weapon):
+-- 0: 1H Axe, 1: 2H Axe, 2: Bow, 3: Gun, 4: 1H Mace, 5: 2H Mace, 6: Polearm,
+-- 7: 1H Sword, 8: 2H Sword, 10: Staff, 13: Fist, 15: Dagger, 16: Thrown, 18: Crossbow, 19: Wand
+local CLASS_WEAPON_PROFICIENCY = {
+    WARRIOR     = { [0]=true, [1]=true, [2]=true, [3]=true, [4]=true, [5]=true, [6]=true, [7]=true, [8]=true, [10]=true, [13]=true, [15]=true, [16]=true, [18]=true },
+    PALADIN     = { [0]=true, [1]=true, [4]=true, [5]=true, [6]=true, [7]=true, [8]=true },
+    HUNTER      = { [0]=true, [1]=true, [2]=true, [3]=true, [7]=true, [8]=true, [10]=true, [13]=true, [15]=true, [16]=true, [18]=true, [6]=true },
+    ROGUE       = { [0]=true, [2]=true, [3]=true, [4]=true, [7]=true, [13]=true, [15]=true, [16]=true, [18]=true },
+    PRIEST      = { [4]=true, [10]=true, [15]=true, [19]=true },
+    DEATHKNIGHT = { [0]=true, [1]=true, [4]=true, [5]=true, [6]=true, [7]=true, [8]=true },
+    SHAMAN      = { [0]=true, [1]=true, [4]=true, [5]=true, [10]=true, [13]=true, [15]=true },
+    MAGE        = { [7]=true, [10]=true, [15]=true, [19]=true },
+    WARLOCK     = { [7]=true, [10]=true, [15]=true, [19]=true },
+    DRUID       = { [4]=true, [5]=true, [6]=true, [10]=true, [13]=true, [15]=true },
+}
+
+-- SubClass IDs for ClassID 4 (Armor):
+-- 1: Cloth, 2: Leather, 3: Mail, 4: Plate, 6: Shield, 7: Libram, 8: Idol, 9: Totem, 10: Sigil
+local CLASS_ARMOR_PROFICIENCY = {
+    WARRIOR     = { [1]=true, [2]=true, [3]=true, [4]=true, [6]=true },
+    PALADIN     = { [1]=true, [2]=true, [3]=true, [4]=true, [6]=true, [7]=true },
+    HUNTER      = { [1]=true, [2]=true, [3]=true },
+    ROGUE       = { [1]=true, [2]=true },
+    PRIEST      = { [1]=true },
+    DEATHKNIGHT = { [1]=true, [2]=true, [3]=true, [4]=true, [10]=true },
+    SHAMAN      = { [1]=true, [2]=true, [3]=true, [6]=true, [9]=true },
+    MAGE        = { [1]=true },
+    WARLOCK     = { [1]=true },
+    DRUID       = { [1]=true, [2]=true, [8]=true },
+}
+
 local function isTextColorRed(textTable)
     if not textTable then return false end
     local text = textTable:GetText()
     if not text or text == "" or string.find(text, "^0 / %d+$") then return false end
     local r, g, b = textTable:GetTextColor()
-    return r > 0.95 and g < 0.2 and b < 0.2
+    return r > 0.8 and g < 0.35 and b < 0.35
 end
 
-local function CheckIfItemUnusable(bag, slot, itemID)
-    if not bag or not slot or not itemID then return false end
+local unusableCache = {}
 
-    -- Fast pre-check by level
-    local _, _, _, _, minLevel = GetItemInfo(itemID)
-    if minLevel and minLevel > 0 then
-        if minLevel > UnitLevel("player") then
+local function CheckIfItemUnusable(bag, slot, itemID, itemLink)
+    local target = itemLink or itemID
+    if not target and (not bag or not slot) then return false end
+
+    local cacheKey = (bag and slot) and (bag .. ":" .. slot) or tostring(target)
+    if unusableCache[cacheKey] ~= nil then
+        return unusableCache[cacheKey]
+    end
+
+    local name, link, quality, iLevel, reqLevel, class, subClass, maxStack, equipSlot, texture, vendorPrice, classID, subClassID
+    if target then
+        name, link, quality, iLevel, reqLevel, class, subClass, maxStack, equipSlot, texture, vendorPrice, classID, subClassID = GetItemInfo(target)
+    end
+
+    local pLevel = UnitLevel("player")
+    if reqLevel and reqLevel > 0 and reqLevel > pLevel then
+        unusableCache[cacheKey] = true
+        return true
+    end
+
+    if classID == 2 then -- Weapon
+        local prof = CLASS_WEAPON_PROFICIENCY[playerClass]
+        if prof and subClassID and not prof[subClassID] then
+            unusableCache[cacheKey] = true
+            return true
+        end
+    elseif classID == 4 then -- Armor
+        if subClassID == 4 then -- Plate
+            if (playerClass == "WARRIOR" or playerClass == "PALADIN") and pLevel < 40 then
+                unusableCache[cacheKey] = true
+                return true
+            end
+        elseif subClassID == 3 then -- Mail
+            if (playerClass == "HUNTER" or playerClass == "SHAMAN") and pLevel < 40 then
+                unusableCache[cacheKey] = true
+                return true
+            end
+        end
+        local prof = CLASS_ARMOR_PROFICIENCY[playerClass]
+        if prof and subClassID and not prof[subClassID] and equipSlot and equipSlot ~= "" and equipSlot ~= "INVTYPE_TABARD" and equipSlot ~= "INVTYPE_BODY" and equipSlot ~= "INVTYPE_CLOAK" and equipSlot ~= "INVTYPE_HOLDABLE" and equipSlot ~= "INVTYPE_TRINKET" and equipSlot ~= "INVTYPE_FINGER" and equipSlot ~= "INVTYPE_NECK" then
+            unusableCache[cacheKey] = true
             return true
         end
     end
 
-    -- Tooltip check
+    -- Tooltip scanning for red requirement text
     local scanningTooltip = _G["OmniScanningTooltip"]
-    if not scanningTooltip then return false end
+    if scanningTooltip then
+        scanningTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+        scanningTooltip:ClearLines()
+        local ok = false
+        if bag and slot then
+            ok = pcall(scanningTooltip.SetBagItem, scanningTooltip, bag, slot)
+        end
+        if not ok and (itemLink or link) then
+            pcall(scanningTooltip.SetHyperlink, scanningTooltip, itemLink or link)
+        end
 
-    scanningTooltip:ClearLines()
-    local ok = pcall(scanningTooltip.SetBagItem, scanningTooltip, bag, slot)
-    if not ok then
-        local link = GetContainerItemLink(bag, slot)
-        if link then
-            pcall(scanningTooltip.SetHyperlink, scanningTooltip, link)
+        for i = 2, scanningTooltip:NumLines() do
+            local leftFrame = _G["OmniScanningTooltipTextLeft" .. i]
+            if leftFrame and isTextColorRed(leftFrame) then
+                unusableCache[cacheKey] = true
+                return true
+            end
+            local rightFrame = _G["OmniScanningTooltipTextRight" .. i]
+            if rightFrame and isTextColorRed(rightFrame) then
+                unusableCache[cacheKey] = true
+                return true
+            end
         end
     end
 
-    for i = 2, scanningTooltip:NumLines() do
-        local leftFrame = _G["OmniScanningTooltipTextLeft" .. i]
-        if leftFrame and isTextColorRed(leftFrame) then
-            return true
-        end
-        local rightFrame = _G["OmniScanningTooltipTextRight" .. i]
-        if rightFrame and isTextColorRed(rightFrame) then
-            return true
-        end
-    end
-
+    unusableCache[cacheKey] = false
     return false
+end
+
+function ItemButton.InvalidateUnusableCache()
+    wipe(unusableCache)
 end
 
 local knownRecipeCache = {}
@@ -1248,10 +1325,8 @@ function ItemButton:SetItem(button, itemInfo)
     if not itemInfo.isQuickFiltered
             and OmniInventoryDB
             and OmniInventoryDB.global
-            and OmniInventoryDB.global.enableUnusableOverlay ~= false
-            and itemInfo.bagID
-            and itemInfo.slotID then
-        isUnusable = CheckIfItemUnusable(itemInfo.bagID, itemInfo.slotID, itemInfo.itemID)
+            and OmniInventoryDB.global.enableUnusableOverlay ~= false then
+        isUnusable = CheckIfItemUnusable(itemInfo.bagID, itemInfo.slotID, itemInfo.itemID, itemInfo.hyperlink)
     end
 
     -- Apply quick filter dimming or clear search dim
@@ -1262,18 +1337,22 @@ function ItemButton:SetItem(button, itemInfo)
         button.icon:SetVertexColor(1, 1, 1)
     elseif itemInfo.isQuickFiltered then
         button.dimOverlay:Show()
+        button.dimOverlay:SetVertexColor(0, 0, 0, 0.7)
         button.icon:SetDesaturated(true)
         button.icon:SetAlpha(0.4)
         button.icon:SetVertexColor(1, 1, 1)
     else
-        button.dimOverlay:Hide()
         button.icon:SetDesaturated(false)
         button.icon:SetAlpha(1)
         if isKnownRecipe then
+            button.dimOverlay:Hide()
             button.icon:SetVertexColor(0, 1, 0)
         elseif isUnusable then
-            button.icon:SetVertexColor(1, 0.1, 0.1)
+            button.dimOverlay:Show()
+            button.dimOverlay:SetVertexColor(0.85, 0.0, 0.0, 0.4)
+            button.icon:SetVertexColor(1, 0.15, 0.15)
         else
+            button.dimOverlay:Hide()
             button.icon:SetVertexColor(1, 1, 1)
         end
     end

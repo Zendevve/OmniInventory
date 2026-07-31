@@ -782,6 +782,28 @@ function Events:Init()
         end
     end
 
+    self:RegisterEvent("PLAYER_LEVEL_UP", function()
+        if Omni.ItemButton and Omni.ItemButton.InvalidateUnusableCache then
+            Omni.ItemButton.InvalidateUnusableCache()
+        end
+        if Omni.Frame and Omni.Frame.UpdateLayout then
+            Omni.Frame:UpdateLayout(nil, { forceFull = true })
+        end
+    end)
+    self:RegisterEvent("LEARNED_SPELL_IN_TAB", function()
+        if Omni.ItemButton and Omni.ItemButton.InvalidateUnusableCache then
+            Omni.ItemButton.InvalidateUnusableCache()
+        end
+        if Omni.Frame and Omni.Frame.UpdateLayout then
+            Omni.Frame:UpdateLayout(nil, { forceFull = true })
+        end
+    end)
+    self:RegisterEvent("SKILL_LINES_CHANGED", function()
+        if Omni.ItemButton and Omni.ItemButton.InvalidateUnusableCache then
+            Omni.ItemButton.InvalidateUnusableCache()
+        end
+    end)
+
     self:RegisterEvent("PLAYER_LOGOUT", function()
         self:FlushDeferredSaves()
     end)
