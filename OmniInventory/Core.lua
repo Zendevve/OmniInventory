@@ -370,6 +370,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if Omni.Categorizer then Omni.Categorizer:Init() end
         if Omni.Sorter then Omni.Sorter:Init() end
         if Omni.Rules then Omni.Rules:Init() end
+        if Omni.SlotLocks then Omni.SlotLocks:Init() end
         if Omni.Utils and Omni.Utils.EnsureBlizzardContainerItemButtons then
             Omni.Utils:EnsureBlizzardContainerItemButtons()
         end

@@ -32,6 +32,7 @@ Omni\Rules.lua
 Omni\Categorizer.lua
 Omni\Sorter.lua
 Omni\PhysicalSort.lua
+Omni\SlotLocks.lua
 Omni\RecipeColor.lua
 
 # =============================================================================

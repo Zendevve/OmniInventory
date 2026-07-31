@@ -924,6 +924,16 @@ function ItemButton:Create(parent)
     button.iLevelText:Hide()
     pcall(button.count.SetDrawLayer, button.count, "OVERLAY", 127)
 
+    -- Padlock overlay texture for slot locking
+    if not button.lockBadge then
+        local lock = button:CreateTexture(nil, "OVERLAY", nil, 6)
+        lock:SetSize(14, 14)
+        lock:SetPoint("TOPRIGHT", button, "TOPRIGHT", -1, -1)
+        lock:SetTexture([[Interface\PetPaperDollFrame\Icon-Padlock]])
+        lock:Hide()
+        button.lockBadge = lock
+    end
+
     button.itemInfo = nil
 
     -- HookScript after template: OnClick adds shift+rclick pin; OnEnter
@@ -1076,6 +1086,16 @@ function ItemButton:SetItem(button, itemInfo)
         ClearButtonOverlays(button)
         HideItemCooldown(button)
         button.__lastRenderKey = nil
+
+        local bID = (itemInfo and itemInfo.bagID) or button.bagID
+        local sID = (itemInfo and itemInfo.slotID) or button.slotID
+        if button.lockBadge then
+            if bID and sID and Omni.SlotLocks and Omni.SlotLocks.IsLocked and Omni.SlotLocks:IsLocked(bID, sID) then
+                button.lockBadge:Show()
+            else
+                button.lockBadge:Hide()
+            end
+        end
         return
     end
 
@@ -1091,6 +1111,16 @@ function ItemButton:SetItem(button, itemInfo)
         ClearButtonOverlays(button)
         HideItemCooldown(button)
         button.__lastRenderKey = nil
+
+        local bID = (itemInfo and itemInfo.bagID) or button.bagID
+        local sID = (itemInfo and itemInfo.slotID) or button.slotID
+        if button.lockBadge then
+            if bID and sID and Omni.SlotLocks and Omni.SlotLocks.IsLocked and Omni.SlotLocks:IsLocked(bID, sID) then
+                button.lockBadge:Show()
+            else
+                button.lockBadge:Hide()
+            end
+        end
         return
     end
 
@@ -1344,7 +1374,15 @@ function ItemButton:SetItem(button, itemInfo)
     rKey.isPinned = isPinned
     rKey.questOverlayKind = questOverlayKind
     rKey.showCategoryStripe = showCategoryStripe
-    rKey.isKnownRecipe = isKnownRecipe
+    local bID = (itemInfo and itemInfo.bagID) or button.bagID
+    local sID = (itemInfo and itemInfo.slotID) or button.slotID
+    if button.lockBadge then
+        if bID and sID and Omni.SlotLocks and Omni.SlotLocks.IsLocked and Omni.SlotLocks:IsLocked(bID, sID) then
+            button.lockBadge:Show()
+        else
+            button.lockBadge:Hide()
+        end
+    end
 end
 
 -- =============================================================================
@@ -1484,6 +1522,18 @@ function ItemButton:OnPreClick(button, mouseButton)
     if button.itemInfo and button.itemInfo.__offline then
         pcall(button.SetID, button, 0)
         return
+    end
+
+    if mouseButton == "RightButton" and IsAltKeyDown() then
+        local bagID = button.bagID
+        local slotID = button.slotID
+        if bagID and slotID and bagID >= 0 and bagID <= 4 and slotID >= 1 then
+            if Omni.SlotLocks and Omni.SlotLocks.ToggleLock then
+                Omni.SlotLocks:ToggleLock(bagID, slotID)
+                pcall(button.SetID, button, 0)
+                return
+            end
+        end
     end
 
     if mouseButton == "RightButton" and not (MerchantFrame and MerchantFrame:IsShown()) then

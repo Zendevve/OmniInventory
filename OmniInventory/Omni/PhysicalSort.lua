@@ -268,11 +268,15 @@ local function BuildDesiredOrder(allItems, specializedBags)
         if family and family > 0 then
             specializedSlots[bagID] = {}
             for slot = 1, numSlots do
-                table.insert(specializedSlots[bagID], {bagID = bagID, slotID = slot})
+                if not (Omni.SlotLocks and Omni.SlotLocks:IsLocked(bagID, slot)) then
+                    table.insert(specializedSlots[bagID], {bagID = bagID, slotID = slot})
+                end
             end
         else
             for slot = 1, numSlots do
-                table.insert(generalSlots, {bagID = bagID, slotID = slot})
+                if not (Omni.SlotLocks and Omni.SlotLocks:IsLocked(bagID, slot)) then
+                    table.insert(generalSlots, {bagID = bagID, slotID = slot})
+                end
             end
         end
     end
@@ -369,8 +373,10 @@ local function BuildMoveList(targetPositions, allItems, specializedBags)
         if preferredBag and ShouldItemGoInBag(item, preferredBag, specializedBags) then
             local numSlots = GetContainerNumSlots(preferredBag) or 0
             for slotID = 1, numSlots do
-                if not virtualBags[preferredBag][slotID] then
-                    return preferredBag, slotID
+                if not (Omni.SlotLocks and Omni.SlotLocks:IsLocked(preferredBag, slotID)) then
+                    if not virtualBags[preferredBag][slotID] then
+                        return preferredBag, slotID
+                    end
                 end
             end
         end
@@ -379,8 +385,10 @@ local function BuildMoveList(targetPositions, allItems, specializedBags)
             if ShouldItemGoInBag(item, bagID, specializedBags) then
                 local numSlots = GetContainerNumSlots(bagID) or 0
                 for slotID = 1, numSlots do
-                    if not virtualBags[bagID][slotID] then
-                        return bagID, slotID
+                    if not (Omni.SlotLocks and Omni.SlotLocks:IsLocked(bagID, slotID)) then
+                        if not virtualBags[bagID][slotID] then
+                            return bagID, slotID
+                        end
                     end
                 end
             end
@@ -609,12 +617,14 @@ function PhysicalSort:RunSortPass()
     for bagID = 0, 4 do
         local numSlots = GetContainerNumSlots(bagID) or 0
         for slotID = 1, numSlots do
-            local item = GetItemInfoForSlot(bagID, slotID)
-            if item then
-                if Omni.Categorizer then
-                    item.category = Omni.Categorizer:GetCategory(item)
+            if not (Omni.SlotLocks and Omni.SlotLocks:IsLocked(bagID, slotID)) then
+                local item = GetItemInfoForSlot(bagID, slotID)
+                if item then
+                    if Omni.Categorizer then
+                        item.category = Omni.Categorizer:GetCategory(item)
+                    end
+                    table.insert(allItems, item)
                 end
-                table.insert(allItems, item)
             end
         end
     end
