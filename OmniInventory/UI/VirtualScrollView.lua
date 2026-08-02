@@ -21,13 +21,15 @@ local DEFAULT_COLUMNS       = 10
 -- @param width Viewport width
 -- @param height Viewport height
 -- @param baseBagID Namespace offset for dummy bag IDs to avoid collisions (default 0)
+-- @param visibleWindow Number of pooled buttons in the window (default 40)
 -- @return Viewport object table
-function VirtualScrollView:Create(parent, name, width, height, baseBagID)
+function VirtualScrollView:Create(parent, name, width, height, baseBagID, visibleWindow)
     parent = parent or UIParent
     name = name or "OmniInventoryVirtualScrollView"
     width = width or 400
     height = height or 300
     baseBagID = baseBagID or 0
+    visibleWindow = visibleWindow or VISIBLE_BUTTON_WINDOW
 
     local view = {
         name = name,
@@ -83,9 +85,9 @@ function VirtualScrollView:Create(parent, name, width, height, baseBagID)
     scrollBar:SetValue(0)
     scrollBar:SetValueStep(1)
 
-    -- Instantiate Fixed Window of Visible Pooled Item Buttons (~40 buttons)
+    -- Instantiate Fixed Window of Visible Pooled Item Buttons
     local isCombat = InCombatLockdown and InCombatLockdown()
-    for i = 1, VISIBLE_BUTTON_WINDOW do
+    for i = 1, visibleWindow do
         local btn = nil
         if Omni.FramePool and not isCombat then
             btn = Omni.FramePool:AcquireItemButton(scrollChild, baseBagID, i)
@@ -218,10 +220,15 @@ function VirtualScrollView:UpdateViewport(scrollTop)
                     local xPos = c * (self.slotSize + self.spacing)
                     local yPos = (startRow + r) * rowHeight
 
-                    btn:ClearAllPoints()
-                    btn:SetPoint("TOPLEFT", self.scrollChild, "TOPLEFT", xPos, -yPos)
-                    btn:SetSize(self.slotSize, self.slotSize)
-                    btn:Show()
+                    if btn._vx ~= xPos or btn._vy ~= yPos then
+                        btn._vx, btn._vy = xPos, yPos
+                        btn:ClearAllPoints()
+                        btn:SetPoint("TOPLEFT", self.scrollChild, "TOPLEFT", xPos, -yPos)
+                    end
+                    if btn:GetWidth() ~= self.slotSize or btn:GetHeight() ~= self.slotSize then
+                        btn:SetSize(self.slotSize, self.slotSize)
+                    end
+                    if not btn:IsShown() then btn:Show() end
                 end
             elseif btn then
                 if not isCombat then btn:Hide() end

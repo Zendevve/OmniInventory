@@ -417,6 +417,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if Omni.RecipeColor and Omni.ItemButton and Omni.ItemButton.InvalidateKnownRecipeCache then
             Omni.ItemButton.InvalidateKnownRecipeCache()
         end
+        if Omni.GuildBankFrame and Omni.GuildBankFrame.InvalidateKnownRecipeCache then
+            Omni.GuildBankFrame:InvalidateKnownRecipeCache()
+        end
     end
 end)
 

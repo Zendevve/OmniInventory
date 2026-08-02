@@ -87,7 +87,6 @@ local SMART_DEPOSIT_KEYS = {
 
 local frame = nil
 local tabButtons = {}
-local slotButtons = {}
 local flowItemButtons = {}
 local categoryHeadersFlow = {}
 local tabViewableCache = {}
@@ -98,6 +97,14 @@ local searchText = ""
 local searchTextLower = ""
 local VIEW_FLOW = "flow"
 local VIEW_GRID = "grid"
+
+-- Item-link-keyed results reused across renders. Names, qualities and
+-- bind status do not change in-session, so re-reading them avoids both
+-- GetItemInfo queries and tooltip scans on every layout pass.
+local guildBankQualityCache = {}
+local guildBankSearchNameCache = {}
+local guildBankBindingCache = {}
+local guildBankKnownRecipeCache = {}
 
 -- =============================================================================
 -- Saved Variables
@@ -254,6 +261,18 @@ local function SetViewMode(mode)
     if Omni.LayoutEngine and frame then
         local modeConst = (mode == VIEW_GRID) and (Omni.LayoutEngine.MODE_GRID or 2) or (Omni.LayoutEngine.MODE_FLOW or 1)
         Omni.LayoutEngine:SetMode(frame, modeConst)
+    end
+end
+
+function GuildBankFrame:InvalidateKnownRecipeCache()
+    guildBankKnownRecipeCache = {}
+    for _, btn in ipairs(flowItemButtons) do
+        btn._gbVisKey = nil
+    end
+    if frame and frame.virtualView then
+        for _, btn in ipairs(frame.virtualView.visibleButtons) do
+            btn._gbVisKey = nil
+        end
     end
 end
 
@@ -823,15 +842,15 @@ local function GetGuildSlotSize()
     return SLOT_SIZE * GetSharedItemScale()
 end
 
-local function GetGuildSlotStep()
-    return GetGuildSlotSize() + GetSharedItemGap()
-end
-
 local function ApplyGuildSlotMetrics(btn)
     if not btn then return end
     local size = GetGuildSlotSize()
-    pcall(btn.SetScale, btn, 1)
-    pcall(btn.SetSize, btn, size, size)
+    if btn.GetScale and btn:GetScale() ~= 1 then
+        pcall(btn.SetScale, btn, 1)
+    end
+    if btn:GetWidth() ~= size or btn:GetHeight() ~= size then
+        pcall(btn.SetSize, btn, size, size)
+    end
 end
 
 
@@ -969,6 +988,10 @@ local function GuildBankSlotOnLeave(self)
     self.__omniUsesCustomTooltip = false
     GameTooltip:Hide()
     if ResetCursor then ResetCursor() end
+    if frame and frame._pendingRefresh then
+        frame._pendingRefresh = false
+        GuildBankFrame:UpdateLayout()
+    end
 end
 
 local function CreateSlotButton(parent, slotIndex)
@@ -1062,6 +1085,36 @@ end
 local function UpdateGuildBankSlotVisual(btn, tab, slot)
     local texture, count, locked = GetGuildBankItemInfo(tab, slot)
     local link = GetGuildBankItemLink(tab, slot)
+
+    -- Skip the whole pass when this button already shows this slot's data.
+    -- Scroll ticks and event-driven re-renders become no-ops this way. The
+    -- cache-state suffix re-renders a button once async item info arrives.
+    local overlayOn = OmniInventoryDB and OmniInventoryDB.global
+        and OmniInventoryDB.global.enableKnownRecipeOverlay ~= false
+    local visKey
+    if link then
+        local knownState = "?"
+        local cachedKnown = guildBankKnownRecipeCache[link]
+        if cachedKnown ~= nil then
+            knownState = cachedKnown and "K" or "U"
+        end
+        visKey = tab .. ":" .. slot .. ":" .. (texture or "") .. ":"
+            .. tostring(count) .. ":" .. (locked and 1 or 0) .. ":"
+            .. link .. ":" .. searchTextLower .. "|"
+            .. (guildBankQualityCache[link] or 0) .. "|"
+            .. knownState .. "|"
+            .. (guildBankSearchNameCache[link] or "?") .. "|"
+            .. (overlayOn and "1" or "0")
+    else
+        visKey = tab .. ":" .. slot .. ":" .. (texture or "") .. ":"
+            .. tostring(count) .. ":" .. (locked and 1 or 0) .. ":"
+            .. searchTextLower .. "|" .. (overlayOn and "1" or "0")
+    end
+    if btn._gbVisKey == visKey then
+        return
+    end
+    btn._gbVisKey = visKey
+
     local iconTex = btn.icon or _G[btn:GetName() .. "IconTexture"]
     local countText = btn.count or _G[btn:GetName() .. "Count"]
 
@@ -1086,8 +1139,16 @@ local function UpdateGuildBankSlotVisual(btn, tab, slot)
 
     local quality = 1
     if link then
-        local _, _, q = GetItemInfo(link)
-        if q then quality = q end
+        local cachedQuality = guildBankQualityCache[link]
+        if cachedQuality then
+            quality = cachedQuality
+        else
+            local _, _, q = GetItemInfo(link)
+            if q then
+                quality = q
+                guildBankQualityCache[link] = q
+            end
+        end
     end
     local color = QUALITY_COLORS[quality] or QUALITY_COLORS[1]
     local r, g, b = color[1], color[2], color[3]
@@ -1100,34 +1161,39 @@ local function UpdateGuildBankSlotVisual(btn, tab, slot)
     if btn.borderRight then btn.borderRight:SetVertexColor(r, g, b, 1) end
 
     if iconTex then
-        if locked then
-            iconTex:SetDesaturated(true)
-        else
-            iconTex:SetDesaturated(false)
-        end
+        iconTex:SetDesaturated(locked and true or false)
     end
 
     -- Apply known recipe green overlay for guild bank items
-    if not locked and texture and link and OmniInventoryDB
-            and OmniInventoryDB.global
-            and OmniInventoryDB.global.enableKnownRecipeOverlay ~= false then
+    if overlayOn and not locked and texture and link then
         local RC = Omni.RecipeColor
-        if RC and RC:IsRecipeItemByLink(link) and RC:IsKnownRecipe("GuildBank", {tab, slot}) and iconTex then
-            iconTex:SetVertexColor(0, 1, 0)
+        if RC and RC.IsRecipeItemByLink and RC.IsKnownRecipe and iconTex then
+            local cachedKnown = guildBankKnownRecipeCache[link]
+            if cachedKnown == nil then
+                if RC:IsRecipeItemByLink(link) then
+                    cachedKnown = RC:IsKnownRecipe("GuildBank", {tab, slot}) and true or false
+                    guildBankKnownRecipeCache[link] = cachedKnown
+                end
+            end
+            if cachedKnown then
+                iconTex:SetVertexColor(0, 1, 0)
+            else
+                iconTex:SetVertexColor(1, 1, 1)
+            end
         end
+    elseif iconTex then
+        iconTex:SetVertexColor(1, 1, 1)
     end
 
     if searchTextLower ~= "" and link then
-        local name = btn._cachedSearchName
-        local lowerName = btn._cachedSearchNameLower
-        if not name then
+        local name = guildBankSearchNameCache[link]
+        if name == nil then
             name = GetItemInfo(link)
-            btn._cachedSearchName = name
+            if name then
+                guildBankSearchNameCache[link] = name
+            end
         end
-        if name and not lowerName then
-            lowerName = string.lower(name)
-            btn._cachedSearchNameLower = lowerName
-        end
+        local lowerName = name and string.lower(name) or nil
         if lowerName and string.find(lowerName, searchTextLower, 1, true) then
             if btn.dimOverlay then btn.dimOverlay:Hide() end
             if iconTex then iconTex:SetAlpha(1) end
@@ -1139,15 +1205,6 @@ local function UpdateGuildBankSlotVisual(btn, tab, slot)
         if btn.dimOverlay then btn.dimOverlay:Hide() end
         if iconTex then iconTex:SetAlpha(1) end
     end
-end
-
-local function UpdateSlotButton(btn)
-    btn.gbTab = currentTab
-    btn.gbSlot = btn.slotIndex
-    if btn.SetID and btn.gbSlot then
-        btn:SetID(btn.gbSlot)
-    end
-    UpdateGuildBankSlotVisual(btn, currentTab, btn.slotIndex)
 end
 
 -- =============================================================================
@@ -1223,6 +1280,7 @@ local function CreateHeader(parent)
         parent:StopMovingOrSizing()
         parent.userMoved = true
         SavePosition()
+        GuildBankFrame:UpdateLayout()
     end)
 
     parent.header = header
@@ -1448,7 +1506,13 @@ local function CollectGuildBankTabItems(tab)
             end
             local isBound, bindType = true, "BoP"
             if link and Omni.API and Omni.API.GetBindingFromHyperlink then
-                isBound, bindType = Omni.API:GetBindingFromHyperlink(link)
+                local cachedBinding = guildBankBindingCache[link]
+                if cachedBinding then
+                    isBound, bindType = cachedBinding[1], cachedBinding[2]
+                else
+                    isBound, bindType = Omni.API:GetBindingFromHyperlink(link)
+                    guildBankBindingCache[link] = { isBound, bindType }
+                end
             end
             local isAttunable = false
             if itemID and _G.IsAttunableBySomeone then
@@ -1692,18 +1756,33 @@ function GuildBankFrame:RefreshItemArea()
     local perfToken = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("guildbank.RefreshItemArea")
     if not frame then return end
     if GetViewMode() == VIEW_GRID then
-        if frame.gridContainer then frame.gridContainer:Show() end
-        if frame.flowScroll then frame.flowScroll:Hide() end
+        for _, h in ipairs(categoryHeadersFlow) do
+            if h then h:Hide() end
+        end
+        for _, btn in ipairs(flowItemButtons) do
+            if btn then btn:Hide() end
+        end
+        if frame.flowScroll then frame.flowScroll:Show() end
+        local sb = frame.virtualView and frame.virtualView.scrollBar
+        if sb then sb:Hide() end
         if not hoveredGridBtn then
             local perfGrid = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("guildbank.RefreshItemArea.grid")
             self:UpdateSlots()
             if Omni._perfEnabled and Omni.Perf then
                 Omni.Perf:End("guildbank.RefreshItemArea.grid", perfGrid)
             end
+        else
+            frame._pendingRefresh = true
         end
     else
-        if frame.gridContainer then frame.gridContainer:Hide() end
+        if frame.virtualView then
+            for _, btn in ipairs(frame.virtualView.visibleButtons) do
+                if btn then btn:Hide() end
+            end
+        end
         if frame.flowScroll then frame.flowScroll:Show() end
+        local sb = frame.virtualView and frame.virtualView.scrollBar
+        if sb then sb:Show() end
         if not hoveredFlowBtn then
             local perfFlowCollect = Omni._perfEnabled and Omni.Perf and Omni.Perf:Begin("guildbank.RefreshItemArea.flowCollect")
             local items = CollectGuildBankTabItems(currentTab)
@@ -1718,6 +1797,8 @@ function GuildBankFrame:RefreshItemArea()
             if Omni._perfEnabled and Omni.Perf then
                 Omni.Perf:End("guildbank.RefreshItemArea.flowRender", perfFlowRender)
             end
+        else
+            frame._pendingRefresh = true
         end
     end
     if Omni._perfEnabled and Omni.Perf then
@@ -1787,16 +1868,12 @@ function GuildBankFrame:CreateMainFrame()
     frame.tabSlotSummary:SetJustifyH("LEFT")
     frame.tabSlotSummary:SetTextColor(0.78, 0.84, 0.8, 1)
 
-    frame.gridContainer = CreateFrame("Frame", nil, frame.rightPanel)
-    frame.gridContainer:SetPoint("TOPLEFT", frame.rightPanel, "TOPLEFT", 0, 0)
-    frame.gridContainer:SetPoint("BOTTOMRIGHT", frame.rightPanelBottom, "TOPRIGHT", 0, 0)
-
     local virtualWidth = FRAME_WIDTH - TAB_COLUMN_WIDTH - (PADDING * 3)
     local virtualHeight = FRAME_HEIGHT - HEADER_HEIGHT - SEARCH_HEIGHT - FOOTER_HEIGHT - TAB_SUMMARY_HEIGHT - (PADDING * 3)
     if virtualWidth <= 0 then virtualWidth = 400 end
     if virtualHeight <= 0 then virtualHeight = 300 end
 
-    local virtualView = Omni.VirtualScrollView:Create(frame.rightPanel, "OmniGuildBankVirtualScrollView", virtualWidth, virtualHeight, GB_BASE_BAG_ID)
+    local virtualView = Omni.VirtualScrollView:Create(frame.rightPanel, "OmniGuildBankVirtualScrollView", virtualWidth, virtualHeight, GB_BASE_BAG_ID, SLOTS_PER_TAB)
     virtualView.container:SetPoint("TOPLEFT", frame.rightPanel, "TOPLEFT", 0, 0)
     virtualView.container:SetPoint("BOTTOMRIGHT", frame.rightPanelBottom, "TOPRIGHT", 0, 0)
 
@@ -1822,17 +1899,6 @@ function GuildBankFrame:CreateMainFrame()
         local btn = CreateTabButton(frame.tabColumn, i)
         btn:SetPoint("TOP", frame.tabColumn, "TOP", 0, -((i - 1) * tabStride))
         tabButtons[i] = btn
-    end
-
-    for i = 1, SLOTS_PER_TAB do
-        local col = (i - 1) % SLOTS_PER_ROW
-        local row = math.floor((i - 1) / SLOTS_PER_ROW)
-        local btn = CreateSlotButton(frame.gridContainer, i)
-        local slotStep = GetGuildSlotStep()
-        btn:SetPoint("TOPLEFT", frame.gridContainer, "TOPLEFT",
-            col * slotStep,
-            -(row * slotStep))
-        slotButtons[i] = btn
     end
 
     frame.infoText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -2044,7 +2110,14 @@ function GuildBankFrame:UpdateLayout()
     self:UpdateMoney()
     self:UpdateInfoText()
     self:UpdateBuyButton()
-    self:RefreshItemArea()
+    if frame:IsMoving() or frame:IsResizing() then
+        -- Re-rendering during a drag/resize stutters the window; the
+        -- queued pass runs when the frame stops (OnDragStop / OnMouseUp).
+        frame._pendingRefresh = true
+    else
+        if frame._pendingRefresh then frame._pendingRefresh = false end
+        self:RefreshItemArea()
+    end
     if Omni._perfEnabled and Omni.Perf then
         Omni.Perf:End("guildbank.UpdateLayout.total", perfToken, { tab = currentTab })
     end
@@ -2631,12 +2704,16 @@ end
 
 function GuildBankFrame:Hide()
     if frame then
+        guildBankKnownRecipeCache = {}
         if frame.virtualView then
             for _, btn in ipairs(frame.virtualView.visibleButtons) do
                 if btn then
                     btn:Hide()
                     btn:ClearAllPoints()
                     btn:SetParent(UIParent)
+                    -- Pooled buttons can be reused by other views; force a
+                    -- full visual pass on the next guild bank render.
+                    btn._gbVisKey = nil
                 end
             end
         end
