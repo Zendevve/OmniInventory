@@ -212,6 +212,29 @@ local function AddTooltipData(tooltip, targetItemID)
     end
 end
 
+-- Appearance collection status (ChromieCraft local mirror)
+local function AddAppearanceData(tooltip, itemID, link)
+    if not OmniInventoryDB or not OmniInventoryDB.global
+            or OmniInventoryDB.global.appearanceTracker == false then
+        return
+    end
+    local tracker = Omni.AppearanceTracker
+    if not tracker or not tracker.CanHaveAppearance(link) then return end
+
+    tooltip:AddLine(" ")
+    if tracker:IsCollected(itemID) then
+        tooltip:AddDoubleLine(
+            COLOR_SILVER .. "Appearance:" .. COLOR_END,
+            "|cff40ff40Collected|r"
+        )
+    else
+        tooltip:AddDoubleLine(
+            COLOR_SILVER .. "Appearance:" .. COLOR_END,
+            "|cffffcc33Not collected (new)|r"
+        )
+    end
+end
+
 local function HookTooltip(tooltip)
     if not tooltip then return end
 
@@ -228,6 +251,7 @@ local function HookTooltip(tooltip)
         end
         self._omniInventoryAdded = itemID
 
+        AddAppearanceData(self, itemID, link)
         AddTooltipData(self, itemID)
     end)
 

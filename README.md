@@ -44,6 +44,7 @@ OmniInventory is fully client-side with zero server-side database requirements. 
 - **Item Level Overlay** -- Displays iLevel directly on weapons and armor in your bags.
 - **New Item Glow** -- Golden pulsing highlight on recently acquired items.
 - **Bound Item Indicator** -- Optional lock icon on soulbound (BoP) and heirloom (BoA) items.
+- **Appearance Tracker** -- ChromieCraft transmog support: marks armor/weapons whose appearance is already in your collection (green) vs not yet collected (gold) on bag icons and tooltips. The collection is mirrored locally from the server's unlock chat messages and seeded from equipped gear, so you never need to equip an item just to check. Toggle in settings; manage with `/oi appearances`.
 - **Unusable Item Overlay** -- Tints unusable gear (level/class locks) and unlearned recipes red.
 - **Specialty Bag Highlights** -- Colored borders on empty slots and common items inside specialty bags:
 

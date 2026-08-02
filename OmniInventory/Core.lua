@@ -645,6 +645,26 @@ local function HandleSlashCommand(msg)
             Omni.Features:ToggleCurrencyFrame()
         end
 
+    elseif msg == "appearances" then
+        if Omni.AppearanceTracker then
+            print(string.format("|cFF00FF00OmniInventory|r: Tracked appearances on %s: %d.",
+                GetRealmName(), Omni.AppearanceTracker:Count()))
+            print("  |cFFFFFF00/oi appearances seed|r - record all currently equipped item appearances")
+            print("  |cFFFFFF00/oi appearances reset|r - clear the local appearance collection")
+        end
+
+    elseif msg == "appearances seed" then
+        if Omni.AppearanceTracker then
+            local added = Omni.AppearanceTracker:SeedFromEquipped()
+            print("|cFF00FF00OmniInventory|r: Seeded " .. added .. " equipped appearance(s).")
+        end
+
+    elseif msg == "appearances reset" then
+        if Omni.AppearanceTracker then
+            local cleared = Omni.AppearanceTracker:Reset()
+            print("|cFF00FF00OmniInventory|r: Cleared " .. cleared .. " tracked appearance(s).")
+        end
+
     elseif msg == "bank" then
         if Omni.BankFrame then
             Omni.BankFrame:Toggle()
@@ -735,6 +755,9 @@ local function HandleSlashCommand(msg)
         print("  |cFFFFFF00/oi perf dump|r - Print JSON snapshot markers")
         print("  |cFFFFFF00/oi reapply|r - Re-apply bag function overrides")
         print("  |cFFFFFF00/oi currency|r - Toggle currency frame")
+        print("  |cFFFFFF00/oi appearances|r - Show tracked appearance count")
+        print("  |cFFFFFF00/oi appearances seed|r - Record equipped item appearances")
+        print("  |cFFFFFF00/oi appearances reset|r - Clear local appearance collection")
         print("  |cFFFFFF00/oi bank|r - Toggle bank window (offline/cached)")
         print("  |cFFFFFF00/oi guildbank|r - Toggle guild bank window (offline/cached)")
         print("  |cFFFFFF00/oi bankswitch|r - Cycle bank bag view")

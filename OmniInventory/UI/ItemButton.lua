@@ -743,6 +743,14 @@ function ItemButton.Decorate(button)
         button.boundIcon:Hide()
     end
 
+    if not button.appearanceIcon then
+        button.appearanceIcon = button:CreateTexture(nil, "OVERLAY", nil, 4)
+        button.appearanceIcon:SetSize(12, 12)
+        button.appearanceIcon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+        button.appearanceIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        button.appearanceIcon:Hide()
+    end
+
     if not button.questStarterIcon then
         button.questStarterIcon = button:CreateTexture(nil, "OVERLAY", nil, 3)
         button.questStarterIcon:SetSize(QUEST_STARTER_ICON_SIZE, QUEST_STARTER_ICON_SIZE)
@@ -942,6 +950,12 @@ function ItemButton:Create(parent)
     button.boundIcon:SetVertexColor(0.6, 0.6, 0.9, 0.9)
     button.boundIcon:Hide()
 
+    button.appearanceIcon = button:CreateTexture(nil, "OVERLAY", nil, 4)
+    button.appearanceIcon:SetSize(12, 12)
+    button.appearanceIcon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+    button.appearanceIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    button.appearanceIcon:Hide()
+
     button.questStarterIcon = button:CreateTexture(nil, "OVERLAY", nil, 3)
     button.questStarterIcon:SetSize(QUEST_STARTER_ICON_SIZE, QUEST_STARTER_ICON_SIZE)
     button.questStarterIcon:Hide()
@@ -1112,6 +1126,7 @@ end
 
 local function ClearButtonOverlays(button)
     if button.boundIcon then button.boundIcon:Hide() end
+    if button.appearanceIcon then button.appearanceIcon:Hide() end
     if button.pinIcon then button.pinIcon:Hide() end
     if button.questStarterIcon then button.questStarterIcon:Hide() end
     if button.newGlow then
@@ -1373,6 +1388,28 @@ function ItemButton:SetItem(button, itemInfo)
             button.boundIcon:Show()
         else
             button.boundIcon:Hide()
+        end
+    end
+
+    -- Appearance collection status (green gem = collected, gold = new)
+    if button.appearanceIcon then
+        local showAppearance = false
+        if not itemInfo.__empty and itemInfo.hyperlink
+                and Omni.AppearanceTracker and Omni.AppearanceTracker:IsEnabled()
+                and Omni.AppearanceTracker:CanHaveAppearance(itemInfo.hyperlink) then
+            if Omni.AppearanceTracker:IsCollected(itemInfo.itemID) then
+                button.appearanceIcon:SetTexture("Interface\\Icons\\INV_Misc_Gem_02")
+                button.appearanceIcon:SetVertexColor(0.3, 1, 0.4, 1)
+            else
+                button.appearanceIcon:SetTexture("Interface\\Icons\\INV_Misc_Gem_03")
+                button.appearanceIcon:SetVertexColor(1, 0.82, 0.3, 1)
+            end
+            showAppearance = true
+        end
+        if showAppearance then
+            button.appearanceIcon:Show()
+        else
+            button.appearanceIcon:Hide()
         end
     end
 
@@ -1927,6 +1964,7 @@ function ItemButton:Reset(button)
     if button.dimOverlay then button.dimOverlay:Hide() end
     if button.pinIcon then button.pinIcon:Hide() end
     if button.boundIcon then button.boundIcon:Hide() end
+    if button.appearanceIcon then button.appearanceIcon:Hide() end
     if button.emptyDropHighlight then button.emptyDropHighlight:Hide() end
     HideItemCooldown(button)
     if button.icon then

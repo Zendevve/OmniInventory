@@ -67,6 +67,7 @@ DB\CacheWarmer.lua
 Modules\AutoVendor.lua
 Modules\AutoRepair.lua
 Modules\AutoContainer.lua
+Modules\AppearanceTracker.lua
 
 # =============================================================================
 # Main Entry Point

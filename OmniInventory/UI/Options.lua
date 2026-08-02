@@ -494,7 +494,15 @@ function Settings:BuildGeneral(panel)
         "Allows holding the Ctrl key while right-clicking a protected item to instantly sell it, bypassing the double-click warning.",
         "vendorCtrlRightClick", true)
 
-    y = y - (ROW_H * 6) - SECTION_GAP
+    -- Row 6
+    row = 6
+    self.appearanceTrackerCb = MakeCb(0, row,
+        "Appearance tracker",
+        "ChromieCraft Appearance Tracker",
+        "Marks armor and weapons whose appearance is already in your collection (green) or not yet collected (gold) on bag icons and tooltips. The collection is mirrored locally from the server's unlock chat messages; equipped gear is seeded automatically.",
+        "appearanceTracker", true, nil, true)
+
+    y = y - (ROW_H * 7) - SECTION_GAP
 
     local resetHeader = OpsTheme.CreateSectionHeader(panel, "[+]  Frame Position", SECTION_COLORS.footer)
     resetHeader:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
@@ -1066,6 +1074,9 @@ function Settings:UpdateValues()
     end
     if self.showCategoryStripeCb and Omni.Data then
         self.showCategoryStripeCb:SetChecked(Omni.Data:Get("showCategoryStripe") == true)
+    end
+    if self.appearanceTrackerCb and Omni.Data then
+        self.appearanceTrackerCb:SetChecked(Omni.Data:Get("appearanceTracker") ~= false)
     end
     if self.enableKnownRecipeOverlayCb and Omni.Data then
         self.enableKnownRecipeOverlayCb:SetChecked(Omni.Data:Get("enableKnownRecipeOverlay") ~= false)

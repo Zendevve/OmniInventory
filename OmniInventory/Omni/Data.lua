@@ -91,6 +91,9 @@ local defaults = {
         -- Bound item indicator: show a small chain icon on
         -- soulbound items in the bag.
         showBoundIndicator = false,
+        -- ChromieCraft appearance tracker: mirror the server-side
+        -- appearance collection locally and mark collected items.
+        appearanceTracker = true,
         -- Bag type tags: show family tag text on specialty
         -- bag slot icons in the header.
         showBagTypeTags = false,
