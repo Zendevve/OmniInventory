@@ -686,10 +686,10 @@ local function CreateTabButton(parent, index)
             GetGuildBankTabInfo(self.tabIndex)
         GameTooltip:AddLine((name and name ~= "") and name or ("Tab " .. self.tabIndex), 1, 1, 1)
         local viewOK = isViewable and isViewable ~= 0 and isViewable ~= false
-        if not viewOK then
+        if viewOK == nil then
             viewOK = tabViewableCache[self.tabIndex]
         end
-        if not viewOK then
+        if viewOK == false then
             GameTooltip:AddLine("Not viewable", 1, 0.3, 0.3)
         else
             if canDeposit and canDeposit ~= 0 then
@@ -744,8 +744,17 @@ end
 
 local function UpdateTabButtonAppearance(btn, index)
     local _, icon, isViewable = GetGuildBankTabInfo(index)
-    local viewOK = not (isViewable == 0 or isViewable == false or isViewable == nil)
-    tabViewableCache[index] = viewOK
+    local viewOK
+    if isViewable == 0 or isViewable == false then
+        viewOK = false
+    elseif isViewable == nil then
+        viewOK = nil
+    else
+        viewOK = true
+    end
+    if viewOK ~= nil then
+        tabViewableCache[index] = viewOK
+    end
     local used, total = 0, SLOTS_PER_TAB
     if viewOK then
         used = CountGuildBankTabFilledSlots(index)
@@ -929,9 +938,13 @@ local function GuildBankSlotOnClick(self, mouseButton)
 
     if mouseButton == "RightButton" and AutoStoreGuildBankItem then
         AutoStoreGuildBankItem(bankTab, bankSlot)
-        if GuildBankFrame and GuildBankFrame.UpdateLayout then
-            GuildBankFrame:UpdateLayout()
-        end
+        local defer = CreateFrame("Frame")
+        defer:SetScript("OnUpdate", function(self)
+            self:SetScript("OnUpdate", nil)
+            if GuildBankFrame and GuildBankFrame.UpdateLayout then
+                GuildBankFrame:UpdateLayout()
+            end
+        end)
         return
     end
     if mouseButton == "LeftButton" and PickupGuildBankItem then
@@ -2131,10 +2144,19 @@ function GuildBankFrame:UpdateCurrentTabSlotSummary()
         return
     end
     local name, _, isViewable = GetGuildBankTabInfo(currentTab)
-    local viewOK = not (isViewable == 0 or isViewable == false or isViewable == nil)
-    tabViewableCache[currentTab] = viewOK
+    local viewOK
+    if isViewable == 0 or isViewable == false then
+        viewOK = false
+    elseif isViewable == nil then
+        viewOK = nil
+    else
+        viewOK = true
+    end
+    if viewOK ~= nil then
+        tabViewableCache[currentTab] = viewOK
+    end
     local label = (name and name ~= "") and name or ("Tab " .. currentTab)
-    if not viewOK then
+    if viewOK == false then
         frame.tabSlotSummary:SetText(label .. "  (not viewable)")
         return
     end
