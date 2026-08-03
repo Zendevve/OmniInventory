@@ -1153,7 +1153,8 @@ function ItemButton:SetItem(button, itemInfo)
         button.bagID = itemInfo.bagID
         button.slotID = itemInfo.slotID
         if itemInfo.slotID and button.SetID
-                and (prevBagID ~= itemInfo.bagID or prevSlotID ~= itemInfo.slotID) then
+                and (prevBagID ~= itemInfo.bagID or prevSlotID ~= itemInfo.slotID)
+                and not (InCombatLockdown and InCombatLockdown()) then
             pcall(button.SetID, button, itemInfo.slotID)
         end
 
@@ -1329,9 +1330,14 @@ function ItemButton:SetItem(button, itemInfo)
     local prevSlotID = button.slotID
     button.bagID = itemInfo.bagID
     button.slotID = itemInfo.slotID
-    -- SetID must track bag moves (same slot index, different bag). pcall in combat.
+    -- SetID must track bag moves (same slot index, different bag).
+    -- Skip during combat lockdown: SetID is protected on
+    -- ContainerFrameItemButtonTemplate and calling it from insecure
+    -- code taints the button, which blocks secure UseContainerItem
+    -- for quest-starting items and similar protected actions.
     if itemInfo.slotID and button.SetID
-            and (prevBagID ~= itemInfo.bagID or prevSlotID ~= itemInfo.slotID) then
+            and (prevBagID ~= itemInfo.bagID or prevSlotID ~= itemInfo.slotID)
+            and not (InCombatLockdown and InCombatLockdown()) then
         pcall(button.SetID, button, itemInfo.slotID)
     end
 
