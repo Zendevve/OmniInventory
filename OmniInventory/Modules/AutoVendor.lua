@@ -79,6 +79,10 @@ function AutoVendor:IsJunk(bag, slot, itemID, quality, price)
     if self.customJunk[itemID] then
         return true
     end
+    -- Respect Omni's junk include/exclude lists (single source of truth)
+    if Omni.Features and Omni.Features.IsJunkItem then
+        return Omni.Features:IsJunkItem({ itemID = itemID, quality = quality })
+    end
     -- Check Gray quality (0)
     if quality == 0 then
         return true
@@ -189,6 +193,14 @@ function AutoVendor:OnMerchantShow()
     if not self.enabled then return end
     CreateUndoButton()
     UpdateUndoButtonState()
+
+    -- Respect the global auto-sell toggle (DB default true). The undo
+    -- button still works when selling is disabled so users can recover
+    -- previously auto-sold items.
+    local db = OmniInventoryDB and OmniInventoryDB.global
+    if db and db.autoSellJunk == false then
+        return
+    end
 
     self:BuildSellQueue()
     if #self.sellQueue > 0 then

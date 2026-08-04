@@ -18,6 +18,13 @@ local function PrintHelp()
     Omni:Print("  /omni debug    -> Toggle Debug Diagnostic Mode")
     Omni:Print("  /omni profiler -> Toggle Live Performance Profiler HUD")
     Omni:Print("  /omni perf     -> Toggle Live Performance Profiler HUD")
+    Omni:Print("  /omni destroy        -> Process the auto-destroy queue")
+    Omni:Print("  /omni destroy scan   -> Dry-run scan of destroy candidates")
+    Omni:Print("  /omni destroy on     -> Enable auto-destroy rules")
+    Omni:Print("  /omni destroy off    -> Disable auto-destroy rules")
+    Omni:Print("  /omni destroy dryrun -> Toggle dry-run (log only) mode")
+    Omni:Print("  /omni destroy undo   -> Show last destroyed item")
+    Omni:Print("  /omni destroy log    -> Show destroy undo log")
 end
 
 local function SlashHandler(msg)
@@ -57,6 +64,49 @@ local function SlashHandler(msg)
             Omni.Perf:ToggleProfilerHUD()
         else
             Omni:Print("[!] Performance profiler not loaded.")
+        end
+    elseif cmd == "destroy" then
+        local sub = string.lower(rest or "")
+        if sub == "" then
+            if Omni.AutoDestroy and type(Omni.AutoDestroy.ProcessQueue) == "function" then
+                Omni.AutoDestroy:ProcessQueue()
+            else
+                Omni:Print("[!] AutoDestroy module not loaded.")
+            end
+        elseif sub == "scan" then
+            if Omni.AutoDestroy and type(Omni.AutoDestroy.DryRun) == "function" then
+                Omni.AutoDestroy:DryRun()
+            else
+                Omni:Print("[!] AutoDestroy module not loaded.")
+            end
+        elseif sub == "on" or sub == "enable" then
+            if Omni.Data then
+                Omni.Data:Set("autoDestroyEnabled", true)
+                Omni:Print("[OK] AutoDestroy enabled. Press the OMNI_AUTODESTROY_PROCESS keybind to destroy queued items.")
+            end
+        elseif sub == "off" or sub == "disable" then
+            if Omni.Data then
+                Omni.Data:Set("autoDestroyEnabled", false)
+                Omni:Print("[OK] AutoDestroy disabled.")
+            end
+        elseif sub == "dryrun" then
+            if Omni.Data then
+                local wasDryRun = Omni.Data:Get("destroyDryRun")
+                Omni.Data:Set("destroyDryRun", not wasDryRun)
+                Omni:Print("[OK] Destroy dry-run " .. ((not wasDryRun) and "ENABLED" or "DISABLED") .. ".")
+            end
+        elseif sub == "undo" then
+            if Omni.AutoDestroy and type(Omni.AutoDestroy.UndoLast) == "function" then
+                Omni.AutoDestroy:UndoLast()
+            end
+        elseif sub == "log" then
+            if Omni.AutoDestroy and type(Omni.AutoDestroy.ShowUndoLog) == "function" then
+                Omni.AutoDestroy:ShowUndoLog()
+            else
+                Omni:Print("[!] AutoDestroy module not loaded.")
+            end
+        else
+            Omni:Print("[!] Unknown destroy sub-command: " .. sub)
         end
     else
         PrintHelp()

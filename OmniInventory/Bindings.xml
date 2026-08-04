@@ -11,4 +11,9 @@
 	<Binding name="OMNIINVENTORY_TOGGLE_BANK" description="Toggle OmniInventory Bank">
 		OmniInventory_ToggleBank()
 	</Binding>
+	<Binding name="OMNI_AUTODESTROY_PROCESS" description="Process OmniInventory Destroy Queue" header="OMNIINVENTORY">
+		if Omni.AutoDestroy then
+			Omni.AutoDestroy:ProcessQueue()
+		end
+	</Binding>
 </Bindings>

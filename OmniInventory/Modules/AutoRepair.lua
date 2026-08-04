@@ -8,11 +8,22 @@
 local addonName, Omni = ...
 Omni = Omni or {}
 
-local AutoRepair = {
-    enabled = true,
-    useGuildFunds = true,
-}
+local AutoRepair = {}
 Omni.AutoRepair = AutoRepair
+
+function AutoRepair:IsEnabled()
+    if OmniInventoryDB and OmniInventoryDB.global then
+        return OmniInventoryDB.global.autoRepair == true
+    end
+    return false
+end
+
+function AutoRepair:UseGuildFunds()
+    if OmniInventoryDB and OmniInventoryDB.global then
+        return OmniInventoryDB.global.autoRepairGuild == true
+    end
+    return false
+end
 
 local frame = CreateFrame("Frame", "OmniAutoRepairFrame")
 
@@ -36,7 +47,7 @@ local function FormatMoney(copper)
 end
 
 function AutoRepair:ExecuteRepair()
-    if not self.enabled then return end
+    if not self:IsEnabled() then return end
     if not CanMerchantRepair or not CanMerchantRepair() then return end
 
     local cost, canRepair = GetRepairAllCost()
@@ -45,7 +56,7 @@ function AutoRepair:ExecuteRepair()
     local formattedCost = FormatMoney(cost)
 
     -- Guild Fund Repair Priority
-    if self.useGuildFunds and CanGuildBankRepair and CanGuildBankRepair() then
+    if self:UseGuildFunds() and CanGuildBankRepair and CanGuildBankRepair() then
         local guildBankMoney = GetGuildBankWithdrawMoney and GetGuildBankWithdrawMoney() or -1
         if guildBankMoney == -1 or guildBankMoney >= cost then
             RepairAllItems(1)

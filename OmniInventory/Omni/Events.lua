@@ -546,47 +546,13 @@ function Events:Init()
             Omni.Features:ApplyAutoDisplay("vendor", true)
         end
 
-        -- Auto Sell Junk & Auto Repair
+        -- Junk selling is owned by Modules/AutoVendor.lua (sell queue,
+        -- Features.IsJunkItem include/exclude lists + autoSellJunk toggle,
+        -- adaptive delay, 12-item buyback buffer). Do NOT duplicate the
+        -- sell loop here -- two MERCHANT_SHOW consumers would double-sell.
         local db = OmniInventoryDB and OmniInventoryDB.global
         if db then
-            -- 1. Auto Sell Junk (uses Features junk filter if available)
-            if db.autoSellJunk ~= false then
-                local soldCount = 0
-                local earnedMoney = 0
-                for bagID = 0, 4 do
-                    local numSlots = GetContainerNumSlots(bagID) or 0
-                    for slotID = 1, numSlots do
-                        local link = GetContainerItemLink(bagID, slotID)
-                        if link then
-                            local _, _, quality, _, _, _, _, _, _, _, price = GetItemInfo(link)
-                            local itemID = tonumber(string.match(link, "item:(%d+)"))
-                            -- Use Features.IsJunkItem for include/exclude lists,
-                            -- fall back to plain quality==0 check.
-                            local isJunk = false
-                            if Omni.Features and Omni.Features.IsJunkItem then
-                                isJunk = Omni.Features:IsJunkItem({
-                                    itemID = itemID,
-                                    quality = quality,
-                                })
-                            else
-                                isJunk = (quality == 0)
-                            end
-                            if isJunk and price and price > 0 then
-                                local _, count = GetContainerItemInfo(bagID, slotID)
-                                earnedMoney = earnedMoney + (price * (count or 1))
-                                UseContainerItem(bagID, slotID)
-                                soldCount = soldCount + 1
-                            end
-                        end
-                    end
-                end
-                if soldCount > 0 and Omni.Utils and Omni.Utils.FormatMoney then
-                    local formatted = Omni.Utils:FormatMoney(earnedMoney)
-                    print("|cFF00FF00OmniInventory|r: Automatically sold " .. soldCount .. " junk items for " .. formatted .. ".")
-                end
-            end
-
-            -- 2. Auto Repair
+            -- Auto Repair
             if db.autoRepair == true and CanMerchantRepair() then
                 local repairCost, canRepair = GetRepairAllCost()
                 if canRepair and repairCost > 0 then

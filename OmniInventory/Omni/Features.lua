@@ -242,10 +242,74 @@ function Features:InitAutoLoot()
     autoLootFrame:SetScript("OnEvent", function(_, event)
         if event ~= "LOOT_OPENED" then return end
         if not Omni.Data or Omni.Data:Get("autoLoot") ~= true then return end
+        -- When DestroyRules is enabled it owns the loot window so it can
+        -- skip items its rules say to leave on the corpse.
+        if Omni.DestroyRules and Omni.DestroyRules.IsEnabled and Omni.DestroyRules:IsEnabled() then
+            return
+        end
         if GetNumLootItems and GetNumLootItems() > 0 then
             for i = GetNumLootItems(), 1, -1 do
                 local _, _, isItem = GetLootSlotInfo(i)
                 if isItem or true then
+                    LootSlot(i)
+                end
+            end
+        end
+    end)
+end
+
+-- =============================================================================
+-- AutoDestroy Loot Hook (skip-aware looting)
+-- =============================================================================
+-- When AutoDestroy rules are enabled, LOOT_OPENED is evaluated against
+-- DestroyRules:Evaluate() for every loot slot:
+--   * "skip"  -> never auto-looted (left on the corpse)
+--   * other   -> auto-looted only when the autoLoot setting is on
+-- In dry-run mode decisions are reported to the chat log without acting.
+
+local destroyLootFrame
+
+function Features:InitDestroyLootHook()
+    if destroyLootFrame then return end
+
+    destroyLootFrame = CreateFrame("Frame")
+    destroyLootFrame:RegisterEvent("LOOT_OPENED")
+    destroyLootFrame:SetScript("OnEvent", function(_, event)
+        if event ~= "LOOT_OPENED" then return end
+        if not Omni.DestroyRules or not Omni.DestroyRules.IsEnabled then return end
+        if not Omni.DestroyRules:IsEnabled() then return end
+
+        local autoLoot = Omni.Data and Omni.Data:Get("autoLoot") == true
+        local dryRun = Omni.DestroyRules:IsDryRun()
+        local numItems = GetNumLootItems and GetNumLootItems() or 0
+        if numItems == 0 then return end
+
+        for i = numItems, 1, -1 do
+            local slotData = Omni.DestroyRules:BuildSlotDataFromLoot(i)
+            if not slotData then return end
+
+            local action, reason = Omni.DestroyRules:Evaluate(slotData)
+            if action == "skip" then
+                -- Leave on the corpse (skip rule / no-loot preference)
+                if dryRun and DEFAULT_CHAT_FRAME then
+                    DEFAULT_CHAT_FRAME:AddMessage(string.format(
+                        "|cFFFF8800[AutoDestroy DryRun]|r Skipping loot: %s (reason: %s)",
+                        slotData.name or "?", reason or "skip rule"))
+                end
+            else
+                if action == "destroy" and dryRun and DEFAULT_CHAT_FRAME then
+                    DEFAULT_CHAT_FRAME:AddMessage(string.format(
+                        "|cFFFF8800[AutoDestroy DryRun]|r Would destroy after loot: %s (reason: %s)",
+                        slotData.name or "?", reason or "destroy rule"))
+                elseif action == "sell" and dryRun and DEFAULT_CHAT_FRAME then
+                    DEFAULT_CHAT_FRAME:AddMessage(string.format(
+                        "|cFFFF8800[AutoDestroy DryRun]|r Would vendor after loot: %s (reason: %s)",
+                        slotData.name or "?", reason or "grey junk"))
+                end
+                -- Loot everything else only when auto-loot is on; destroy
+                -- and sell candidates are picked up by the destroy queue /
+                -- AutoVendor once they land in the bags.
+                if autoLoot then
                     LootSlot(i)
                 end
             end
@@ -602,4 +666,5 @@ end
 
 function Features:Init()
     self:InitAutoLoot()
+    self:InitDestroyLootHook()
 end

@@ -2381,17 +2381,29 @@ local function FindFirstOpenableContainer()
     return nil, nil, nil
 end
 
-local function HasSpell(spellName)
+-- Returns the localized name of the given spell if the player knows it in
+-- their spellbook, otherwise nil.  Matching is locale-independent: the
+-- spell is resolved by its spell ID via GetSpellBookItemInfo first, with
+-- the English name as a fallback for the name-based spell attribute.
+local function FindSpellNameInBook(englishName, spellID)
     local i = 1
     while true do
         local sName = GetSpellName(i, BOOKTYPE_SPELL)
         if not sName then break end
-        if sName == spellName then
-            return true
+        if spellID then
+            -- GetSpellBookItemInfo returns name, rank, subName, texture, id
+            -- in 3.3.5a -- the spell ID is the 5th return value.
+            local _, _, _, _, id = GetSpellBookItemInfo(i, BOOKTYPE_SPELL)
+            if id and id == spellID then
+                return sName
+            end
+        end
+        if sName == englishName then
+            return sName
         end
         i = i + 1
     end
-    return false
+    return nil
 end
 
 -- Footer custom launcher buttons
@@ -2529,28 +2541,39 @@ local FOOTER_CUSTOM_BUTTONS = {
         key     = "disenchant",
         icon    = "Interface\\Icons\\Spell_Holy_RemoveCurse",
         title   = "Disenchant",
-        sub     = "Right-click to disenchant an item in your bags.",
+        sub     = "Click to cast Disenchant on an item in your bags.",
         secure  = true,
+        spellEnglishName = "Disenchant",
+        spellID = 13262,
+        -- Both left (type/spell) and right (type2/spell2) clicks dispatch
+        -- through the secure engine; the spell name is re-resolved to the
+        -- player's localized spellbook name in UpdateFooterCustomButtons.
         secureAttributes = {
-            ["type2"] = "spell",
+            ["type"]   = "spell",
+            ["spell"]  = "Disenchant",
+            ["type2"]  = "spell",
             ["spell2"] = "Disenchant",
         },
         isAvailable = function()
-            return HasSpell("Disenchant")
+            return FindSpellNameInBook("Disenchant", 13262) ~= nil
         end,
     },
     {
         key     = "picklock",
         icon    = "Interface\\Icons\\Spell_Nature_RogueProgress",
         title   = "Pick Lock",
-        sub     = "Right-click to pick a lockbox in your bags.",
+        sub     = "Click to pick a lockbox in your bags.",
         secure  = true,
+        spellEnglishName = "Pick Lock",
+        spellID = 1804,
         secureAttributes = {
-            ["type2"] = "spell",
+            ["type"]   = "spell",
+            ["spell"]  = "Pick Lock",
+            ["type2"]  = "spell",
             ["spell2"] = "Pick Lock",
         },
         isAvailable = function()
-            return HasSpell("Pick Lock")
+            return FindSpellNameInBook("Pick Lock", 1804) ~= nil
         end,
     },
 }
@@ -2656,7 +2679,25 @@ local function CreateFooterMiniButton(parent, def)
         if self.icon then self.icon:SetVertexColor(0.75, 0.75, 0.75) end
     end)
     btn:SetScript("OnMouseUp", function(self)
-        if self.icon then self.icon:SetVertexColor(1, 1, 1) end
+        if not self.icon then return end
+        -- Restore the correct icon brightness instead of always forcing full
+        -- white: buttons gated by an availability check (hearthstone /
+        -- disenchant / picklock) or the openables scan stay dimmed when
+        -- their action is currently unavailable.
+        local def = self.__def
+        local dimmed = false
+        if def then
+            if def.key == "openables" then
+                dimmed = FindFirstOpenableContainer() == nil
+            elseif type(def.isAvailable) == "function" then
+                dimmed = not def.isAvailable()
+            end
+        end
+        if dimmed then
+            self.icon:SetVertexColor(0.45, 0.45, 0.45, 0.75)
+        else
+            self.icon:SetVertexColor(1, 1, 1, 1)
+        end
     end)
 
     if type(def.onClick) == "function" then
@@ -3300,6 +3341,31 @@ function Frame:UpdateFooterCustomButtons()
                 btn.icon:SetVertexColor(1, 1, 1, 1)
             else
                 btn.icon:SetVertexColor(0.45, 0.45, 0.45, 0.75)
+            end
+        end
+    end
+
+    -- Refresh spell-name attributes on profession-spell launchers
+    -- (disenchant / picklock).  GetSpellName returns localized names, so a
+    -- hardcoded English "spell"/"spell2" value silently fails to cast on
+    -- non-English clients.  Re-resolve via spell ID (locale-independent)
+    -- exactly like the openables button refreshes its item2 attribute.
+    for _, def in ipairs(footer.customButtonOrder) do
+        if def.spellID then
+            local btn = footer.customButtons[def.key]
+            if btn and not InCombatLockdown() then
+                local localized = FindSpellNameInBook(def.spellEnglishName, def.spellID)
+                if localized then
+                    btn:SetAttribute("type", "spell")
+                    btn:SetAttribute("spell", localized)
+                    btn:SetAttribute("type2", "spell")
+                    btn:SetAttribute("spell2", localized)
+                else
+                    btn:SetAttribute("type", nil)
+                    btn:SetAttribute("spell", nil)
+                    btn:SetAttribute("type2", nil)
+                    btn:SetAttribute("spell2", nil)
+                end
             end
         end
     end

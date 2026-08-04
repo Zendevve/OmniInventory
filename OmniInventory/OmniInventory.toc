@@ -30,6 +30,7 @@ Omni\Data.lua
 Omni\Features.lua
 Omni\Rules.lua
 Omni\Categorizer.lua
+Omni\DestroyRules.lua
 Omni\Sorter.lua
 Omni\PhysicalSort.lua
 Omni\SlotLocks.lua
@@ -65,6 +66,7 @@ DB\CacheWarmer.lua
 # Economy & Utility Modules
 # =============================================================================
 Modules\AutoVendor.lua
+Modules\AutoDestroy.lua
 Modules\AutoRepair.lua
 Modules\AutoContainer.lua
 Modules\AppearanceTracker.lua

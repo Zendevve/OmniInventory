@@ -140,6 +140,37 @@ local function IsFooterButtonEnabled(key)
 end
 
 -- =============================================================================
+-- Loot & Destroy Constants
+-- =============================================================================
+
+local LOOT_DESTROY_CATEGORIES = {
+    "Equipment", "Consumables", "Trade Goods", "Reagents",
+    "Quest Items", "Junk", "Recipes", "Gems",
+    "Keys", "Bags", "Ammo", "Glyphs",
+    "Mounts", "Companions", "Holiday", "Miscellaneous",
+}
+
+local LOOT_PREF_OPTIONS  = { "(Default)", "Loot", "Destroy", "Skip", "Sell" }
+local DESTROY_ACTION_OPTIONS = { "Keep", "Destroy", "Loot", "Skip", "Sell" }
+
+local function EnsureDestroyDB()
+    OmniInventoryDB = OmniInventoryDB or {}
+    OmniInventoryDB.global = OmniInventoryDB.global or {}
+    OmniInventoryDB.global.categoryLootPrefs = OmniInventoryDB.global.categoryLootPrefs or {}
+    OmniInventoryDB.global.destroyRules      = OmniInventoryDB.global.destroyRules or {}
+end
+
+local function FormatGoldCopper(value)
+    if not value or value == 0 then return "0g" end
+    local gold   = math.floor(value / 10000)
+    local silver = math.floor((value % 10000) / 100)
+    if silver > 0 then
+        return string.format("%dg %ds", gold, silver)
+    end
+    return string.format("%dg", gold)
+end
+
+-- =============================================================================
 -- Layout Constants
 -- =============================================================================
 
@@ -169,6 +200,7 @@ local TAB_CATALOG = {
     { label = "Auto-Display",       key = "autodisplay" },
     { label = "Features",           key = "features" },
     { label = "Rules",              key = "rules"   },
+    { label = "Loot & Destroy",     key = "lootdestroy" },
 }
 
 local activeTab = 1
@@ -363,6 +395,9 @@ function Settings:CreateControls()
     self:BuildFeatures(self.tabPanels[7])
     if self.tabPanels[8] then
         self:BuildRules(self.tabPanels[8])
+    end
+    if self.tabPanels[9] then
+        self:BuildLootDestroy(self.tabPanels[9])
     end
 end
 
@@ -863,8 +898,10 @@ function Settings:BuildAutoDisplay(panel)
     -- Row 2
     self.autoDisplayTradeCb = MakeAd(2, 0, "Auto-open at Trade", "Auto-open at Trade", "Automatically opens the bag window when trading with another player.", "trade")
     self.autoDisplayCraftCb = MakeAd(2, 1, "Auto-open at Craft", "Auto-open at Craft", "Automatically opens the bag window when viewing a profession/crafting pane.", "craft")
+    -- Row 3
+    self.autoDisplayGuildBankCb = MakeAd(3, 0, "Auto-open at Guild Bank", "Auto-open at Guild Bank", "Automatically opens the bag window when interacting with a guild bank.", "guildbank")
 
-    y = y - (ROW_H * 3) - SECTION_GAP
+    y = y - (ROW_H * 4) - SECTION_GAP
 
     panel._contentHeight = math.abs(y) + 40
 end
@@ -902,7 +939,7 @@ function Settings:BuildFeatures(panel)
         "Auto-loot",
         "Auto-Loot",
         "Automatically loots all items when a loot frame opens.",
-        "autoLoot", false, function(checked)
+        "autoLoot", true, function(checked)
             if Omni.Features and Omni.Features.InitAutoLoot then
                 Omni.Features:InitAutoLoot()
             end
@@ -992,6 +1029,353 @@ function Settings:BuildFeatures(panel)
     self.detailedCategoriesCb:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y - (row * ROW_H))
 
     y = y - (ROW_H * 5) - SECTION_GAP
+
+    panel._contentHeight = math.abs(y) + 40
+end
+
+-- =============================================================================
+-- Tab 9: Loot & Destroy
+-- =============================================================================
+
+function Settings:BuildLootDestroy(panel)
+    EnsureDestroyDB()
+    local y = -15
+
+    -- Helper: card backdrop matching BuildRules TUI style
+    local function ApplyCardBackdrop(f)
+        OpsTheme:ApplyControlBackdrop(f)
+        f:SetBackdropColor(0.12, 0.11, 0.10, 0.95)
+        f:SetBackdropBorderColor(0.22, 0.20, 0.17, 1.0)
+    end
+
+    -- -------------------------------------------------------------------------
+    -- Section 1: Master Controls
+    -- -------------------------------------------------------------------------
+    local header = OpsTheme.CreateSectionHeader(panel, "[+]  Master Controls", SECTION_COLORS.feat)
+    header:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    y = y - HEADER_GAP
+
+    -- Enable Auto-Destroy
+    self.autoDestroyCb = OpsTheme.CreateCheckButton(panel,
+        "Enable Auto-Destroy",
+        "Enable Auto-Destroy",
+        "Toggles automatic destruction of items matching your destroy rules. Grey junk (quality 0) is always auto-sold at vendors.",
+        OmniInventoryDB.global.autoDestroyEnabled == true,
+        function(_, checked)
+            OmniInventoryDB.global.autoDestroyEnabled = checked
+        end)
+    self.autoDestroyCb:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+
+    -- Dry-Run Mode
+    self.destroyDryRunCb = OpsTheme.CreateCheckButton(panel,
+        "Dry-Run Mode",
+        "Dry-Run Mode",
+        "When enabled, items that would be destroyed are only flagged but not actually removed. Useful for testing rules safely.",
+        OmniInventoryDB.global.destroyDryRun ~= false,
+        function(_, checked)
+            OmniInventoryDB.global.destroyDryRun = checked
+        end)
+    self.destroyDryRunCb:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_RIGHT, y)
+
+    y = y - ROW_H
+
+    -- Value Threshold slider (0g - 50g in copper, step 1g)
+    local threshold = OmniInventoryDB.global.destroyValueThreshold or 10000
+    self.destroyThresholdSlider = OpsTheme.CreateSlider(panel,
+        "Value Threshold", 0, 500000, 10000, FormatGoldCopper,
+        function(value)
+            OmniInventoryDB.global.destroyValueThreshold = value
+        end,
+        "Value Threshold",
+        "Items above this vendor price (in copper) are protected from auto-destroy. Default: 1g (10000 copper).")
+    self.destroyThresholdSlider:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    y = y - SPACING
+
+    -- Info text
+    local infoText = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    infoText:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    infoText:SetWidth(CONTENT_W - COL_LEFT * 2)
+    infoText:SetJustifyH("LEFT")
+    infoText:SetText("Grey junk items (quality 0) are auto-sold at vendors. Other items require a keybind press to destroy.")
+    infoText:SetTextColor(unpack(OpsTheme.PAL.TEXT_DIM))
+    y = y - 32
+
+    -- Setup hint when auto-destroy is not yet enabled
+    if not OmniInventoryDB.global.autoDestroyEnabled then
+        local hintText = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        hintText:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+        hintText:SetWidth(CONTENT_W - COL_LEFT * 2)
+        hintText:SetJustifyH("LEFT")
+        hintText:SetText("|cFF00FF00Tip:|r Enable Auto-Destroy above, then click [+] Add Rule to create your first rule. Example: Quality(2) and Value(5000) destroys greens worth < 50s.")
+        hintText:SetTextColor(0.3, 0.9, 0.4)
+        y = y - 32
+    end
+
+    -- -------------------------------------------------------------------------
+    -- Section 2: Category Loot Preferences
+    -- -------------------------------------------------------------------------
+    local catHeader = OpsTheme.CreateSectionHeader(panel, "[+]  Category Loot Preferences", SECTION_COLORS.addon)
+    catHeader:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    y = y - HEADER_GAP
+
+    self.catLootBtns = {}
+    local colW = (CONTENT_W - COL_LEFT * 2) / 2
+
+    for i, catName in ipairs(LOOT_DESTROY_CATEGORIES) do
+        local col    = (i - 1) % 2
+        local rowIdx = math.floor((i - 1) / 2)
+        local xoff   = col == 0 and COL_LEFT or (COL_LEFT + colW)
+        local rowY   = y - (rowIdx * (ROW_H + 2))
+
+        -- Category label
+        local catLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        catLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", xoff, rowY - 2)
+        catLabel:SetWidth(82)
+        catLabel:SetJustifyH("RIGHT")
+        catLabel:SetText(catName)
+        catLabel:SetTextColor(0.8, 0.8, 0.8)
+
+        -- Cycle dropdown button
+        local currentPref = OmniInventoryDB.global.categoryLootPrefs[catName] or "(Default)"
+        local prefBtn = OpsTheme.CreateButton(panel, currentPref, 80, function(self)
+            local curIdx = 1
+            for j, v in ipairs(LOOT_PREF_OPTIONS) do
+                if v == self._currentVal then curIdx = j break end
+            end
+            local nextIdx = (curIdx % #LOOT_PREF_OPTIONS) + 1
+            self._currentVal = LOOT_PREF_OPTIONS[nextIdx]
+            self.text:SetText(self._currentVal)
+            OmniInventoryDB.global.categoryLootPrefs[catName] = self._currentVal
+        end)
+        prefBtn._currentVal = currentPref
+        prefBtn:SetSize(80, 18)
+        prefBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", xoff + 86, rowY - 3)
+        self.catLootBtns[catName] = prefBtn
+    end
+
+    local catRowCount = math.ceil(#LOOT_DESTROY_CATEGORIES / 2)
+    y = y - (catRowCount * (ROW_H + 2)) - SECTION_GAP
+
+    -- -------------------------------------------------------------------------
+    -- Section 3: Destroy Rules
+    -- -------------------------------------------------------------------------
+    local rulesHeader = OpsTheme.CreateSectionHeader(panel, "[+]  Destroy Rules", SECTION_COLORS.colors)
+    rulesHeader:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    y = y - HEADER_GAP
+
+    local rulesContainer = CreateFrame("Frame", nil, panel)
+    rulesContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, y)
+    rulesContainer:SetWidth(CONTENT_W)
+    panel.rulesContainer = rulesContainer
+
+    local function RefreshRules()
+        EnsureDestroyDB()
+
+        -- Clear existing children
+        local children = { rulesContainer:GetChildren() }
+        for _, child in ipairs(children) do
+            child:Hide()
+            child:SetParent(nil)
+        end
+        local regions = { rulesContainer:GetRegions() }
+        for _, region in ipairs(regions) do
+            region:Hide()
+        end
+
+        local ry = 0
+
+        -- [+] Add Rule button
+        local addBtn = OpsTheme.CreateButton(rulesContainer, "[+] Add Rule", 110, function()
+            local ruleID = "destroyrule_" .. tostring(time()) .. "_" .. math.random(1000, 9999)
+            OmniInventoryDB.global.destroyRules[ruleID] = {
+                name    = "New Rule",
+                action  = "Destroy",
+                formula = 'Quality(0)',
+                enabled = true,
+            }
+            RefreshRules()
+        end)
+        addBtn:SetPoint("TOPLEFT", rulesContainer, "TOPLEFT", COL_LEFT, ry)
+        addBtn:SetScript("OnEnter", function(self)
+            self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+            self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Add Destroy Rule", 1, 0.82, 0)
+            GameTooltip:AddLine("Create a new rule for item destruction. Formulas: Quality(0), Name(\"Grey\"), Value(100), Type(\"Trade Goods\").", 0.75, 0.75, 0.75, true)
+            GameTooltip:Show()
+        end)
+        addBtn:SetScript("OnLeave", function(self)
+            self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+            self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+            GameTooltip:Hide()
+        end)
+        ry = ry - 28
+
+        -- Collect and sort rules by name
+        local rules = OmniInventoryDB.global.destroyRules
+        local sortedIDs = {}
+        for rid in pairs(rules) do tinsert(sortedIDs, rid) end
+        table.sort(sortedIDs, function(a, b)
+            return (rules[a].name or a) < (rules[b].name or b)
+        end)
+
+        if #sortedIDs == 0 then
+            local emptyTxt = rulesContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            emptyTxt:SetPoint("TOPLEFT", rulesContainer, "TOPLEFT", COL_LEFT, ry)
+            emptyTxt:SetText("No destroy rules defined. Click [+] Add Rule to create one.")
+            emptyTxt:SetTextColor(0.5, 0.5, 0.5)
+            ry = ry - 20
+        else
+            for _, ruleID in ipairs(sortedIDs) do
+                local rule = rules[ruleID]
+                if rule then
+                    local isEnabled = (rule.enabled ~= false)
+
+                    -- Row card
+                    local rowCard = CreateFrame("Frame", nil, rulesContainer)
+                    rowCard:SetSize(CONTENT_W - 24, 48)
+                    rowCard:SetPoint("TOPLEFT", rulesContainer, "TOPLEFT", COL_LEFT, ry)
+                    ApplyCardBackdrop(rowCard)
+
+                    -- [x] / [ ] Enabled toggle
+                    local toggleBtn = OpsTheme.CreateButton(rowCard, isEnabled and "[x]" or "[ ]", 26, function()
+                        OmniInventoryDB.global.destroyRules[ruleID].enabled = not isEnabled
+                        RefreshRules()
+                    end)
+                    toggleBtn:SetHeight(20)
+                    toggleBtn:SetPoint("LEFT", rowCard, "LEFT", 5, 6)
+                    if isEnabled then
+                        toggleBtn.text:SetTextColor(0.3, 0.9, 0.4)
+                    else
+                        toggleBtn.text:SetTextColor(0.5, 0.5, 0.5)
+                    end
+
+                    -- Rule name (top line)
+                    local nameTxt = rowCard:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+                    nameTxt:SetPoint("TOPLEFT", rowCard, "TOPLEFT", 36, -4)
+                    nameTxt:SetText(rule.name or ruleID)
+                    if isEnabled then
+                        nameTxt:SetTextColor(1, 0.82, 0)
+                    else
+                        nameTxt:SetTextColor(0.5, 0.5, 0.5)
+                    end
+
+                    -- [X] Delete button (top-right)
+                    local delBtn = OpsTheme.CreateButton(rowCard, "[X]", 24, function()
+                        OmniInventoryDB.global.destroyRules[ruleID] = nil
+                        RefreshRules()
+                    end)
+                    delBtn:SetHeight(20)
+                    delBtn:SetPoint("TOPRIGHT", rowCard, "RIGHT", -5, 6)
+                    delBtn.text:SetTextColor(1, 0.3, 0.3)
+                    delBtn:SetScript("OnEnter", function(self)
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        GameTooltip:SetText("Delete Rule", 1, 0.3, 0.3)
+                        GameTooltip:AddLine("Permanently delete this destroy rule.", 0.75, 0.75, 0.75, true)
+                        GameTooltip:Show()
+                    end)
+                    delBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+                    -- Action cycle dropdown (top-right, left of delete)
+                    local actionBtn = OpsTheme.CreateButton(rowCard, rule.action or "Destroy", 70, function(self)
+                        local curIdx = 1
+                        for j, v in ipairs(DESTROY_ACTION_OPTIONS) do
+                            if v == self._currentVal then curIdx = j break end
+                        end
+                        local nextIdx = (curIdx % #DESTROY_ACTION_OPTIONS) + 1
+                        self._currentVal = DESTROY_ACTION_OPTIONS[nextIdx]
+                        self.text:SetText(self._currentVal)
+                        OmniInventoryDB.global.destroyRules[ruleID].action = self._currentVal
+                    end)
+                    actionBtn._currentVal = rule.action or "Destroy"
+                    actionBtn:SetHeight(20)
+                    actionBtn:SetPoint("RIGHT", delBtn, "LEFT", -4, 0)
+
+                    -- Formula label (bottom line)
+                    local formulaLbl = rowCard:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                    formulaLbl:SetPoint("TOPLEFT", rowCard, "TOPLEFT", 36, -24)
+                    formulaLbl:SetText("Formula:")
+                    formulaLbl:SetTextColor(0.5, 0.5, 0.5)
+
+                    -- Formula EditBox with backdrop
+                    local formulaFrame = CreateFrame("Frame", nil, rowCard)
+                    formulaFrame:SetSize(180, 18)
+                    formulaFrame:SetPoint("TOPLEFT", rowCard, "TOPLEFT", 80, -24)
+                    ApplyCardBackdrop(formulaFrame)
+
+                    local formulaEb = CreateFrame("EditBox", nil, formulaFrame)
+                    formulaEb:SetSize(170, 16)
+                    formulaEb:SetPoint("TOPLEFT", formulaFrame, "TOPLEFT", 4, -1)
+                    formulaEb:SetAutoFocus(false)
+                    formulaEb:SetFontObject(ChatFontNormal)
+                    formulaEb:SetTextColor(0.5, 0.7, 0.9)
+                    formulaEb:SetText(rule.formula or "")
+                    formulaEb:SetScript("OnEditFocusGained", function(self)
+                        self:HighlightText()
+                    end)
+                    formulaEb:SetScript("OnEnterPressed", function(self)
+                        self:ClearFocus()
+                        OmniInventoryDB.global.destroyRules[ruleID].formula = self:GetText()
+                    end)
+                    formulaEb:SetScript("OnEscapePressed", function(self)
+                        self:ClearFocus()
+                    end)
+                    formulaEb:SetScript("OnTextChanged", function(self)
+                        if OmniInventoryDB.global.destroyRules[ruleID] then
+                            OmniInventoryDB.global.destroyRules[ruleID].formula = self:GetText()
+                        end
+                    end)
+
+                    ry = ry - 52
+                end
+            end
+        end
+
+        rulesContainer:SetHeight(math.abs(ry) + 10)
+    end
+
+    RefreshRules()
+    y = y - rulesContainer:GetHeight() - 8
+
+    -- -------------------------------------------------------------------------
+    -- Section 4: Undo Log
+    -- -------------------------------------------------------------------------
+    local undoHeader = OpsTheme.CreateSectionHeader(panel, "[+]  Undo Log", SECTION_COLORS.footer)
+    undoHeader:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    y = y - HEADER_GAP
+
+    local showLogBtn = OpsTheme.CreateButton(panel, "Show Log", 120, function()
+        if Omni.AutoDestroy and Omni.AutoDestroy.ShowUndoLog then
+            Omni.AutoDestroy:ShowUndoLog()
+        else
+            print("|cFFFF4040OmniInventory|r: Auto-Destroy module not loaded.")
+        end
+    end)
+    showLogBtn:SetSize(120, OpsTheme.PAL.BTN_HEIGHT)
+    showLogBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    showLogBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL_HOVER))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER_HOVER))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Show Destroy Log", 1, 0.82, 0)
+        GameTooltip:AddLine("Displays the last 12 destroyed items for reference. Useful for auditing auto-destroy behavior.", 0.75, 0.75, 0.75, true)
+        GameTooltip:Show()
+    end)
+    showLogBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(unpack(OpsTheme.PAL.BG_CONTROL))
+        self:SetBackdropBorderColor(unpack(OpsTheme.PAL.BORDER))
+        GameTooltip:Hide()
+    end)
+    y = y - SPACING
+
+    -- Undo log info text
+    local logInfo = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    logInfo:SetPoint("TOPLEFT", panel, "TOPLEFT", COL_LEFT, y)
+    logInfo:SetWidth(CONTENT_W - COL_LEFT * 2)
+    logInfo:SetJustifyH("LEFT")
+    logInfo:SetText("Last 12 destroyed items are logged for reference.")
+    logInfo:SetTextColor(unpack(OpsTheme.PAL.TEXT_DIM))
+    y = y - 32
 
     panel._contentHeight = math.abs(y) + 40
 end
@@ -1129,6 +1513,7 @@ function Settings:UpdateValues()
     if self.autoDisplayAhCb then self.autoDisplayAhCb:SetChecked(ad.ah == true) end
     if self.autoDisplayTradeCb then self.autoDisplayTradeCb:SetChecked(ad.trade == true) end
     if self.autoDisplayCraftCb then self.autoDisplayCraftCb:SetChecked(ad.craft == true) end
+    if self.autoDisplayGuildBankCb then self.autoDisplayGuildBankCb:SetChecked(ad.guildbank == true) end
 
     -- Features checkboxes
     if self.cacheWarmerCb and Omni.Data then
@@ -1167,6 +1552,32 @@ function Settings:UpdateValues()
         self.detailedCategoriesCb:SetChecked(
             OmniInventoryDB and OmniInventoryDB.global
                 and OmniInventoryDB.global.detailedCategories == true)
+    end
+
+    -- Loot & Destroy tab sync
+    if self.autoDestroyCb then
+        self.autoDestroyCb:SetChecked(
+            OmniInventoryDB and OmniInventoryDB.global
+                and OmniInventoryDB.global.autoDestroyEnabled == true)
+    end
+    if self.destroyDryRunCb then
+        self.destroyDryRunCb:SetChecked(
+            OmniInventoryDB and OmniInventoryDB.global
+                and OmniInventoryDB.global.destroyDryRun ~= false)
+    end
+    if self.destroyThresholdSlider then
+        local threshold = (OmniInventoryDB and OmniInventoryDB.global
+            and OmniInventoryDB.global.destroyValueThreshold) or 10000
+        self.destroyThresholdSlider:SetValue(threshold)
+    end
+    -- Category loot pref buttons refresh from DB on panel show
+    if self.catLootBtns then
+        EnsureDestroyDB()
+        for catName, btn in pairs(self.catLootBtns) do
+            local pref = OmniInventoryDB.global.categoryLootPrefs[catName] or "(Default)"
+            btn._currentVal = pref
+            if btn.text then btn.text:SetText(pref) end
+        end
     end
 
     -- Theme + view + sort + target labels

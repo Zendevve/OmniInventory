@@ -316,6 +316,76 @@ function ASTCompiler.EvaluateNode(node, slotData, sig)
                 end
             end
             return targetQual >= 1
+        elseif name == "destroy" then
+            -- Action marker: always returns true (used by DestroyRules to identify destroy rules)
+            return true
+        elseif name == "keep" then
+            -- Action marker: always returns true (used by DestroyRules to identify keep rules)
+            return true
+        elseif name == "autoloot" or name == "loot" then
+            return true
+        elseif name == "noloot" or name == "skip" then
+            return true
+        elseif name == "sell" then
+            return true
+        elseif name == "category" then
+            -- Match by Categorizer category name
+            if Omni.Categorizer and Omni.Categorizer.GetCategory and slotData then
+                local cat = Omni.Categorizer:GetCategory(slotData)
+                for _, arg in ipairs(node.args) do
+                    local argVal = tostring(arg.value or ""):lower()
+                    if cat and cat:lower() == argVal then
+                        return true
+                    end
+                end
+            end
+            return false
+        elseif name == "value" or name == "vendorprice" then
+            -- Match by vendor price
+            local price = slotData.vendorPrice or 0
+            if #node.args > 0 then
+                local firstArg = node.args[1]
+                local threshold = tonumber(firstArg.value) or 0
+                return price >= threshold
+            end
+            return price > 0
+        elseif name == "itemlevel" or name == "ilvl" then
+            -- Match by item level with comparison operator string
+            local ilvl = slotData.itemLevel or (sig and sig.itemLevel) or 0
+            if ilvl == 0 and slotData.hyperlink then
+                local _, _, _, iLvl = GetItemInfo(slotData.hyperlink)
+                ilvl = iLvl or 0
+            end
+            if #node.args > 0 then
+                local firstArg = node.args[1]
+                local argStr = tostring(firstArg.value or "")
+                -- Parse operator from string: "<60", ">=200", etc.
+                local op, num = string.match(argStr, "^([><=!]+)%s*(%d+)$")
+                local threshold = tonumber(num or argStr) or 0
+                if op == ">=" then return ilvl >= threshold
+                elseif op == "<=" then return ilvl <= threshold
+                elseif op == ">" then return ilvl > threshold
+                elseif op == "<" then return ilvl < threshold
+                elseif op == "!=" or op == "<>" then return ilvl ~= threshold
+                else return ilvl == threshold end
+            end
+            return ilvl > 0
+        elseif name == "count" or name == "stacks" then
+            -- Match by stack count with comparison operator string
+            local count = slotData.count or (sig and sig.count) or 1
+            if #node.args > 0 then
+                local firstArg = node.args[1]
+                local argStr = tostring(firstArg.value or "")
+                local op, num = string.match(argStr, "^([><=!]+)%s*(%d+)$")
+                local threshold = tonumber(num or argStr) or 0
+                if op == ">=" then return count >= threshold
+                elseif op == "<=" then return count <= threshold
+                elseif op == ">" then return count > threshold
+                elseif op == "<" then return count < threshold
+                elseif op == "!=" or op == "<>" then return count ~= threshold
+                else return count == threshold end
+            end
+            return count > 1
         end
     elseif kind == "IDENT" then
         local name = node.name:lower()

@@ -668,6 +668,51 @@ local function HandleSlashCommand(msg)
             print("|cFF00FF00OmniInventory|r: Cleared " .. cleared .. " tracked appearance(s).")
         end
 
+    elseif msg == "destroy" then
+        if Omni.AutoDestroy and Omni.AutoDestroy.ProcessQueue then
+            Omni.AutoDestroy:ProcessQueue()
+        else
+            print("|cFFFF4040OmniInventory|r: AutoDestroy module not loaded.")
+        end
+
+    elseif msg == "destroy scan" then
+        if Omni.AutoDestroy and Omni.AutoDestroy.DryRun then
+            Omni.AutoDestroy:DryRun()
+        else
+            print("|cFFFF4040OmniInventory|r: AutoDestroy module not loaded.")
+        end
+
+    elseif msg == "destroy on" or msg == "destroy enable" then
+        if Omni.Data then
+            Omni.Data:Set("autoDestroyEnabled", true)
+            print("|cFF00FF00OmniInventory|r: AutoDestroy enabled. Press the OMNI_AUTODESTROY_PROCESS keybind to destroy queued items.")
+        end
+
+    elseif msg == "destroy off" or msg == "destroy disable" then
+        if Omni.Data then
+            Omni.Data:Set("autoDestroyEnabled", false)
+            print("|cFF00FF00OmniInventory|r: AutoDestroy disabled.")
+        end
+
+    elseif msg == "destroy dryrun" then
+        if Omni.Data then
+            local wasDryRun = Omni.Data:Get("destroyDryRun")
+            Omni.Data:Set("destroyDryRun", not wasDryRun)
+            print("|cFF00FF00OmniInventory|r: Destroy dry-run " .. ((not wasDryRun) and "|cFF00FF00ENABLED|r" or "|cFFFF0000DISABLED|r") .. ".")
+        end
+
+    elseif msg == "destroy undo" then
+        if Omni.AutoDestroy and Omni.AutoDestroy.UndoLast then
+            Omni.AutoDestroy:UndoLast()
+        end
+
+    elseif msg == "destroy log" then
+        if Omni.AutoDestroy and Omni.AutoDestroy.ShowUndoLog then
+            Omni.AutoDestroy:ShowUndoLog()
+        else
+            print("|cFFFF4040OmniInventory|r: AutoDestroy module not loaded.")
+        end
+
     elseif msg == "bank" then
         if Omni.BankFrame then
             Omni.BankFrame:Toggle()
@@ -769,6 +814,13 @@ local function HandleSlashCommand(msg)
         print("  |cFFFFFF00/oi sortcancel|r - Cancel in-progress sort")
         print("  |cFFFFFF00/oi rules|r - List available rule functions")
         print("  |cFFFFFF00/oi categories|r - List user-defined categories")
+        print("  |cFFFFFF00/oi destroy|r - Process the auto-destroy queue")
+        print("  |cFFFFFF00/oi destroy scan|r - Dry-run scan of destroy candidates")
+        print("  |cFFFFFF00/oi destroy on|r - Enable auto-destroy rules")
+        print("  |cFFFFFF00/oi destroy off|r - Disable auto-destroy rules")
+        print("  |cFFFFFF00/oi destroy dryrun|r - Toggle dry-run (log only) mode")
+        print("  |cFFFFFF00/oi destroy undo|r - Show last destroyed item")
+        print("  |cFFFFFF00/oi destroy log|r - Show destroy undo log")
         print("  |cFFFFFF00/oi lock|r - Toggle global lock (pause updates)")
 
     else

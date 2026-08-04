@@ -37,7 +37,7 @@ local defaults = {
         autoSellJunk = true,
         vendorDoubleRightClick = true,
         vendorCtrlRightClick = true,
-        collapseEmptySlots = false,
+        collapseEmptySlots = true,
         autoRepair = false,
         autoRepairGuild = false,
         -- Footer: larger outlined gold + slot count; slots tint blue→red by fill
@@ -65,7 +65,7 @@ local defaults = {
             mail    = false,  -- MAIL_SHOW
             ah      = false,  -- AUCTION_HOUSE_SHOW
             trade   = false,  -- TRADE_SHOW
-            guildbank = true, -- GUILDBANKFRAME_OPENED
+            guildbank = false, -- GUILDBANKFRAME_OPENED (no UI toggle; enable via /oi)
             craft   = false,  -- TRADE_SKILL_SHOW / CRAFT_SHOW
             player  = false,  -- PLAYER_FRAME_OPENED-ish (character frame)
         },
@@ -81,16 +81,16 @@ local defaults = {
         -- Auto-tidy: compact layout on close (AdiBags TidyBags).
         autoTidyOnClose = false,
         -- Auto-loot: automatically loot loot frames when opened.
-        autoLoot = false,
+        autoLoot = true,
         -- Cache warmer: pre-load GetItemInfo for known item IDs
         -- on PLAYER_ENTERING_WORLD to avoid tooltip delays.
         cacheWarmer = true,
         -- Money tracker: record gold history per character over
         -- time for trend display.
-        moneyTracker = false,
+        moneyTracker = true,
         -- Bound item indicator: show a small chain icon on
         -- soulbound items in the bag.
-        showBoundIndicator = false,
+        showBoundIndicator = true,
         -- ChromieCraft appearance tracker: mirror the server-side
         -- appearance collection locally and mark collected items.
         appearanceTracker = true,
@@ -103,6 +103,56 @@ local defaults = {
         -- Category stripe: show a small vertical stripe on the left
         -- edge of each item slot matching its category color.
         showCategoryStripe = false,
+        -- Auto-Destroy system
+        autoDestroyEnabled = false,
+        destroyDryRun = true,
+        destroyValueThreshold = 10000, -- 1 gold in copper
+        destroyRules = {
+            -- Example rules (disabled by default; user enables in Options)
+            ["example_low_value_greens"] = {
+                name = "Low-value Greens (< 50s)",
+                action = "destroy",
+                formula = 'Quality(2) and Value(5000)',
+                enabled = false,
+                priority = 50,
+            },
+            ["example_old_consumables"] = {
+                name = "Old Consumables (level < 60)",
+                action = "destroy",
+                formula = 'Type("Consumable") and ItemLevel("<60")',
+                enabled = false,
+                priority = 60,
+            },
+            ["example_trade_goods_excess"] = {
+                name = "Excess Trade Goods (stack > 200)",
+                action = "destroy",
+                formula = 'Type("Trade Goods") and Count(">200")',
+                enabled = false,
+                priority = 70,
+            },
+        },
+        categoryLootPrefs = {
+            ["Junk"] = "sell",
+            ["Consumables"] = "loot",
+            ["Trade Goods"] = "loot",
+            ["Reagents"] = "loot",
+            ["Quest Items"] = "loot",
+            ["Equipment"] = "loot",
+            ["BoE"] = "loot",
+            ["Mounts"] = "loot",
+            ["Companions"] = "loot",
+            ["Holiday"] = "loot",
+            ["Glyphs"] = "loot",
+            ["Keys"] = "loot",
+            ["Bags"] = "loot",
+            ["Ammo"] = "loot",
+            ["Tools"] = "loot",
+            ["Recipes"] = "loot",
+            ["Gems"] = "loot",
+            ["Miscellaneous"] = "loot",
+        },
+        destroyItemOverrides = {}, -- { [itemID] = "always_destroy"|"never_destroy"|"always_loot" }
+        destroyUndoLog = {},    -- circular buffer of last 12 destroyed items
     },
     char = {
         position = nil,         -- { point, x, y }
