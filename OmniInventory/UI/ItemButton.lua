@@ -195,47 +195,80 @@ function ItemButton.InvalidateUnusableCache()
     wipe(unusableCache)
 end
 
-local knownRecipeCache = {}
+local knownRecipeCache = {}  -- [cacheKey] = { isKnown, link }
 
 local function CheckIfKnownRecipe(bag, slot, itemID)
     if not bag or not slot or not itemID then return false end
     local cacheKey = bag .. ":" .. slot
-    if knownRecipeCache[cacheKey] ~= nil then
-        return knownRecipeCache[cacheKey]
+    local cached = knownRecipeCache[cacheKey]
+
+    -- Resolve the live link for change-detection; if it matches the cached
+    -- link the recipe-known answer cannot have changed, so skip the
+    -- tooltip scan entirely. Equivalent to RecipeColor's rcLink guard.
+    local link
+    if bag == -1 then
+        link = GetInventoryItemLink("player", BankButtonIDToInvSlotID(slot))
+    elseif bag == "GuildBank" then
+        link = GetGuildBankItemLink(slot[1], slot[2])
+    elseif bag == "Merchant" then
+        link = GetMerchantItemLink(slot)
+    elseif bag == "Buyback" then
+        link = GetBuybackItemLink(slot)
+    else
+        link = GetContainerItemLink(bag, slot)
     end
+
+    if cached and cached.link == link then
+        return cached.isKnown
+    end
+
     local RC = Omni.RecipeColor
     if not RC or not RC:IsRecipeItem(itemID) then
-        knownRecipeCache[cacheKey] = false
+        knownRecipeCache[cacheKey] = { isKnown = false, link = link }
         return false
     end
-    local scanningTooltip = _G["OmniScanningTooltip"]
-    if not scanningTooltip then return false end
-    scanningTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
-    scanningTooltip:ClearLines()
-    local ok = pcall(scanningTooltip.SetBagItem, scanningTooltip, bag, slot)
-    if not ok then
-        local link = GetContainerItemLink(bag, slot)
-        if link then
-            pcall(scanningTooltip.SetHyperlink, scanningTooltip, link)
+
+    -- Cooldown guard: RecipeColor leaves icons grey while the item is on
+    -- cooldown (a conjured/disenchanted recipe in active use), so the
+    -- green tint would be misleading. Skip tinting until the cooldown ends.
+    local onCooldown = false
+    if type(bag) == "number" and bag >= 0 and slot then
+        local start, duration, enable = GetContainerItemCooldown(bag, slot)
+        if start and duration and enable == 1 and duration > 0 then
+            onCooldown = true
         end
     end
-    local numLines = scanningTooltip:NumLines()
-    for i = 2, numLines do
-        local leftFrame = _G["OmniScanningTooltipTextLeft" .. i]
-        if leftFrame then
-            local text = leftFrame:GetText()
-            if text and string.find(text, "Already known") then
-                knownRecipeCache[cacheKey] = true
-                return true
+
+    local known = false
+    if not onCooldown then
+        local scanningTooltip = _G["OmniScanningTooltip"]
+        if scanningTooltip then
+            scanningTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+            scanningTooltip:ClearLines()
+            local ok = pcall(scanningTooltip.SetBagItem, scanningTooltip, bag, slot)
+            if not ok and link then
+                pcall(scanningTooltip.SetHyperlink, scanningTooltip, link)
+            end
+            local numLines = scanningTooltip:NumLines()
+            for i = 2, numLines do
+                local leftFrame = _G["OmniScanningTooltipTextLeft" .. i]
+                if leftFrame then
+                    local text = leftFrame:GetText()
+                    if text and string.find(text, "Already known") then
+                        known = true
+                        break
+                    end
+                end
             end
         end
     end
-    knownRecipeCache[cacheKey] = false
-    return false
+
+    knownRecipeCache[cacheKey] = { isKnown = known, link = link }
+    return known
 end
 
 function ItemButton.InvalidateKnownRecipeCache()
-    wipe(knownRecipeCache)
+    table.wipe(knownRecipeCache)
 end
 
 local function NormalizeMouseButton(mouseButton)
@@ -1495,6 +1528,7 @@ function ItemButton:SetItem(button, itemInfo)
     rKey.slotID = itemInfo.slotID
     rKey.isPinned = isPinned
     rKey.questOverlayKind = questOverlayKind
+    rKey.isKnownRecipe = isKnownRecipe
     rKey.showCategoryStripe = showCategoryStripe
     local bID = (itemInfo and itemInfo.bagID) or button.bagID
     local sID = (itemInfo and itemInfo.slotID) or button.slotID
