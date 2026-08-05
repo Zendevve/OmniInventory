@@ -921,6 +921,7 @@ function Frame:CreateMainFrame()
     anchorRepositionFrame.elapsed = 0
     anchorRepositionFrame.waiting = false
     anchorRepositionFrame.debounce = 0.05
+    anchorRepositionFrame:Show() -- OnUpdate only fires on shown frames
     local function RepositionSecureAnchor()
         if not (mainFrame and mainFrame.secureAnchor and mainFrame.footer) then return end
         if InCombatLockdown and InCombatLockdown() then return end
