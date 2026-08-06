@@ -156,7 +156,6 @@ local offlineFlowButtons = {}  -- Track pool-acquired alt/offline buttons in Ren
 local categoryHeaders = {}  -- Active category header FontStrings
 local listRows = {}  -- Track list row frames
 local currentView = DIM.DEFAULT_VIEW_MODE
-local currentMode = "bags"
 local isSearchActive = false
 local searchText = ""
 local selectedBagID = nil
@@ -2752,7 +2751,7 @@ local function AddThousandsSeparators(value)
         sign = "-"
         str = string.sub(str, 2)
     end
-    local left, count = str, 0
+    local left, count = str
     repeat
         left, count = string.gsub(left, "^(-?%d+)(%d%d%d)", "%1,%2")
     until count == 0
@@ -3851,7 +3850,6 @@ end
 -- =============================================================================
 
 function Frame:SetMode(mode)
-    currentMode = "bags"
     self:UpdateBagIconVisuals()
     self:UpdateLayout()
 end
@@ -3892,8 +3890,7 @@ function Frame:RefreshCombatContent(changedBags)
 
     local affected
     if type(changedBags) == "table" then
-        local hasEntries = false
-        for _ in pairs(changedBags) do hasEntries = true break end
+        local hasEntries = next(changedBags) ~= nil
         if not hasEntries then
             self:UpdateSlotCount()
             self:UpdateMoney()
@@ -4038,11 +4035,7 @@ function Frame:UpdateLayout(changedBags, opts)
     end
     changedBags = NarrowChangedBagsToSelectedScope(changedBags)
     if not forceFull and type(changedBags) == "table" then
-        local hasEntries = false
-        for _ in pairs(changedBags) do
-            hasEntries = true
-            break
-        end
+        local hasEntries = next(changedBags) ~= nil
         if not hasEntries then
             if Omni._perfEnabled and Omni.Perf then
                 Omni.Perf:End("frame.UpdateLayout.total", perfTotal, {
@@ -4424,7 +4417,7 @@ function Frame:RenderFlowView(items, layoutOpts)
     local yRight = -itemGap
     local yOffset = -itemGap
 
-    local itemBySlot = nil
+    local itemBySlot
     local bagSlotCounts = nil
     local bagItemCounts = nil
     local bagPreviewScopeSet = nil
@@ -5899,7 +5892,7 @@ local function MatchQuality(info, queryVal)
     else
         local qName = qualityNames[info.quality]
         if qName then
-            return string.find(qName, queryVal, 1, true) ~= nil
+            return string.find(qName, string.lower(queryVal), 1, true) ~= nil
         end
     end
     return false
@@ -6003,11 +5996,11 @@ local function MatchSingleAtom(itemInfo, info, atom)
         atom = string.gsub(atom, "^%s*(.-)%s*$", "%1")
     end
 
-    local match = false
+    local match
     local prefix, val = string.match(atom, "^([^:]+):(.*)$")
     if prefix then
         prefix = string.lower(prefix)
-        if prefix == "q" or prefix == "quality" then
+        if prefix == "q" or prefix == "~q" or prefix == "quality" then
             match = MatchQuality(info, val)
         elseif prefix == "ilvl" or prefix == "lvl" or prefix == "level" then
             match = MatchItemLevel(info, val)
@@ -6027,7 +6020,7 @@ local function MatchSingleAtom(itemInfo, info, atom)
         if lowerAtom == "bop" or lowerAtom == "soulbound" or lowerAtom == "bound"
             or lowerAtom == "boe" or lowerAtom == "bou" or lowerAtom == "boa" or lowerAtom == "quest" then
             match = MatchKeyword(info, lowerAtom)
-        elseif lowerAtom == "equipment" or lowerAtom == "equip" then
+        elseif lowerAtom == "equipment" or lowerAtom == "equip" or lowerAtom == "~e" or lowerAtom == "~equip" then
             match = (info.equipLoc ~= "" and info.equipLoc ~= "INVTYPE_NON_EQUIP_TEXT")
         else
             match = string.find(string.lower(info.name), lowerAtom, 1, true) ~= nil
@@ -6204,6 +6197,7 @@ function Frame:ApplySearch(text)
     end
 
     local matchedButtons = 0
+    local matchedItems = {}
 
     -- Filter Grid/Flow view buttons
     for _, btn in ipairs(itemButtons) do
@@ -6215,6 +6209,7 @@ function Frame:ApplySearch(text)
         end
         if isMatch then
             matchedButtons = matchedButtons + 1
+            matchedItems[#matchedItems + 1] = itemInfo
         end
     end
 
@@ -6229,6 +6224,7 @@ function Frame:ApplySearch(text)
                 row:SetAlpha(1)
                 if row.icon then row.icon:SetDesaturated(false) end
                 matchedRows = matchedRows + 1
+                matchedItems[#matchedItems + 1] = itemInfo
             else
                 row:SetAlpha(0.3)
                 if row.icon then row.icon:SetDesaturated(true) end
@@ -6243,6 +6239,13 @@ function Frame:ApplySearch(text)
             matchedRows = matchedRows,
         })
     end
+
+    -- Return the filtered item list (nil when nothing matched so
+    -- callers can treat "no matches" like an empty result set).
+    if #matchedItems > 0 then
+        return matchedItems
+    end
+    return nil
 end
 
 -- =============================================================================
@@ -6332,7 +6335,7 @@ end
 function Frame:UpdateMoney()
     if not mainFrame or not mainFrame.footer then return end
 
-    local money = 0
+    local money
     local viewedChar = Omni.Data and Omni.Data.currentViewedChar
     if viewedChar and viewedChar ~= Omni.Data.playerName then
         local realm = OmniInventoryDB.realm[Omni.Data.realmName]
