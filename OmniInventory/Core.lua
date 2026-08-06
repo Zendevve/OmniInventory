@@ -407,10 +407,10 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- in-combat /reload deferred it.
         OverrideBags()
 
-    elseif event == "PLAYER_REGEN_DISABLED" then
-        -- Combat started. Nothing extra to do; the binding handler's
-        -- clean context is what makes Show/Hide safe during lockdown
-        -- (see Binding Entry Points section above).
+    -- PLAYER_REGEN_DISABLED (combat started) needs no handler by design:
+    -- Show/Hide in combat is safe through the binding's clean execution
+    -- context (see Binding Entry Points above), and every layout update
+    -- is deferred and replayed on PLAYER_REGEN_ENABLED.
     end
 
     if event == "UNIT_SPELLCAST_SUCCEEDED" and arg1 == "player" then
@@ -631,6 +631,39 @@ local function HandleSlashCommand(msg)
             print("|cFF00FF00OmniInventory|r forcehide: ok=" .. tostring(ok) .. " err=" .. tostring(err))
         end
 
+    elseif msg == "footerdump" then
+        -- Dump live footer button state: enabled flags come from
+        -- OmniInventoryDB.global.footerButtons, visibility from the
+        -- live frame. Diagnostic only; no frame mutation.
+        local fdFrame = _G.OmniInventoryFrame
+        local footer = fdFrame and fdFrame.footer
+        if not footer then
+            print("|cFFFF4040OmniInventory|r: Footer not created yet.")
+        else
+            local dbFooter = (OmniInventoryDB and OmniInventoryDB.global
+                and OmniInventoryDB.global.footerButtons) or {}
+            local order = footer.customButtonOrder or {}
+            for _, def in ipairs(order) do
+                local btn = footer.customButtons and footer.customButtons[def.key]
+                if btn then
+                    print(string.format(
+                        "  |cFFFFFF00%s|r title=%s enabled=%s shown=%s",
+                        def.key,
+                        tostring(def.title),
+                        tostring(dbFooter[def.key] ~= false),
+                        tostring(btn:IsShown())))
+                end
+            end
+            if footer.bagFullAlert then
+                print(string.format("  bagFullAlert shown=%s",
+                    tostring(footer.bagFullAlert:IsShown())))
+            end
+            if footer.overflowBtn then
+                print(string.format("  overflowBtn shown=%s",
+                    tostring(footer.overflowBtn:IsShown())))
+            end
+        end
+
     elseif msg == "reapply" then
         if Omni._OverrideBags then
             Omni._OverrideBags()
@@ -795,6 +828,7 @@ local function HandleSlashCommand(msg)
         print("  |cFFFFFF00/oi debug|r - Toggle stats / combat / overrides")
         print("  |cFFFFFF00/oi forceshow|r - Bypass and try raw mainFrame:Show")
         print("  |cFFFFFF00/oi forcehide|r - Bypass and try raw mainFrame:Hide")
+        print("  |cFFFFFF00/oi footerdump|r - Dump live footer button state")
         print("  |cFFFFFF00/oi pool|r - Pool stats")
         print("  |cFFFFFF00/oi perf on|r - Enable perf profiling")
         print("  |cFFFFFF00/oi perf off|r - Disable perf profiling")
