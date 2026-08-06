@@ -280,6 +280,10 @@ function Settings:CreateOptionsFrame()
         local target = Settings.activeConfigTarget or "bag"
         local nextTarget = target == "bag" and "bank" or "bag"
         Settings.activeConfigTarget = nextTarget
+        OmniInventoryDB = OmniInventoryDB or {}
+        OmniInventoryDB.char = OmniInventoryDB.char or {}
+        OmniInventoryDB.char.settings = OmniInventoryDB.char.settings or {}
+        OmniInventoryDB.char.settings.configTarget = nextTarget
         self:RefreshTargetLabel()
         Settings:UpdateValues()
     end)
@@ -1080,7 +1084,6 @@ function Settings:BuildLootDestroy(panel)
     y = y - ROW_H
 
     -- Value Threshold slider (0g - 50g in copper, step 1g)
-    local threshold = OmniInventoryDB.global.destroyValueThreshold or 10000
     self.destroyThresholdSlider = OpsTheme.CreateSlider(panel,
         "Value Threshold", 0, 500000, 10000, FormatGoldCopper,
         function(value)
@@ -1902,7 +1905,7 @@ function Settings:BuildRules(panel)
                     end
 
                     -- Validate syntax using Omni.Rules:Compile
-                    local compiledFunc, compileErr = Omni.Rules:Compile(rFormula)
+                    local _, compileErr = Omni.Rules:Compile(rFormula)
                     if compileErr then
                         errLbl:SetText("Formula Error: " .. tostring(compileErr))
                         return
@@ -2020,7 +2023,6 @@ function Settings:BuildRules(panel)
                         formTxt:SetTextColor(0.5, 0.5, 0.5)
 
                         -- Action Control Buttons: [^] [v] [E] [X]
-                        local rx = CONTENT_W - 24 - 5
 
                         -- [X] Delete Rule
                         local delBtn = OpsTheme.CreateButton(rowCard, "[X]", 24, function()
@@ -2302,5 +2304,7 @@ function Settings:BuildRules(panel)
 end
 
 function Settings:Init()
-    Settings.activeConfigTarget = "bag"
+    local saved = OmniInventoryDB and OmniInventoryDB.char
+        and OmniInventoryDB.char.settings and OmniInventoryDB.char.settings.configTarget
+    Settings.activeConfigTarget = (saved == "bank" or saved == "bag") and saved or "bag"
 end
