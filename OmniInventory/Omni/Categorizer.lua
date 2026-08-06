@@ -653,7 +653,7 @@ function Categorizer:GetCategoryInternal(itemInfo)
 
 
     -- Priority 88: Check quality/include lists for junk
-    local isJunk = false
+    local isJunk
     if Omni.Features and Omni.Features.IsJunkItem then
         isJunk = Omni.Features:IsJunkItem(itemInfo)
     else
@@ -793,6 +793,29 @@ function Categorizer:CategorizeItems(items)
 
         itemInfo.category = category
         table.insert(categorized[category], itemInfo)
+    end
+
+    -- Pinned items float to the top of their category lane (stable order).
+    -- The pinned set lives in the DB (Data:PinItem/IsPinned); reads are
+    -- nil-safe so a fresh or reset DB just yields no pinned items.
+    local pinned = OmniInventoryDB and OmniInventoryDB.global and OmniInventoryDB.global.pinnedItems
+    if pinned then
+        for catName, list in pairs(categorized) do
+            if #list > 1 then
+                local pinnedPrefix = {}
+                for i = #list, 1, -1 do
+                    local itemInfo = list[i]
+                    if itemInfo and itemInfo.itemID and pinned[itemInfo.itemID] then
+                        table.insert(pinnedPrefix, 1, table.remove(list, i))
+                    end
+                end
+                if #pinnedPrefix > 0 then
+                    for i = #pinnedPrefix, 1, -1 do
+                        table.insert(list, 1, pinnedPrefix[i])
+                    end
+                end
+            end
+        end
     end
 
     if Omni._perfEnabled and Omni.Perf then
