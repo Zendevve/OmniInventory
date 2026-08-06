@@ -155,41 +155,26 @@ local function ShouldItemGoInBag(item, bagID, specializedBags)
     local family = specializedBags[bagID]
     if not family then return true end -- normal bag accepts everything
 
-    -- Check if item matches the bag family
-    -- Family bitmasks: 1=Ammo, 2=Quiver, 4=Soul, 8=Leather, 16=Inscription,
-    -- 32=Herb, 64=Mining, 128=Engineering, 512=Gem
+    -- Check if item matches the bag family. GetContainerNumFreeSlots'
+    -- second return is the bag's ItemBagFamily bitmask; GetItemFamily
+    -- returns the item's compatible-family bitmask, and the item belongs
+    -- in the bag when the two overlap (Bagnon/AdiBags/ArkInventory all
+    -- match this way).
+    -- Family bits: 1=Ammo (arrows), 2=Ammo (bullets), 4=Soul Shards,
+    -- 8=Leatherworking, 16=Inscription, 32=Herbs, 64=Enchanting,
+    -- 128=Engineering, 512=Gems, 1024=Mining.
     if not item.itemID then return false end
-    local _, _, _, _, _, _, _, _, _, _, _, classID, subClassID = GetItemInfo(item.link or item.itemID)
-    if not classID then return false end
 
-    -- Simplified family matching
-    if family == 1 or family == 2 then
-        -- Ammo/Quiver: projectiles
-        return classID == 6 -- Projectile
-    elseif family == 4 then
-        -- Soul bag: soul shards
-        return item.itemID == 6265 -- Soul Shard
-    elseif family == 8 then
-        -- Leatherworking
-        return classID == 7 and (subClassID == 1 or subClassID == 2) -- Leather/Skin
-    elseif family == 16 then
-        -- Inscription
-        return classID == 7 and subClassID == 5 -- Enchanting
-    elseif family == 32 then
-        -- Herb
-        return classID == 7 and subClassID == 3 -- Herb
-    elseif family == 64 then
-        -- Mining
-        return classID == 7 and (subClassID == 2 or subClassID == 4) -- Metal&Stone/Parts
-    elseif family == 128 then
-        -- Engineering
-        return classID == 7 and subClassID == 4 -- Parts/Devices
-    elseif family == 512 then
-        -- Gem
-        return classID == 3 -- Gem
+    -- Bags are never routed into specialty bags: their own family bitmask
+    -- describes what they *accept*, not where they go.
+    if item.itemType == "Container" or item.equipSlot == "INVTYPE_BAG" then
+        return false
     end
 
-    return true
+    local itemFamily = GetItemFamily(item.link or item.itemID) or 0
+    if itemFamily == 0 then return false end
+
+    return bit.band(itemFamily, family) > 0
 end
 
 -- =============================================================================
@@ -648,12 +633,11 @@ function PhysicalSort:RunSortPass()
     for _, m in ipairs(sortQueue) do
         local key = string.format("%d:%d->%d:%d", m.fromBag, m.fromSlot, m.toBag, m.toSlot)
         local reverseKey = string.format("%d:%d->%d:%d", m.toBag, m.toSlot, m.fromBag, m.fromSlot)
-        
-        if previousPassSwaps[key] or previousPassSwaps[reverseKey] then
-            -- Skip inter-pass oscillation
-        elseif currentPassSwaps[key] then
-            -- Skip duplicate move in same pass
-        else
+
+        -- Skip moves already queued this pass and swaps seen in an earlier
+        -- pass (prevents same-pair oscillation between passes).
+        local alreadySeen = previousPassSwaps[key] or previousPassSwaps[reverseKey] or currentPassSwaps[key]
+        if not alreadySeen then
             previousPassSwaps[key] = true
             currentPassSwaps[key] = true
             table.insert(validQueue, m)
