@@ -309,18 +309,24 @@ end
 -- =============================================================================
 
 function Data:Get(key)
+    if not OmniInventoryDB or not OmniInventoryDB.global then return nil end
     return OmniInventoryDB.global[key]
 end
 
 function Data:Set(key, value)
+    OmniInventoryDB = OmniInventoryDB or {}
+    OmniInventoryDB.global = OmniInventoryDB.global or {}
     OmniInventoryDB.global[key] = value
 end
 
 function Data:GetChar(key)
+    if not OmniInventoryDB or not OmniInventoryDB.char then return nil end
     return OmniInventoryDB.char[key]
 end
 
 function Data:SetChar(key, value)
+    OmniInventoryDB = OmniInventoryDB or {}
+    OmniInventoryDB.char = OmniInventoryDB.char or {}
     OmniInventoryDB.char[key] = value
 end
 
@@ -450,6 +456,7 @@ local function FetchLink(bagID, slot)
 end
 
 function Data:SaveCharacterInventory()
+    if not OmniInventoryDB or not OmniInventoryDB.realm then return end
     local realm = OmniInventoryDB.realm[self.realmName]
     local char = realm and realm[self.playerName]
     if not char then return end
@@ -498,6 +505,7 @@ function Data:SaveCharacterInventory()
 end
 
 function Data:SaveBankItems()
+    if not OmniInventoryDB or not OmniInventoryDB.realm then return end
     local realm = OmniInventoryDB.realm[self.realmName]
     local char = realm and realm[self.playerName]
     if not char then return end
@@ -571,6 +579,7 @@ end
 -- any other character's inventory. Also stores bank slot count.
 
 function Data:SaveEquipment()
+    if not OmniInventoryDB or not OmniInventoryDB.realm then return end
     local realm = OmniInventoryDB.realm[self.realmName]
     local char = realm and realm[self.playerName]
     if not char then return end
@@ -593,6 +602,7 @@ function Data:SaveEquipment()
 end
 
 function Data:SaveBankSlotCount()
+    if not OmniInventoryDB or not OmniInventoryDB.realm then return end
     local realm = OmniInventoryDB.realm[self.realmName]
     local char = realm and realm[self.playerName]
     if not char then return end
@@ -629,20 +639,25 @@ end
 
 function Data:PinItem(itemID)
     if not itemID then return end
+    OmniInventoryDB = OmniInventoryDB or {}
+    OmniInventoryDB.global = OmniInventoryDB.global or {}
     OmniInventoryDB.global.pinnedItems = OmniInventoryDB.global.pinnedItems or {}
     OmniInventoryDB.global.pinnedItems[itemID] = true
 end
 
 function Data:UnpinItem(itemID)
     if not itemID then return end
-    if OmniInventoryDB.global.pinnedItems then
+    if OmniInventoryDB and OmniInventoryDB.global and OmniInventoryDB.global.pinnedItems then
         OmniInventoryDB.global.pinnedItems[itemID] = nil
     end
 end
 
 function Data:IsPinned(itemID)
     if not itemID then return false end
-    return OmniInventoryDB.global.pinnedItems and OmniInventoryDB.global.pinnedItems[itemID] == true
+    if not OmniInventoryDB or not OmniInventoryDB.global or not OmniInventoryDB.global.pinnedItems then
+        return false
+    end
+    return OmniInventoryDB.global.pinnedItems[itemID] == true
 end
 
 function Data:TogglePin(itemID)
@@ -671,6 +686,7 @@ function Data:SaveGuildBank(guildName, tabIndex)
     local numTabs = GetNumGuildBankTabs() or 0
     if numTabs <= 0 then return end
 
+    if not OmniInventoryDB or not OmniInventoryDB.realm then return end
     local realm = OmniInventoryDB.realm[self.realmName]
     if not realm then return end
     realm.guilds = realm.guilds or {}
@@ -725,6 +741,7 @@ function Data:SaveGuildBankHeaders(guildName)
     local numTabs = GetNumGuildBankTabs() or 0
     if numTabs <= 0 then return end
 
+    if not OmniInventoryDB or not OmniInventoryDB.realm then return end
     local realm = OmniInventoryDB.realm[self.realmName]
     if not realm then return end
     realm.guilds = realm.guilds or {}
