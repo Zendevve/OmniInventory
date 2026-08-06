@@ -663,8 +663,14 @@ function ItemButton.Decorate(button)
     local name = button:GetName() or ""
 
     button:SetSize(BUTTON_SIZE, BUTTON_SIZE)
-    button:RegisterForDrag("LeftButton")
-    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    -- RegisterForDrag / RegisterForClicks are protected on
+    -- ContainerFrameItemButtonTemplate; skip during combat lockdown
+    -- (same guard SetItem uses) so Decorate can run from the combat
+    -- refresh path without tainting the secure click chain.
+    if not (InCombatLockdown and InCombatLockdown()) then
+        button:RegisterForDrag("LeftButton")
+        button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    end
 
     pcall(button.SetNormalTexture, button, nil)
     pcall(button.SetPushedTexture, button, nil)
@@ -1875,7 +1881,6 @@ function ItemButton:OnEnter(button)
     end
 
     button.__omniUsesCustomTooltip = true
-    local info = button.itemInfo
     local bagID, slotID = info.bagID, info.slotID
 
     ItemButton.SetOmniItemTooltipOwner(button)
