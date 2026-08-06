@@ -1,7 +1,7 @@
 -- =============================================================================
 -- OmniInventory MerchantOverlay Component
 -- =============================================================================
--- Purpose: Merchant sell protection guard rails for Rare/Epic, Equipment Sets, and Locked items
+-- Purpose: Merchant sell protection guard rails for Rare/Epic, Quest Items, Equipment Sets, and Locked items
 -- WoTLK 3.3.5a Compatible - Uses only native APIs
 -- =============================================================================
 
@@ -58,7 +58,8 @@ function MerchantOverlay:IsProtected(bag, slot, itemLink, quality)
     if not itemLink then return false end
 
     if not quality then
-        _, _, quality = GetItemInfo(itemLink)
+        local _, _, itemQuality = GetItemInfo(itemLink)
+        quality = itemQuality
     end
 
     -- 1. Quality check (Quality >= 3: Rare/Epic/Legendary)
@@ -72,7 +73,15 @@ function MerchantOverlay:IsProtected(bag, slot, itemLink, quality)
         return true
     end
 
-    -- 3. Equipment set item check
+    -- 3. Quest item check (GetContainerItemQuestInfo added in 3.3.3)
+    if bag and slot and GetContainerItemQuestInfo then
+        local isQuestItem = GetContainerItemQuestInfo(bag, slot)
+        if isQuestItem then
+            return true
+        end
+    end
+
+    -- 4. Equipment set item check
     if self:IsItemInEquipmentSet(itemLink) then
         return true
     end

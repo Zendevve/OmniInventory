@@ -21,23 +21,22 @@ local OpsTheme = Omni.OpsTheme
 
 -- Convert a hex string "#rrggbb" or "#rrggbbaa" to { r, g, b, a } in 0..1
 local function Hex(h)
-    if not h or h:sub(1, 1) ~= "#" then return { 0, 0, 0, 1 } end
+    if type(h) ~= "string" or h:sub(1, 1) ~= "#" then return { 0, 0, 0, 1 } end
     h = h:sub(2)
     if #h == 6 then
-        return {
-            tonumber(h:sub(1, 2), 16) / 255,
-            tonumber(h:sub(3, 4), 16) / 255,
-            tonumber(h:sub(5, 6), 16) / 255,
-            1,
-        }
+        local r, g, b = tonumber(h:sub(1, 2), 16), tonumber(h:sub(3, 4), 16), tonumber(h:sub(5, 6), 16)
+        if r and g and b then
+            return { r / 255, g / 255, b / 255, 1 }
+        end
+        return { 0, 0, 0, 1 }
     end
     if #h == 8 then
-        return {
-            tonumber(h:sub(1, 2), 16) / 255,
-            tonumber(h:sub(3, 4), 16) / 255,
-            tonumber(h:sub(5, 6), 16) / 255,
-            tonumber(h:sub(7, 8), 16) / 255,
-        }
+        local r, g, b, a = tonumber(h:sub(1, 2), 16), tonumber(h:sub(3, 4), 16),
+            tonumber(h:sub(5, 6), 16), tonumber(h:sub(7, 8), 16)
+        if r and g and b and a then
+            return { r / 255, g / 255, b / 255, a / 255 }
+        end
+        return { 0, 0, 0, 1 }
     end
     return { 0, 0, 0, 1 }
 end
