@@ -306,13 +306,56 @@ function ASTCompiler.EvaluateNode(node, slotData, sig)
                 if targetClass == argVal then return true end
             end
             return false
+        elseif name == "name" then
+            -- Name("shadow") matches item name substring (ArkInventory-style)
+            local targetName = slotData.name or (sig and sig.name) or ""
+            for _, arg in ipairs(node.args) do
+                local argVal = arg.value
+                if argVal ~= nil and string.find(string.lower(targetName), string.lower(tostring(argVal)), 1, true) then
+                    return true
+                end
+            end
+            return false
+        elseif name == "binds" then
+            -- Binds("BoP") / Binds("BoE") / Binds("BoA")
+            local bindType = slotData.bindType or (sig and sig.bindType) or ""
+            local isBound = slotData.isBound or (sig and sig.isBound) or false
+            for _, arg in ipairs(node.args) do
+                local want = string.lower(tostring(arg.value or ""))
+                if want == "bop" or want == "soulbound" then
+                    if isBound or bindType == "BoP" then return true end
+                elseif want == "boe" then
+                    if bindType == "BoE" and not isBound then return true end
+                elseif want == "boa" or want == "account" then
+                    if bindType == "BoA" or (slotData.quality or (sig and sig.quality)) == 7 then return true end
+                end
+            end
+            return false
         elseif name == "quality" then
             local targetQual = slotData.quality or (sig and sig.quality) or 0
             if #node.args > 0 then
-                local firstArg = node.args[1]
-                if firstArg.kind == "COMPARE" or firstArg.kind == "LITERAL" then
-                    local val = tonumber(firstArg.value) or 0
-                    return targetQual >= val
+                local argVal = node.args[1].value
+                if argVal ~= nil then
+                    -- Quality(3) exact, Quality(">=3") comparison, Quality("epic") name
+                    local num = tonumber(argVal)
+                    if num then
+                        return targetQual == num
+                    end
+                    local op, numStr = string.match(tostring(argVal), "^([><=!]+)%s*(%d+)$")
+                    if op and numStr then
+                        num = tonumber(numStr)
+                        if op == ">=" then return targetQual >= num
+                        elseif op == "<=" then return targetQual <= num
+                        elseif op == ">" then return targetQual > num
+                        elseif op == "<" then return targetQual < num
+                        elseif op == "!=" or op == "<>" then return targetQual ~= num
+                        else return targetQual == num end
+                    end
+                    local qNames = { [0] = "poor", [1] = "common", [2] = "uncommon", [3] = "rare", [4] = "epic", [5] = "legendary", [6] = "artifact", [7] = "heirloom" }
+                    local qName = qNames[targetQual]
+                    if qName then
+                        return string.find(qName, string.lower(tostring(argVal)), 1, true) ~= nil
+                    end
                 end
             end
             return targetQual >= 1
@@ -341,12 +384,18 @@ function ASTCompiler.EvaluateNode(node, slotData, sig)
             end
             return false
         elseif name == "value" or name == "vendorprice" then
-            -- Match by vendor price
+            -- Match by vendor price: Value(100) / Value("<5000") / Value(">=100")
             local price = slotData.vendorPrice or 0
             if #node.args > 0 then
-                local firstArg = node.args[1]
-                local threshold = tonumber(firstArg.value) or 0
-                return price >= threshold
+                local argStr = tostring(node.args[1].value or "")
+                local op, num = string.match(argStr, "^([><=!]+)%s*(%d+)$")
+                local threshold = tonumber(num or argStr) or 0
+                if op == ">=" then return price >= threshold
+                elseif op == "<=" then return price <= threshold
+                elseif op == ">" then return price > threshold
+                elseif op == "<" then return price < threshold
+                elseif op == "!=" or op == "<>" then return price ~= threshold
+                else return price >= threshold end
             end
             return price > 0
         elseif name == "itemlevel" or name == "ilvl" then

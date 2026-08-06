@@ -40,7 +40,16 @@ local function GetDestroyRules()
             end
         end
     end
-    return rules
+    -- Rules are stored keyed by string id, so return a priority-sorted
+    -- array for deterministic evaluation order.
+    local list = {}
+    for _, rule in pairs(rules) do
+        table.insert(list, rule)
+    end
+    table.sort(list, function(a, b)
+        return (a.priority or 50) < (b.priority or 50)
+    end)
+    return list
 end
 
 --- Get category loot preferences from DB
@@ -91,7 +100,7 @@ local function IsProtected(slotData)
     if slotData.class == "Quest" then return true end
     
     -- BoP equipment always protected
-    if (slotData.bindType == "BoP" or slotData.isBound) 
+    if (slotData.bindType == "BoP" or slotData.isBound)
        and (slotData.class == "Armor" or slotData.class == "Weapon") then
         return true
     end

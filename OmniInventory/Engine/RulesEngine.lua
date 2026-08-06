@@ -25,8 +25,28 @@ Omni.MASK_RECIPE      = 0x00000100 -- Bit 8: Profession recipes
 Omni.MASK_KEYRING     = 0x00000200 -- Bit 9: Keys / Lockpicks
 
 -- Local bit operation aliases (WoW 3.3.5a native bit library with standalone fallback)
-local band = (bit and bit.band) or function(a, b) return 0 end
-local bor  = (bit and bit.bor)  or function(a, b) return 0 end
+local function luaBand(a, b)
+    local result, bitPos = 0, 1
+    while a > 0 and b > 0 do
+        if a % 2 == 1 and b % 2 == 1 then result = result + bitPos end
+        a = math.floor(a / 2)
+        b = math.floor(b / 2)
+        bitPos = bitPos * 2
+    end
+    return result
+end
+local function luaBor(a, b)
+    local result, bitPos = 0, 1
+    while a > 0 or b > 0 do
+        if a % 2 == 1 or b % 2 == 1 then result = result + bitPos end
+        a = math.floor(a / 2)
+        b = math.floor(b / 2)
+        bitPos = bitPos * 2
+    end
+    return result
+end
+local band = (bit and bit.band) or luaBand
+local bor  = (bit and bit.bor)  or luaBor
 
 RulesEngine.band = band
 RulesEngine.bor  = bor

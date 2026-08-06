@@ -145,7 +145,7 @@ function BinPacker:PackSections(sections, targetColumns, maxColumns, slotSize, s
 
     -- Step 3: Compute final bounding box dimensions
     local maxContainerHeight = 0
-    totalContainerWidth = 0
+    local totalContainerWidth = 0
 
     for i, col in ipairs(columns) do
         if col.currentY > maxContainerHeight then

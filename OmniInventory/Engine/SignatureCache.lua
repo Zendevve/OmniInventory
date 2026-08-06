@@ -67,6 +67,8 @@ function SignatureCache:GetSignature(itemLink, slotData)
     if name then
         slotData.name = name
         slotData.quality = quality
+        slotData.itemLevel = iLevel
+        slotData.requiredLevel = reqLevel
         slotData.class = class
         slotData.subClass = subClass
         slotData.maxStack = maxStack
