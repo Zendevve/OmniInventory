@@ -367,7 +367,7 @@ Features.FAMILY_TAGS = {
 function Features:GetFamilyTag(family)
     if not family or family == 0 then return nil end
     for bit_mask, info in pairs(Features.FAMILY_TAGS) do
-        local matches = false
+        local matches
         if bit and bit.band then
             matches = bit.band(family, bit_mask) > 0
         else

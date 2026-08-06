@@ -57,8 +57,9 @@ function AutoRepair:ExecuteRepair()
 
     -- Guild Fund Repair Priority
     if self:UseGuildFunds() and CanGuildBankRepair and CanGuildBankRepair() then
-        local guildBankMoney = GetGuildBankWithdrawMoney and GetGuildBankWithdrawMoney() or -1
-        if guildBankMoney == -1 or guildBankMoney >= cost then
+        local guildFunds = GetGuildBankMoney and GetGuildBankMoney() or 0
+        local withdrawLimit = GetGuildBankWithdrawMoney and GetGuildBankWithdrawMoney() or -1
+        if guildFunds >= cost and (withdrawLimit == -1 or withdrawLimit >= cost) then
             RepairAllItems(1)
             DEFAULT_CHAT_FRAME:AddMessage(string.format("[OK] Repaired all items using Guild Funds (cost: %s)", formattedCost))
             return

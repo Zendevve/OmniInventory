@@ -42,7 +42,9 @@ function AutoDestroy:ScanBags()
             local slotData = Omni.DestroyRules:BuildSlotData(bagID, slotID)
             if slotData and not slotData.locked then
                 local action, reason = Omni.DestroyRules:Evaluate(slotData)
-                
+
+                -- "sell" verdicts are grey junk; AutoVendor sells them on
+                -- MERCHANT_SHOW (BuildSellQueue + Features:IsJunkItem).
                 if action == "destroy" then
                     if Omni.DestroyRules:IsDryRun() then
                         DEFAULT_CHAT_FRAME:AddMessage(
@@ -60,11 +62,6 @@ function AutoDestroy:ScanBags()
                             action = action,
                             timestamp = GetTime(),
                         })
-                    end
-                elseif action == "sell" then
-                    -- Route grey junk to AutoVendor
-                    if Omni.AutoVendor and Omni.AutoVendor.BuildSellQueue then
-                        -- AutoVendor handles this on MERCHANT_SHOW
                     end
                 end
             end
@@ -147,10 +144,10 @@ function AutoDestroy:ProcessNext()
         end
     end
     
-    -- Process next with delay (adaptive throttle like AutoVendor)
-    if #self.queue > 0 then
-        self.isProcessing = true
-    end
+    -- One item per keybind press: clear the processing flag so the next
+    -- press continues the queue. It stays true only while a press is
+    -- deferred by combat (PLAYER_REGEN_ENABLED resumes it).
+    self.isProcessing = false
 end
 
 --- Process entire destroy queue (called by keybind)
@@ -205,19 +202,20 @@ end
 
 --- Dry-run scan (logs what would be destroyed without doing anything)
 function AutoDestroy:DryRun()
-    local wasDryRun = Omni.DestroyRules and Omni.DestroyRules:IsDryRun()
-    
+    if not Omni.DestroyRules or not Omni.DestroyRules.IsDryRun then
+        return
+    end
+    if not Omni.Data then return end
+
+    local wasDryRun = Omni.DestroyRules:IsDryRun()
+
     -- Temporarily enable dry-run
-    if Omni.Data then
-        Omni.Data:Set("destroyDryRun", true)
-    end
-    
+    Omni.Data:Set("destroyDryRun", true)
+
     self:ScanBags()
-    
+
     -- Restore previous dry-run state
-    if Omni.Data and wasDryRun ~= nil then
-        Omni.Data:Set("destroyDryRun", wasDryRun)
-    end
+    Omni.Data:Set("destroyDryRun", wasDryRun)
 end
 
 -- =============================================================================
