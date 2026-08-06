@@ -43,7 +43,6 @@ end
 
 Omni.BankFrame = {}
 local BankFrame = Omni.BankFrame
-local VirtualScrollView = Omni.VirtualScrollView
 
 -- =============================================================================
 -- Constants
@@ -154,7 +153,7 @@ local function GetFreeSpaceCategoryName(bagID)
     if invID then
         local link = GetInventoryItemLink("player", invID)
         if link then
-            local _, _, _, _, _, _, _, _, _, _, _, itemClassID, itemSubClassID = GetItemInfo(link)
+            local _, _, _, _, _, _, _, _, _, _, _, _, itemSubClassID = GetItemInfo(link)
             if itemSubClassID and itemSubClassID > 0 then
                 local bagName = GetItemInfo(link)
                 if bagName then
@@ -1426,7 +1425,7 @@ local function RunBankForceEmptyStep()
 
         elseif bankForceEmptyJob.phase == 2 then
             -- Phase 2: Equip new bag
-            local texture, _, isLocked = GetContainerItemInfo(bankForceEmptyJob.sourceBagID, bankForceEmptyJob.sourceSlotID)
+            local _, _, isLocked = GetContainerItemInfo(bankForceEmptyJob.sourceBagID, bankForceEmptyJob.sourceSlotID)
             if isLocked then
                 return
             end
@@ -2048,7 +2047,7 @@ function BankFrame:RenderFlowView(items)
             laneY = laneY - sectionHeaderHeight
 
             local layoutIndex = 0
-            for i, itemInfo in ipairs(catItems) do
+            for _, itemInfo in ipairs(catItems) do
                 local btn
                 if Omni.Pool then
                     btn = Omni.Pool:Acquire("ItemButton")
@@ -2329,7 +2328,6 @@ function BankFrame:ApplySearch(text)
         return
     end
 
-    local lowerSearch = string.lower(searchText)
     local matchedButtons = 0
     for _, btn in ipairs(itemButtons) do
         local info = btn.itemInfo
@@ -2652,7 +2650,7 @@ function BankFrame:RenderListView(items)
             row.bg:SetVertexColor(0.1, 0.1, 0.1, 1)
         end
 
-        local success, err = pcall(function()
+        local success = pcall(function()
             row.icon:SetTexture(itemInfo.iconFileID or "Interface\\Icons\\INV_Misc_QuestionMark")
             local itemName, _, quality, _, _, itemType, itemSubType = nil, nil, itemInfo.quality, nil, nil, nil, nil
             if itemInfo.hyperlink then

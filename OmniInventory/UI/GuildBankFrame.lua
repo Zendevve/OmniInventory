@@ -13,7 +13,6 @@ local addonName, Omni = ...
 
 Omni.GuildBankFrame = {}
 local GuildBankFrame = Omni.GuildBankFrame
-local VirtualScrollView = Omni.VirtualScrollView
 
 -- =============================================================================
 -- Constants
@@ -578,7 +577,7 @@ end
 
 
 local function CategorizeItemForDeposit(bagID, slotID)
-    local bindType, isAttunable, itemID, itemLink = GetBagBindType(bagID, slotID)
+    local bindType, _, _, itemLink = GetBagBindType(bagID, slotID)
     if not itemLink then return nil end
 
     local isBoE = bindType == "BoE"
@@ -906,7 +905,7 @@ local function GuildBankSlotOnClick(self, mouseButton)
     end
 
     if IsModifiedClick and IsModifiedClick("SPLITSTACK") then
-        local _tex, count, locked = GetGuildBankItemInfo(bankTab, bankSlot)
+        local _, count, locked = GetGuildBankItemInfo(bankTab, bankSlot)
         if count and count > 1 and not locked then
             self.SplitStack = function(btn, splitCount)
                 if not SplitGuildBankItem then
